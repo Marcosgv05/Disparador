@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: whatsapp-disparador
+    env: node
+    buildCommand: npm install
+    startCommand: npm run web
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MESSAGE_DELAY
+        value: 3000
+      - key: NUMBER_DELAY
+        value: 5000
+      - key: ROTATION_MODE
+        value: sequential

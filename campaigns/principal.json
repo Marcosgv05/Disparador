@@ -1,0 +1,26 @@
+{
+  "name": "principal",
+  "numbers": [
+    "558599667548"
+  ],
+  "messages": [
+    "c acha que tem como ela se lembrar de mandar essa mensagem, tipo, semanas ou dias depois?"
+  ],
+  "status": "completed",
+  "createdAt": "2025-10-22T14:34:59.616Z",
+  "startedAt": "2025-10-22T14:44:48.760Z",
+  "completedAt": "2025-10-22T14:44:52.146Z",
+  "stats": {
+    "total": 1,
+    "sent": 1,
+    "failed": 0,
+    "pending": 0
+  },
+  "currentIndex": 1,
+  "results": [
+    {
+      "success": true,
+      "phone": "558599667548"
+    }
+  ]
+}

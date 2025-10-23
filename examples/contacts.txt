@@ -1,0 +1,9 @@
+# Exemplo de arquivo de contatos
+# Um número por linha
+# Formato: código do país + DDD + número
+
+5511999999999
+5511888888888
+5511777777777
+5521999999999
+5521888888888

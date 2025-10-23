@@ -1,0 +1,8 @@
+# Exemplo de arquivo de mensagens
+# Uma mensagem por linha
+# Use {variavel} para substituições dinâmicas
+
+Olá {nome}! Temos uma oferta especial para você hoje!
+Oi {nome}! Não perca nossas promoções exclusivas!
+E aí {nome}! Chegaram novidades imperdíveis!
+Olá! Você está recebendo esta mensagem {numero} de {total}.

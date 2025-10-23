@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Disparador - Sistema de Campanhas</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
+                </svg>
+                <h1>WhatsApp Disparador</h1>
+            </div>
+            <div class="header-status">
+                <div class="status-item" id="sessionStatus">
+                    <span class="status-dot status-offline"></span>
+                    <span>Desconectado</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <a href="#" class="nav-item active" data-section="dashboard">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                        </svg>
+                        Dashboard
+                    </a>
+                    <a href="#" class="nav-item" data-section="whatsapp">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        Conectar WhatsApp
+                    </a>
+                    <a href="#" class="nav-item" data-section="campaign">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                        </svg>
+                        Campanhas
+                    </a>
+                    <a href="#" class="nav-item" data-section="dispatch">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                        Disparo
+                    </a>
+                    <a href="#" class="nav-item" data-section="schedule">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+                        </svg>
+                        Agendamento
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="section active">
+                    <h2>Dashboard</h2>
+                    <div class="cards">
+                        <div class="card">
+                            <div class="card-icon" style="background: #25D366;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="dashCampaigns">0</h3>
+                                <p>Campanhas</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon" style="background: #128C7E;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="dashSent">0</h3>
+                                <p>Enviadas</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon" style="background: #075E54;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                                </svg>
+                            </div>
+                            <div class="card-content">
+                                <h3 id="dashNumbers">0</h3>
+                                <p>Números</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="campaigns-list">
+                        <h3>Campanhas Recentes</h3>
+                        <div id="recentCampaigns" class="campaign-items">
+                            <p class="empty-state">Nenhuma campanha criada ainda</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- WhatsApp Connection Section -->
+                <section id="whatsapp" class="section">
+                    <h2>Instâncias WhatsApp</h2>
+                    
+                    <div class="instances-container">
+                        <div class="instances-header">
+                            <h3>Slots de Instâncias</h3>
+                            <p>Conecte múltiplos chips/números para disparos simultâneos</p>
+                        </div>
+
+                        <div class="instances-grid" id="instancesGrid">
+                            <!-- Slots serão gerados dinamicamente -->
+                        </div>
+
+                        <button class="btn btn-success" onclick="addInstanceSlot()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                            </svg>
+                            Adicionar Nova Instância
+                        </button>
+                    </div>
+
+                    <div id="sessionsList" class="sessions-list">
+                        <h3>Todas as Sessões Ativas</h3>
+                        <div id="sessionsItems"></div>
+                    </div>
+                </section>
+
+                <!-- Campaign Section -->
+                <section id="campaign" class="section">
+                    <h2>Gerenciar Campanhas</h2>
+                    
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="create">Nova Campanha</button>
+                        <button class="tab-btn" data-tab="manage">Gerenciar</button>
+                    </div>
+
+                    <!-- Create Campaign Tab -->
+                    <div id="create" class="tab-content active">
+                        <div class="form-group">
+                            <label>Nome da Campanha</label>
+                            <input type="text" id="campaignName" placeholder="Ex: promocao-natal" class="input">
+                        </div>
+
+                        <button class="btn btn-primary" onclick="createCampaign()">Criar Campanha</button>
+                    </div>
+
+                    <!-- Manage Campaign Tab -->
+                    <div id="manage" class="tab-content">
+                        <div class="form-group">
+                            <label>Selecione uma Campanha</label>
+                            <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()">
+                                <option value="">-- Selecione --</option>
+                            </select>
+                        </div>
+
+                        <div id="campaignDetails" style="display: none;">
+                            <div class="campaign-actions">
+                                <h3>Adicionar Números</h3>
+                                
+                                <div class="upload-area">
+                                    <label class="upload-label">
+                                        <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
+                                        <div class="upload-icon">📁</div>
+                                        <p>Clique ou arraste uma planilha de números</p>
+                                        <small>Formatos: CSV, XLSX</small>
+                                    </label>
+                                </div>
+
+                                <button class="btn btn-secondary" onclick="downloadTemplate('numbers')">
+                                    Baixar Template de Números
+                                </button>
+
+                                <hr>
+
+                                <h3>Adicionar Mensagens</h3>
+                                
+                                <div class="upload-area">
+                                    <label class="upload-label">
+                                        <input type="file" id="messagesFile" accept=".csv,.xlsx,.xls" onchange="uploadMessages()" style="display: none;">
+                                        <div class="upload-icon">📝</div>
+                                        <p>Clique ou arraste uma planilha de mensagens</p>
+                                        <small>Formatos: CSV, XLSX</small>
+                                    </label>
+                                </div>
+
+                                <button class="btn btn-secondary" onclick="downloadTemplate('messages')">
+                                    Baixar Template de Mensagens
+                                </button>
+
+                                <hr>
+
+                                <h3>Status da Campanha</h3>
+                                <div id="campaignStats" class="stats-grid"></div>
+
+                                <h3>Números Cadastrados</h3>
+                                <div id="numbersList" class="numbers-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Dispatch Section -->
+                <section id="dispatch" class="section">
+                    <h2>Controle de Disparo</h2>
+                    
+                    <div class="form-group">
+                        <label>Campanha para Disparar</label>
+                        <select id="dispatchCampaign" class="input">
+                            <option value="">-- Selecione --</option>
+                        </select>
+                    </div>
+
+                    <div class="dispatch-controls">
+                        <button class="btn btn-success" onclick="startDispatch()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Iniciar Disparo
+                        </button>
+                        
+                        <button class="btn btn-warning" onclick="pauseDispatch()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                            </svg>
+                            Pausar
+                        </button>
+                        
+                        <button class="btn btn-info" onclick="resumeDispatch()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Retomar
+                        </button>
+                        
+                        <button class="btn btn-danger" onclick="stopDispatch()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 6h12v12H6z"/>
+                            </svg>
+                            Parar
+                        </button>
+                    </div>
+
+                    <div id="dispatchProgress" class="progress-container" style="display: none;">
+                        <h3>Progresso do Disparo</h3>
+                        <div class="progress-bar">
+                            <div id="progressBar" class="progress-fill"></div>
+                        </div>
+                        <div id="progressStats" class="progress-stats"></div>
+                    </div>
+                </section>
+
+                <!-- Schedule Section -->
+                <section id="schedule" class="section">
+                    <h2>Agendamento Automático</h2>
+                    
+                    <div class="schedule-info">
+                        <div class="alert alert-info">
+                            <strong>⏰ Agendamento Automático</strong><br>
+                            Configure horários para iniciar, pausar e parar campanhas automaticamente. Perfeito para envios em horário comercial.
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Selecione a Campanha</label>
+                        <select id="scheduleCampaign" class="input" onchange="loadSchedule()">
+                            <option value="">-- Selecione --</option>
+                        </select>
+                    </div>
+
+                    <div id="scheduleForm" style="display: none;">
+                        <div class="schedule-container">
+                            <div class="schedule-toggle">
+                                <label class="switch">
+                                    <input type="checkbox" id="scheduleEnabled">
+                                    <span class="slider"></span>
+                                </label>
+                                <span>Agendamento Ativo</span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>🕐 Horário de Início</label>
+                                    <input type="time" id="startTime" class="input">
+                                    <small>Campanha inicia automaticamente neste horário</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>⏸️ Horário de Pausa</label>
+                                    <input type="time" id="pauseTime" class="input">
+                                    <small>Pausa temporária (ex: horário de almoço)</small>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>⏹️ Horário de Parada (Opcional)</label>
+                                    <input type="time" id="stopTime" class="input">
+                                    <small>Para completamente (fim do expediente)</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="autoResume" checked>
+                                        <span>Retomar automaticamente após pausa</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>📅 Dias da Semana</label>
+                                <div class="days-selector">
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="0" class="day-input">
+                                        <span>Dom</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="1" class="day-input" checked>
+                                        <span>Seg</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="2" class="day-input" checked>
+                                        <span>Ter</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="3" class="day-input" checked>
+                                        <span>Qua</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="4" class="day-input" checked>
+                                        <span>Qui</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="5" class="day-input" checked>
+                                        <span>Sex</span>
+                                    </label>
+                                    <label class="day-checkbox">
+                                        <input type="checkbox" value="6" class="day-input">
+                                        <span>Sáb</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="schedule-preview" id="schedulePreview">
+                                <!-- Preview será gerado dinamicamente -->
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="btn btn-primary" onclick="saveSchedule()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                                    </svg>
+                                    Salvar Agendamento
+                                </button>
+                                <button class="btn btn-danger" onclick="removeSchedule()">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                    </svg>
+                                    Remover Agendamento
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="schedules-list">
+                        <h3>Agendamentos Ativos</h3>
+                        <div id="schedulesList"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Confirmação</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Conteúdo dinâmico -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>

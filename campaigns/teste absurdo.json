@@ -1,0 +1,28 @@
+{
+  "name": "teste absurdo",
+  "numbers": [
+    "5585981632929"
+  ],
+  "messages": [
+    "Olá! Esta é a mensagem 1",
+    "Oi! Esta é a mensagem 2",
+    "E aí! Esta é a mensagem 3"
+  ],
+  "status": "completed",
+  "createdAt": "2025-10-22T14:57:11.468Z",
+  "startedAt": "2025-10-22T15:22:51.840Z",
+  "completedAt": "2025-10-22T15:23:00.230Z",
+  "stats": {
+    "total": 1,
+    "sent": 1,
+    "failed": 0,
+    "pending": 0
+  },
+  "currentIndex": 1,
+  "results": [
+    {
+      "success": true,
+      "phone": "5585981632929"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Exemplo de arquivo de mensagens
+# Uma mensagem por linha
+# Linhas que começam com # são ignoradas
+
+Olá! Temos uma promoção especial para você hoje! Não perca!
+Oi! Chegaram novidades incríveis na nossa loja. Confira!
+E aí! Ofertas imperdíveis esperando por você. Venha ver!
+Olá! Produtos com descontos especiais. Aproveite enquanto dura!
