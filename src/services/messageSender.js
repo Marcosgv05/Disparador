@@ -19,8 +19,9 @@ class MessageSender {
    * @param {string} phoneNumber - Número do destinatário
    * @param {string} message - Mensagem a ser enviada
    * @param {string} sessionId - ID da sessão (opcional, usa round-robin se não fornecido)
+   * @param {string} campaignName - Nome da campanha (para rastreamento)
    */
-  async sendMessage(phoneNumber, message, sessionId = null) {
+  async sendMessage(phoneNumber, message, sessionId = null, campaignName = null) {
     try {
       // Valida o número
       if (!isValidPhoneNumber(phoneNumber)) {
@@ -45,13 +46,20 @@ class MessageSender {
         session = availableSession.sock;
       }
 
-      // Envia a mensagem
-      await session.sendMessage(formattedNumber, { text: message });
+      // Envia a mensagem e captura o messageId
+      const sentMsg = await session.sendMessage(formattedNumber, { text: message });
+      const messageId = sentMsg?.key?.id;
+      
+      // Rastreia a mensagem para detectar status
+      if (messageId && campaignName) {
+        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        sessionManager.trackSentMessage(messageId, cleanPhone, campaignName);
+      }
       
       logger.info(`✅ Mensagem enviada para ${phoneNumber}`);
       this.sendingStats.sent++;
       
-      return { success: true, phone: phoneNumber };
+      return { success: true, phone: phoneNumber, messageId };
     } catch (error) {
       logger.error(`❌ Erro ao enviar para ${phoneNumber}:`, error.message);
       this.sendingStats.failed++;

@@ -25,6 +25,54 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
+async function deleteCampaign() {
+    const select = document.getElementById('selectedCampaign');
+    if (!select || !select.value) {
+        showToast('Selecione uma campanha para excluir', 'warning');
+        return;
+    }
+
+    const campaignName = select.value;
+
+    if (!confirm(`Tem certeza que deseja excluir a campanha "${campaignName}"? Esta ação não pode ser desfeita.`)) {
+        return;
+    }
+
+    try {
+        await apiCall(`/api/campaign/${encodeURIComponent(campaignName)}`, {
+            method: 'DELETE'
+        });
+
+        showToast(`Campanha "${campaignName}" excluída`, 'success');
+
+        // Atualiza selects
+        await loadCampaigns();
+
+        // Limpa seleção em todos os selects relacionados
+        const selects = [
+            document.getElementById('selectedCampaign'),
+            document.getElementById('dispatchCampaign'),
+            document.getElementById('scheduleCampaign')
+        ];
+
+        selects.forEach(sel => {
+            if (sel) sel.value = '';
+        });
+
+        state.currentCampaign = null;
+        document.getElementById('campaignDetails').style.display = 'none';
+        document.getElementById('dispatchProgress').style.display = 'none';
+        renderMessages({ messages: [] });
+        document.getElementById('contactsTableBody').innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contato adicionado</td></tr>';
+
+        updateDispatchStatusUI({ status: 'idle' });
+
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao excluir campanha', 'error');
+    }
+}
+
 async function apiCall(endpoint, options = {}) {
     try {
         const response = await fetch(`${API_URL}${endpoint}`, {
@@ -110,23 +158,38 @@ async function connectWhatsApp() {
     }
 }
 
-// Socket events
-socket.on('qr-code', (data) => {
-    const qrContainer = document.getElementById('qrCode');
-    qrContainer.innerHTML = `<img src="${data.qrCode}" alt="QR Code">`;
-    showToast('QR Code gerado! Escaneie com seu WhatsApp', 'success');
+// Socket events for instances
+socket.on('qr-code', async (data) => {
+    const instance = state.instances.find(i => i.sessionId === data.sessionId);
+    if (instance) {
+        instance.qrCode = data.qrCode;
+        renderInstances();
+    }
+    showToast('QR Code gerado!', 'success');
 });
 
-socket.on('session-connected', (data) => {
-    showToast(`Sessão ${data.sessionId} conectada com sucesso!`, 'success');
-    document.getElementById('qrCodeContainer').style.display = 'none';
-    document.getElementById('sessionId').value = '';
-    
-    // Update status
-    document.querySelector('#sessionStatus .status-dot').classList.remove('status-offline');
-    document.querySelector('#sessionStatus .status-dot').classList.add('status-online');
-    document.querySelector('#sessionStatus span:last-child').textContent = 'Conectado';
-    
+socket.on('session-connected', async (data) => {
+    const instance = state.instances.find(i => i.sessionId === data.sessionId);
+    if (instance) {
+        // Atualiza instância no backend
+        try {
+            await apiCall(`/api/instances/${instance.id}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ 
+                    status: 'connected',
+                    phone: data.phone || 'Conectado'
+                })
+            });
+        } catch (error) {
+            console.error('Erro ao atualizar instância:', error);
+        }
+        
+        instance.status = 'connected';
+        instance.phone = data.phone || 'Conectado';
+        instance.qrCode = null;
+        renderInstances();
+    }
+    showToast(`Sessão ${data.sessionId} conectada!`, 'success');
     loadSessions();
 });
 
@@ -174,16 +237,42 @@ async function createCampaign() {
     }
     
     try {
-        await apiCall('/api/campaign/create', {
+        const { campaign } = await apiCall('/api/campaign/create', {
             method: 'POST',
             body: JSON.stringify({ name })
         });
         
-        showToast('Campanha criada com sucesso!', 'success');
+        if (!campaign || !campaign.name) {
+            throw new Error('Erro ao criar campanha: resposta inválida');
+        }
+        
+        const statusBox = document.getElementById('campaignCreationStatus');
+        if (statusBox) {
+            statusBox.innerHTML = `
+                <span class="status-icon">✅</span>
+                <div>
+                    <strong>Campanha criada!</strong>
+                    <p>"${campaign.name}" já está disponível no painel ao lado.</p>
+                </div>
+            `;
+            statusBox.style.display = 'flex';
+        }
+        
+        showToast(`Campanha "${campaign.name}" criada com sucesso!`, 'success');
         document.getElementById('campaignName').value = '';
-        loadCampaigns();
+        await loadCampaigns();
+        
+        // Seleciona automaticamente a nova campanha para gerenciamento
+        const select = document.getElementById('selectedCampaign');
+        if (select) {
+            select.value = campaign.name;
+            // Dispara evento change para garantir que o painel seja atualizado
+            select.dispatchEvent(new Event('change'));
+            await loadCampaignDetails();
+        }
     } catch (error) {
         console.error(error);
+        showToast(error.message || 'Erro ao criar campanha', 'error');
     }
 }
 
@@ -273,6 +362,18 @@ async function loadCampaignDetails() {
                 <p>Enviadas</p>
             </div>
             <div class="stat-item">
+                <h4>${campaign.stats.received || 0}</h4>
+                <p>Recebidas</p>
+            </div>
+            <div class="stat-item">
+                <h4>${campaign.stats.read || 0}</h4>
+                <p>Lidas</p>
+            </div>
+            <div class="stat-item">
+                <h4>${campaign.stats.replied || 0}</h4>
+                <p>Respondidas</p>
+            </div>
+            <div class="stat-item">
                 <h4>${campaign.stats.failed}</h4>
                 <p>Falhas</p>
             </div>
@@ -282,21 +383,11 @@ async function loadCampaignDetails() {
             </div>
         `;
         
-        // Numbers
-        const numbersContainer = document.getElementById('numbersList');
-        if (campaign.numbers.length === 0) {
-            numbersContainer.innerHTML = '<p class="empty-state">Nenhum número adicionado</p>';
-        } else {
-            numbersContainer.innerHTML = campaign.numbers.map((num, idx) => {
-                const sent = idx < campaign.currentIndex;
-                return `
-                    <div class="number-item">
-                        <span>${sent ? '✅' : '⏳'} ${num}</span>
-                        <button class="btn btn-danger btn-sm" onclick="removeNumber('${num}')">Remover</button>
-                    </div>
-                `;
-            }).join('');
-        }
+        // Render Contacts Table
+        renderContactsTable(campaign);
+        
+        // Render Messages List
+        renderMessages(campaign);
         
     } catch (error) {
         console.error(error);
@@ -411,37 +502,71 @@ function closeModal() {
     modal.classList.remove('show');
 }
 
-async function uploadMessages() {
-    const file = document.getElementById('messagesFile').files[0];
+async function addMessage() {
+    const textarea = document.getElementById('newMessageText');
+    const message = textarea.value.trim();
     const campaignName = document.getElementById('selectedCampaign').value;
     
-    if (!file || !campaignName) return;
+    if (!message) {
+        showToast('Digite uma mensagem', 'warning');
+        return;
+    }
     
-    const formData = new FormData();
-    formData.append('file', file);
+    if (!campaignName) {
+        showToast('Selecione uma campanha', 'warning');
+        return;
+    }
     
     try {
-        const response = await fetch(`${API_URL}/api/campaign/${campaignName}/upload-messages`, {
+        await apiCall(`/api/campaign/${campaignName}/message`, {
             method: 'POST',
-            body: formData
+            body: JSON.stringify({ message })
         });
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error);
-        }
-        
-        // Mostra modal com detalhes
-        showMessagesResult(data);
-        
-        showToast(`${data.messagesCount} mensagens adicionadas!`, 'success');
-        document.getElementById('messagesFile').value = '';
+        showToast('Mensagem adicionada!', 'success');
+        textarea.value = '';
         loadCampaignDetails();
         
     } catch (error) {
-        showToast(error.message, 'error');
+        console.error(error);
     }
+}
+
+async function removeMessage(campaignName, index) {
+    if (!confirm('Remover esta mensagem?')) return;
+    
+    try {
+        await apiCall(`/api/campaign/${campaignName}/message/${index}`, {
+            method: 'DELETE'
+        });
+        
+        showToast('Mensagem removida', 'success');
+        loadCampaignDetails();
+        
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+function renderMessages(campaign) {
+    const container = document.getElementById('messagesList');
+    
+    if (!campaign.messages || campaign.messages.length === 0) {
+        container.innerHTML = '<p class="empty-state">Nenhuma mensagem adicionada</p>';
+        return;
+    }
+    
+    container.innerHTML = campaign.messages.map((msg, idx) => `
+        <div class="message-item">
+            <div class="message-number">${idx + 1}</div>
+            <div class="message-content">
+                <div class="message-text">${msg}</div>
+                <div class="message-actions">
+                    <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${idx})">❌ Remover</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
 }
 
 function showMessagesResult(data) {
@@ -493,17 +618,84 @@ function showMessagesResult(data) {
     modal.classList.add('show');
 }
 
-async function removeNumber(phoneNumber) {
-    const campaignName = document.getElementById('selectedCampaign').value;
+// ==== CONTACTS TABLE ====
+
+function renderContactsTable(campaign) {
+    const tbody = document.getElementById('contactsTableBody');
     
-    if (!confirm(`Remover número ${phoneNumber}?`)) return;
+    if (!campaign.contacts || campaign.contacts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contato adicionado</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = campaign.contacts.map((contact, idx) => {
+        const statusIcons = {
+            'pending': '⏳',
+            'sending': '📤',
+            'sent': '✅',
+            'received': '📨',
+            'read': '👁️',
+            'replied': '💬',
+            'failed': '❌'
+        };
+        
+        const statusLabels = {
+            'pending': 'Pendente',
+            'sending': 'Enviando',
+            'sent': 'Enviado',
+            'received': 'Recebido',
+            'read': 'Lido',
+            'replied': 'Respondido',
+            'failed': 'Falhou'
+        };
+        
+        const icon = statusIcons[contact.status] || '⏳';
+        const label = statusLabels[contact.status] || 'Pendente';
+        
+        let details = '';
+        if (contact.sentAt) {
+            const sentDate = new Date(contact.sentAt);
+            details = `Enviado: ${sentDate.toLocaleString('pt-BR')}`;
+        }
+        if (contact.error) {
+            details = `Erro: ${contact.error}`;
+        }
+        
+        const canRemove = contact.status === 'pending' || contact.status === 'failed';
+        
+        return `
+            <tr>
+                <td>${idx + 1}</td>
+                <td class="contact-name">${contact.name}</td>
+                <td class="contact-phone">${contact.phone}</td>
+                <td>
+                    <span class="contact-status ${contact.status}">
+                        <span class="contact-status-icon">${icon}</span>
+                        ${label}
+                    </span>
+                </td>
+                <td class="contact-details">${details}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm" 
+                            onclick="removeContact('${campaign.name}', '${contact.phone}')"
+                            ${!canRemove ? 'disabled' : ''}>
+                        🗑️ Remover
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function removeContact(campaignName, phoneNumber) {
+    if (!confirm(`Remover contato ${phoneNumber}?`)) return;
     
     try {
         await apiCall(`/api/campaign/${campaignName}/number/${encodeURIComponent(phoneNumber)}`, {
             method: 'DELETE'
         });
         
-        showToast('Número removido', 'success');
+        showToast('Contato removido', 'success');
         loadCampaignDetails();
         
     } catch (error) {
@@ -602,6 +794,34 @@ socket.on('dispatch-error', (data) => {
     showToast(`Erro na campanha: ${data.error}`, 'error');
 });
 
+// Atualização de contatos em tempo real
+socket.on('contacts-updated', (data) => {
+    // Atualiza a tabela se estiver visualizando esta campanha
+    if (state.currentCampaign && state.currentCampaign.name === data.campaignName) {
+        state.currentCampaign.contacts = data.contacts;
+        renderContactsTable(state.currentCampaign);
+    }
+});
+
+// Atualização de status de contato individual
+socket.on('contact-status-updated', (data) => {
+    if (state.currentCampaign && state.currentCampaign.name === data.campaignName) {
+        const contact = state.currentCampaign.contacts.find(c => c.phone === data.phone);
+        if (contact) {
+            contact.status = data.status;
+            contact.statusDetails = data.details;
+            if (data.sentAt) contact.sentAt = data.sentAt;
+            if (data.receivedAt) contact.receivedAt = data.receivedAt;
+            if (data.readAt) contact.readAt = data.readAt;
+            if (data.repliedAt) contact.repliedAt = data.repliedAt;
+            if (data.error) contact.error = data.error;
+            
+            // Recarrega detalhes da campanha para atualizar estatísticas
+            loadCampaignDetails();
+        }
+    }
+});
+
 // ==== INSTANCES ====
 
 async function loadInstances() {
@@ -625,7 +845,15 @@ async function loadInstances() {
 }
 
 async function addInstanceSlot() {
-    state.instanceCounter++;
+    // Garante que o ID seja único verificando IDs existentes
+    const existingIds = state.instances.map(i => {
+        const match = i.id.match(/instance-(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+    });
+    
+    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+    state.instanceCounter = maxId + 1;
+    
     const instanceId = `instance-${state.instanceCounter}`;
     
     const instanceData = {
@@ -654,56 +882,72 @@ function renderInstances() {
     const grid = document.getElementById('instancesGrid');
     
     if (state.instances.length === 0) {
-        grid.innerHTML = '<p class="empty-state">Nenhuma instância criada. Clique em "Adicionar Nova Instância" para começar.</p>';
+        grid.innerHTML = '<p class="empty-state">Carregando instâncias...</p>';
         return;
     }
     
-    grid.innerHTML = state.instances.map(inst => `
-        <div class="instance-slot ${inst.status}" id="${inst.id}">
-            <div class="instance-header">
-                <span class="instance-name">${inst.name}</span>
-                <span class="instance-status ${inst.status}">
-                    ${inst.status === 'connected' ? '✅ Conectado' : 
-                      inst.status === 'connecting' ? '🔄 Conectando' : '⚪ Desconectado'}
-                </span>
-            </div>
-            
-            ${inst.phone ? `<div class="instance-phone">📱 ${inst.phone}</div>` : ''}
+    grid.innerHTML = state.instances.map(inst => {
+        const number = inst.id.replace('instance-', '');
+        const statusInfo = {
+            'connected': { icon: '✓', text: 'Conectado', color: 'success' },
+            'connecting': { icon: '⟳', text: 'Aguardando conexão', color: 'warning' },
+            'disconnected': { icon: '○', text: 'Desconectado', color: 'default' }
+        };
+        const status = statusInfo[inst.status] || statusInfo.disconnected;
+        
+        return `
+        <div class="instance-card ${inst.status}" id="${inst.id}">
+            <div class="instance-number">${number}</div>
+            <div class="instance-title">${inst.name}</div>
+            <div class="instance-subtitle">Nome da ${inst.name}</div>
             
             ${inst.qrCode ? `
                 <div class="instance-qr">
                     <img src="${inst.qrCode}" alt="QR Code">
-                    <p>Escaneie com WhatsApp</p>
                 </div>
             ` : ''}
             
-            <div class="instance-actions">
-                ${inst.status === 'disconnected' ? `
-                    <button class="btn btn-primary" onclick="connectInstance('${inst.id}')">
-                        Conectar
+            <div class="instance-buttons">
+                ${inst.status === 'disconnected' || !inst.status ? `
+                    <button class="btn btn-success btn-block" onclick="connectInstance('${inst.id}')">
+                        📱 Gerar QR Code
                     </button>
                 ` : ''}
                 ${inst.status === 'connected' ? `
-                    <button class="btn btn-danger" onclick="disconnectInstance('${inst.id}')">
-                        Desconectar
+                    <button class="btn btn-success btn-block" disabled>
+                        📱 Gerar QR Code
                     </button>
                 ` : ''}
-                <button class="btn btn-secondary" onclick="removeInstance('${inst.id}')">
-                    Remover
+                ${inst.status === 'connecting' ? `
+                    <button class="btn btn-warning btn-block" onclick="resetInstance('${inst.id}')">
+                        🔄 Resetar & Gerar Novo QR
+                    </button>
+                ` : ''}
+                <button class="btn btn-danger btn-block" onclick="disconnectInstance('${inst.id}')" ${inst.status !== 'connected' ? 'disabled' : ''}>
+                    📵 Desconectar
                 </button>
             </div>
+            
+            <div class="instance-status-box status-${status.color}">
+                <span class="status-icon">${status.icon}</span>
+                <span>Status da Conexão:</span>
+                <strong>${status.text}</strong>
+            </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 async function connectInstance(instanceId) {
     const instance = state.instances.find(i => i.id === instanceId);
     if (!instance) return;
     
-    const sessionId = prompt('Digite um ID para esta sessão:', instance.id);
-    if (!sessionId) return;
+    const sessionId = instance.id;
     
     try {
+        // Remove QR code antigo
+        instance.qrCode = null;
+        
         // Atualiza instância no backend
         await apiCall(`/api/instances/${instanceId}`, {
             method: 'PATCH',
@@ -714,17 +958,65 @@ async function connectInstance(instanceId) {
         instance.status = 'connecting';
         renderInstances();
         
-        // Cria sessão WhatsApp
+        // Cria sessão WhatsApp com forceNew para garantir novo QR
         await apiCall('/api/session/create', {
             method: 'POST',
-            body: JSON.stringify({ sessionId })
+            body: JSON.stringify({ sessionId, forceNew: true })
         });
         
         showToast('Aguarde o QR Code...', 'success');
         
+        // Timeout de 2 minutos para resetar se não conectar
+        setTimeout(async () => {
+            const currentInstance = state.instances.find(i => i.id === instanceId);
+            if (currentInstance && currentInstance.status === 'connecting') {
+                showToast('Timeout de conexão. Resetando instância...', 'warning');
+                await resetInstance(instanceId);
+            }
+        }, 120000);
+        
     } catch (error) {
         instance.status = 'disconnected';
+        instance.sessionId = null;
         renderInstances();
+        showToast('Erro ao conectar: ' + error.message, 'error');
+    }
+}
+
+async function resetInstance(instanceId) {
+    const instance = state.instances.find(i => i.id === instanceId);
+    if (!instance) return;
+    
+    try {
+        // Remove sessão existente se houver
+        if (instance.sessionId) {
+            try {
+                await apiCall(`/api/session/${instance.sessionId}`, { method: 'DELETE' });
+            } catch (err) {
+                // Ignora erro se sessão já foi removida
+            }
+        }
+        
+        // Reseta instância
+        await apiCall(`/api/instances/${instanceId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ 
+                status: 'disconnected',
+                phone: null,
+                sessionId: null
+            })
+        });
+        
+        instance.status = 'disconnected';
+        instance.phone = null;
+        instance.qrCode = null;
+        instance.sessionId = null;
+        renderInstances();
+        
+        showToast('Instância resetada. Você pode gerar um novo QR Code agora.', 'success');
+    } catch (error) {
+        console.error('Erro ao resetar instância:', error);
+        showToast('Erro ao resetar: ' + error.message, 'error');
     }
 }
 
@@ -774,15 +1066,20 @@ async function removeInstance(instanceId) {
 
 // Socket events for instances
 socket.on('qr-code', async (data) => {
+    console.log('QR Code recebido:', data);
     const instance = state.instances.find(i => i.sessionId === data.sessionId);
     if (instance) {
         instance.qrCode = data.qrCode;
+        instance.status = 'connecting'; // Garante que está em connecting
         renderInstances();
+        showToast('QR Code gerado! Escaneie com seu WhatsApp', 'success');
+    } else {
+        console.warn('Instância não encontrada para sessionId:', data.sessionId);
     }
-    showToast('QR Code gerado!', 'success');
 });
 
 socket.on('session-connected', async (data) => {
+    console.log('Sessão conectada:', data);
     const instance = state.instances.find(i => i.sessionId === data.sessionId);
     if (instance) {
         // Atualiza instância no backend
@@ -794,17 +1091,33 @@ socket.on('session-connected', async (data) => {
                     phone: data.phone || 'Conectado'
                 })
             });
+            
+            instance.status = 'connected';
+            instance.phone = data.phone || 'Conectado';
+            instance.qrCode = null;
+            renderInstances();
+            
+            showToast(`✅ Sessão ${data.sessionId} conectada com sucesso!`, 'success');
+            loadSessions();
         } catch (error) {
             console.error('Erro ao atualizar instância:', error);
+            showToast('Conexão estabelecida, mas erro ao salvar. Atualize a página.', 'warning');
         }
-        
-        instance.status = 'connected';
-        instance.phone = data.phone || 'Conectado';
+    } else {
+        console.warn('Instância não encontrada para sessionId conectado:', data.sessionId);
+    }
+});
+
+socket.on('session-error', async (data) => {
+    console.error('Erro na sessão:', data);
+    const instance = state.instances.find(i => i.sessionId === data.sessionId);
+    if (instance) {
+        instance.status = 'disconnected';
+        instance.sessionId = null;
         instance.qrCode = null;
         renderInstances();
+        showToast(`Erro na sessão: ${data.error}`, 'error');
     }
-    showToast(`Sessão ${data.sessionId} conectada!`, 'success');
-    loadSessions();
 });
 
 // ==== SCHEDULE ====

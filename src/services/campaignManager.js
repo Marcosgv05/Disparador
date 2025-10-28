@@ -18,8 +18,27 @@ class CampaignManager {
   async initialize() {
     try {
       await fs.mkdir(this.campaignsFolder, { recursive: true });
+
+      const files = await fs.readdir(this.campaignsFolder);
+      let loadedCount = 0;
+
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue;
+
+        const campaignName = file.replace(/\.json$/i, '');
+        try {
+          await this.loadCampaign(campaignName);
+          loadedCount++;
+        } catch (error) {
+          logger.warn(`Não foi possível carregar campanha "${campaignName}": ${error.message}`);
+        }
+      }
+
+      if (loadedCount > 0) {
+        logger.info(`📂 ${loadedCount} campanha(s) carregadas da pasta ${this.campaignsFolder}`);
+      }
     } catch (error) {
-      logger.error('Erro ao criar pasta de campanhas:', error);
+      logger.error('Erro ao inicializar campanhas:', error);
     }
   }
 
@@ -28,14 +47,15 @@ class CampaignManager {
    * @param {string} name - Nome da campanha
    * @param {Array<string>} messages - Mensagens para alternância
    */
-  createCampaign(name) {
+  async createCampaign(name) {
     if (this.campaigns.has(name)) {
       throw new Error(`Campanha "${name}" já existe`);
     }
 
     const campaign = {
       name,
-      numbers: [],
+      contacts: [], // Array de {name, phone, status, statusDetails}
+      numbers: [], // Backward compatibility
       messages: [],
       status: 'idle', // idle, running, paused, stopped, completed
       createdAt: new Date(),
@@ -44,6 +64,9 @@ class CampaignManager {
       stats: {
         total: 0,
         sent: 0,
+        received: 0,
+        read: 0,
+        replied: 0,
         failed: 0,
         pending: 0
       },
@@ -54,93 +77,191 @@ class CampaignManager {
     this.campaigns.set(name, campaign);
     this.activeCampaign = name;
     
+    await this.saveCampaign(name);
+    
     logger.info(`✅ Campanha "${name}" criada`);
     return campaign;
   }
 
   /**
-   * Adiciona um número à campanha
+   * Adiciona contato à campanha
+   * @param {string} campaignName 
+   * @param {object} contact - {name, phone}
+   */
+  addContact(campaignName, contact) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    if (campaign.status === 'running') {
+      throw new Error('Não é possível adicionar contatos enquanto a campanha está rodando. Pause primeiro.');
+    }
+
+    // Verifica se o número já existe
+    if (campaign.contacts.find(c => c.phone === contact.phone)) {
+      throw new Error(`Contato ${contact.phone} já está na campanha`);
+    }
+
+    const contactData = {
+      name: contact.name || contact.phone,
+      phone: contact.phone,
+      status: 'pending', // pending, sending, sent, received, read, replied, failed
+      statusDetails: null,
+      sentAt: null,
+      receivedAt: null,
+      readAt: null,
+      repliedAt: null,
+      error: null
+    };
+
+    campaign.contacts.push(contactData);
+    campaign.numbers.push(contact.phone); // Backward compatibility
+    campaign.stats.total++;
+    campaign.stats.pending++;
+
+    logger.info(`📞 Contato ${contact.name}(${contact.phone}) adicionado à campanha "${campaignName}"`);
+    this.saveCampaign(campaignName);
+    return contactData;
+  }
+
+  /**
+   * Adiciona um número à campanha (backward compatibility)
    * @param {string} campaignName 
    * @param {string} phoneNumber 
    */
   addNumber(campaignName, phoneNumber) {
-    const campaign = this.campaigns.get(campaignName);
-    if (!campaign) {
-      throw new Error(`Campanha "${campaignName}" não encontrada`);
-    }
-
-    if (campaign.status === 'running') {
-      throw new Error('Não é possível adicionar números enquanto a campanha está rodando. Pause primeiro.');
-    }
-
-    // Verifica se o número já existe
-    if (campaign.numbers.includes(phoneNumber)) {
-      throw new Error(`Número ${phoneNumber} já está na campanha`);
-    }
-
-    campaign.numbers.push(phoneNumber);
-    campaign.stats.total = campaign.numbers.length;
-    campaign.stats.pending = campaign.numbers.length - campaign.currentIndex;
-
-    logger.info(`📱 Número ${phoneNumber} adicionado à campanha "${campaignName}"`);
-    return campaign;
+    return this.addContact(campaignName, { name: phoneNumber, phone: phoneNumber });
   }
 
   /**
-   * Adiciona múltiplos números de uma vez
+   * Adiciona múltiplos contatos de uma vez
    * @param {string} campaignName 
-   * @param {Array<string>} phoneNumbers 
+   * @param {Array<{name, phone}>} contacts 
    */
-  addNumbers(campaignName, phoneNumbers) {
+  addContacts(campaignName, contacts) {
     const campaign = this.campaigns.get(campaignName);
     if (!campaign) {
       throw new Error(`Campanha "${campaignName}" não encontrada`);
     }
 
     if (campaign.status === 'running') {
-      throw new Error('Não é possível adicionar números enquanto a campanha está rodando. Pause primeiro.');
+      throw new Error('Não é possível adicionar contatos enquanto a campanha está rodando. Pause primeiro.');
     }
 
     let added = 0;
-    for (const phone of phoneNumbers) {
-      if (!campaign.numbers.includes(phone)) {
-        campaign.numbers.push(phone);
+    for (const contact of contacts) {
+      if (!campaign.contacts.find(c => c.phone === contact.phone)) {
+        this.addContact(campaignName, contact);
         added++;
       }
     }
 
-    campaign.stats.total = campaign.numbers.length;
-    campaign.stats.pending = campaign.numbers.length - campaign.currentIndex;
-
-    logger.info(`📱 ${added} números adicionados à campanha "${campaignName}"`);
+    logger.info(`📱 ${added} contatos adicionados à campanha "${campaignName}"`);
+    this.saveCampaign(campaignName);
     return campaign;
   }
 
   /**
-   * Remove um número da campanha
+   * Adiciona múltiplos números de uma vez (backward compatibility)
+   * @param {string} campaignName 
+   * @param {Array<string>} phoneNumbers 
+   */
+  addNumbers(campaignName, phoneNumbers) {
+    const contacts = phoneNumbers.map(phone => ({ name: phone, phone }));
+    return this.addContacts(campaignName, contacts);
+  }
+
+  /**
+   * Atualiza status de um contato
+   * @param {string} campaignName 
+   * @param {string} phone 
+   * @param {string} status - pending, sending, sent, received, read, replied, failed
+   * @param {object} details - Detalhes adicionais
+   */
+  updateContactStatus(campaignName, phone, status, details = {}) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    const contact = campaign.contacts.find(c => c.phone === phone);
+    if (!contact) {
+      logger.warn(`Contato ${phone} não encontrado na campanha "${campaignName}"`);
+      return null;
+    }
+
+    const oldStatus = contact.status;
+    
+    // Evita atualizar se já está no mesmo status
+    if (oldStatus === status) {
+      return contact;
+    }
+    
+    contact.status = status;
+    contact.statusDetails = details;
+
+    // Atualiza timestamps e estatísticas
+    if (status === 'sent') {
+      contact.sentAt = new Date();
+      if (oldStatus === 'pending') campaign.stats.pending--;
+      if (oldStatus !== 'sent') campaign.stats.sent++;
+    } else if (status === 'received') {
+      contact.receivedAt = new Date();
+      if (!campaign.stats.received) campaign.stats.received = 0;
+      campaign.stats.received++;
+    } else if (status === 'read') {
+      contact.readAt = new Date();
+      if (!campaign.stats.read) campaign.stats.read = 0;
+      campaign.stats.read++;
+    } else if (status === 'replied') {
+      contact.repliedAt = new Date();
+      if (!campaign.stats.replied) campaign.stats.replied = 0;
+      campaign.stats.replied++;
+    } else if (status === 'failed') {
+      contact.error = details.error || 'Erro desconhecido';
+      if (oldStatus === 'pending') campaign.stats.pending--;
+      campaign.stats.failed++;
+    }
+
+    this.saveCampaign(campaignName);
+    return contact;
+  }
+
+  /**
+   * Remove um número/contato da campanha
    * @param {string} campaignName 
    * @param {string} phoneNumber 
    */
-  removeNumber(campaignName, phoneNumber) {
+  async removeNumber(campaignName, phoneNumber) {
     const campaign = this.campaigns.get(campaignName);
     if (!campaign) {
       throw new Error(`Campanha "${campaignName}" não encontrada`);
     }
 
     if (campaign.status === 'running') {
-      throw new Error('Não é possível remover números enquanto a campanha está rodando. Pause primeiro.');
+      throw new Error('Não é possível remover contatos enquanto a campanha está rodando. Pause primeiro.');
     }
 
-    const index = campaign.numbers.indexOf(phoneNumber);
-    if (index === -1) {
-      throw new Error(`Número ${phoneNumber} não encontrado na campanha`);
+    // Remove de contacts
+    const contactIndex = campaign.contacts.findIndex(c => c.phone === phoneNumber);
+    if (contactIndex !== -1) {
+      campaign.contacts.splice(contactIndex, 1);
     }
 
-    campaign.numbers.splice(index, 1);
-    campaign.stats.total = campaign.numbers.length;
-    campaign.stats.pending = campaign.numbers.length - campaign.currentIndex;
+    // Remove de numbers (backward compatibility)
+    const numberIndex = campaign.numbers.indexOf(phoneNumber);
+    if (numberIndex !== -1) {
+      campaign.numbers.splice(numberIndex, 1);
+    }
 
-    logger.info(`🗑️ Número ${phoneNumber} removido da campanha "${campaignName}"`);
+    // Atualiza estatísticas
+    campaign.stats.total = campaign.contacts.length;
+    campaign.stats.pending = campaign.contacts.filter(c => c.status === 'pending').length;
+
+    await this.saveCampaign(campaignName);
+    
+    logger.info(`🗑️ Contato ${phoneNumber} removido da campanha "${campaignName}"`);
     return campaign;
   }
 
@@ -368,7 +489,8 @@ class CampaignManager {
       throw new Error(`Campanha "${campaignName}" não encontrada`);
     }
 
-    const filePath = path.join(this.campaignsFolder, `${campaignName}.json`);
+    const sanitizedName = campaignName.trim();
+    const filePath = path.join(this.campaignsFolder, `${sanitizedName}.json`);
     await fs.writeFile(filePath, JSON.stringify(campaign, null, 2));
     
     logger.info(`💾 Campanha "${campaignName}" salva`);

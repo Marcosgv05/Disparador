@@ -334,6 +334,11 @@ body {
     color: white;
 }
 
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}
+
 /* QR Code */
 .qr-container {
     background: var(--card-bg);
@@ -399,6 +404,92 @@ body {
 
 .tab-content.active {
     display: block;
+}
+
+.campaign-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1.5rem;
+}
+
+.campaign-card {
+    background: var(--card-bg);
+    padding: 1.75rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.campaign-card.full {
+    gap: 1.75rem;
+}
+
+.card-subtitle {
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+.creation-status {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    background: rgba(37, 211, 102, 0.1);
+    color: var(--primary-darker);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+}
+
+.campaign-manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.campaign-select-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.campaign-select-actions .btn {
+    white-space: nowrap;
+}
+
+.form-group.compact {
+    min-width: 280px;
+    margin-bottom: 0;
+}
+
+.inline-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+.inline-actions h4 {
+    margin-bottom: 0.75rem;
+}
+
+.campaign-actions hr {
+    margin: 1.5rem 0;
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1100px) {
+    .campaign-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-group.compact {
+        width: 100%;
+    }
 }
 
 /* Upload Area */
@@ -481,6 +572,78 @@ hr {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+/* Messages Management */
+.message-input-container {
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.message-textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.messages-list {
+    margin-top: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.message-item {
+    padding: 1rem;
+    background: var(--bg);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    transition: all 0.2s;
+}
+
+.message-item:hover {
+    background: #E8E9EB;
+}
+
+.message-number {
+    min-width: 35px;
+    height: 35px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.message-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.message-text {
+    color: var(--text);
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+.message-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
 }
 
 /* Dispatch Controls */
@@ -791,11 +954,124 @@ hr {
     color: var(--text-light);
 }
 
+/* Instances Grid */
 .instances-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
-    margin-bottom: 2rem;
+    margin-top: 1.5rem;
+}
+
+/* Instance Card */
+.instance-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-align: center;
+}
+
+.instance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.instance-number {
+    width: 60px;
+    height: 60px;
+    background: var(--success);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0 auto 1rem;
+}
+
+.instance-card.connected .instance-number {
+    background: var(--success);
+}
+
+.instance-card.connecting .instance-number {
+    background: #ffc107;
+}
+
+.instance-card.disconnected .instance-number {
+    background: #6c757d;
+}
+
+.instance-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.instance-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+}
+
+.instance-qr {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.instance-qr img {
+    max-width: 200px;
+    width: 100%;
+    height: auto;
+}
+
+.instance-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1rem 0;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.instance-status-box {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.instance-status-box.status-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.instance-status-box.status-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.instance-status-box.status-default {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.status-icon {
+    font-size: 1.2rem;
+    font-weight: bold;
 }
 
 .instance-slot {
@@ -1133,6 +1409,105 @@ input:checked + .slider:before {
     color: var(--text-light);
 }
 
+/* Contacts Table */
+.contacts-table-container {
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+}
+
+.contacts-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+}
+
+.contacts-table thead {
+    background: var(--primary);
+    color: white;
+}
+
+.contacts-table th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.contacts-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.contacts-table tbody tr:hover {
+    background: var(--bg);
+}
+
+.contact-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.contact-status.pending {
+    background: #E0E0E0;
+    color: #666;
+}
+
+.contact-status.sending {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+.contact-status.sent {
+    background: #D4EDDA;
+    color: #155724;
+}
+
+.contact-status.received {
+    background: #CCE5FF;
+    color: #004085;
+}
+
+.contact-status.read {
+    background: #D1ECF1;
+    color: #0C5460;
+}
+
+.contact-status.replied {
+    background: #C3E6CB;
+    color: #155724;
+}
+
+.contact-status.failed {
+    background: #F8D7DA;
+    color: #721C24;
+}
+
+.contact-status-icon {
+    font-size: 1rem;
+}
+
+.contact-details {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.contact-phone {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+}
+
+.contact-name {
+    font-weight: 600;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .instances-grid {
@@ -1153,5 +1528,14 @@ input:checked + .slider:before {
     
     .day-checkbox {
         min-width: 50px;
+    }
+    
+    .contacts-table {
+        font-size: 0.85rem;
+    }
+    
+    .contacts-table th,
+    .contacts-table td {
+        padding: 0.5rem;
     }
 }

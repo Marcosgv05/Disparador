@@ -15,15 +15,97 @@ class SessionManager {
   constructor() {
     this.sessions = new Map();
     this.authFolder = path.join(process.cwd(), 'auth_sessions');
+    this.messageStatusCallbacks = [];
+    this.messageReceivedCallbacks = [];
+    this.connectionCallbacks = [];
+    this.sentMessages = new Map(); // Rastreia mensagens enviadas: messageId -> {phone, campaignName}
+  }
+
+  /**
+   * Registra callback para atualizações de status de mensagem
+   * @param {Function} callback - (phone, status, details) => {}
+   */
+  onMessageStatus(callback) {
+    this.messageStatusCallbacks.push(callback);
+  }
+
+  /**
+   * Registra callback para mensagens recebidas
+   * @param {Function} callback - (phone, message) => {}
+   */
+  onMessageReceived(callback) {
+    this.messageReceivedCallbacks.push(callback);
+  }
+
+  /**
+   * Registra callback para mudanças de conexão
+   * @param {Function} callback - (sessionId, event, data) => {}
+   */
+  onConnectionUpdate(callback) {
+    this.connectionCallbacks.push(callback);
+  }
+
+  /**
+   * Registra mensagem enviada para rastreamento
+   */
+  trackSentMessage(messageId, phone, campaignName) {
+    this.sentMessages.set(messageId, { phone, campaignName, sentAt: new Date() });
   }
 
   /**
    * Cria uma nova sessão do WhatsApp
    * @param {string} sessionId - ID único da sessão
    */
-  async createSession(sessionId) {
+  async createSession(sessionId, options = {}) {
+    const { waitForConnection = true, forceNew = false } = options;
+    
+    if (!sessionId) {
+      throw new Error('sessionId é obrigatório para criar sessão');
+    }
+    
+    if (forceNew && this.sessions.has(sessionId)) {
+      await this.removeSession(sessionId);
+    } else if (this.sessions.has(sessionId)) {
+      const existingSession = this.sessions.get(sessionId);
+      const isReady = existingSession?.isReady && existingSession?.sock?.user;
+
+      if (isReady) {
+        logger.info(`Sessão ${sessionId} já está ativa. Reutilizando conexão existente.`);
+        return existingSession.sock;
+      }
+
+      logger.info(`Sessão ${sessionId} existente porém não pronta. Encerrando socket antigo e recriando...`);
+      try {
+        if (typeof existingSession?.sock?.end === 'function') {
+          await existingSession.sock.end();
+        }
+      } catch (error) {
+        logger.warn(`Erro ao encerrar socket antigo da sessão ${sessionId}: ${error.message}`);
+      }
+
+      try {
+        existingSession?.sock?.ws?.close?.();
+      } catch (error) {
+        logger.warn(`Erro ao fechar WebSocket da sessão ${sessionId}: ${error.message}`);
+      }
+
+      this.sessions.delete(sessionId);
+    }
+    
     try {
       logger.info(`Criando sessão: ${sessionId}`);
+      
+      // Se forceNew, remove arquivos de autenticação antigos
+      if (forceNew) {
+        const authPath = path.join(this.authFolder, sessionId);
+        try {
+          const fs = await import('fs/promises');
+          await fs.rm(authPath, { recursive: true, force: true });
+          logger.info(`Arquivos de autenticação antigos removidos para nova sessão`);
+        } catch (error) {
+          // Ignora se não existir
+        }
+      }
       
       const { state, saveCreds } = await useMultiFileAuthState(
         path.join(this.authFolder, sessionId)
@@ -43,6 +125,60 @@ class SessionManager {
       // Evento de atualização de credenciais
       sock.ev.on('creds.update', saveCreds);
 
+      // Evento de atualização de status de mensagens
+      sock.ev.on('messages.update', (updates) => {
+        for (const update of updates) {
+          const messageId = update.key.id;
+          const messageData = this.sentMessages.get(messageId);
+          
+          if (!messageData) continue;
+          
+          const { phone, campaignName } = messageData;
+          
+          // Status: delivered (recebido)
+          if (update.update.status === 3) {
+            logger.info(`📨 Mensagem RECEBIDA: ${phone}`);
+            this.messageStatusCallbacks.forEach(cb => {
+              cb(phone, 'received', { campaignName, messageId });
+            });
+          }
+          
+          // Status: read (lido)
+          if (update.update.status === 4) {
+            logger.info(`👁️ Mensagem LIDA: ${phone}`);
+            this.messageStatusCallbacks.forEach(cb => {
+              cb(phone, 'read', { campaignName, messageId });
+            });
+          }
+        }
+      });
+
+      // Evento de mensagens recebidas (respostas)
+      sock.ev.on('messages.upsert', ({ messages, type }) => {
+        if (type !== 'notify') return;
+        
+        for (const msg of messages) {
+          // Ignora mensagens enviadas por nós
+          if (msg.key.fromMe) continue;
+          
+          const phone = msg.key.remoteJid.replace('@s.whatsapp.net', '');
+          
+          // Verifica se é resposta a uma mensagem nossa
+          const sentMessage = Array.from(this.sentMessages.values())
+            .find(m => m.phone === phone);
+          
+          if (sentMessage) {
+            logger.info(`💬 Mensagem RESPONDIDA: ${phone}`);
+            this.messageStatusCallbacks.forEach(cb => {
+              cb(phone, 'replied', { 
+                campaignName: sentMessage.campaignName,
+                message: msg.message?.conversation || msg.message?.extendedTextMessage?.text
+              });
+            });
+          }
+        }
+      });
+
       // Evento de atualização de conexão
       sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
@@ -50,12 +186,28 @@ class SessionManager {
         if (qr) {
           logger.info(`QR Code para sessão ${sessionId}:`);
           qrcode.generate(qr, { small: true });
+          
+          // Notifica callbacks
+          this.connectionCallbacks.forEach(cb => {
+            cb(sessionId, 'qr', { qr });
+          });
         }
 
         if (connection === 'close') {
           const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
           
           logger.info(`Conexão fechada para ${sessionId}. Reconectar: ${shouldReconnect}`);
+          
+          // Marca sessão como não pronta
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            session.isReady = false;
+          }
+          
+          // Notifica callbacks
+          this.connectionCallbacks.forEach(cb => {
+            cb(sessionId, 'close', { shouldReconnect, lastDisconnect });
+          });
           
           if (shouldReconnect) {
             await this.createSession(sessionId);
@@ -64,6 +216,29 @@ class SessionManager {
           }
         } else if (connection === 'open') {
           logger.info(`✅ Sessão ${sessionId} conectada com sucesso!`);
+          
+          // Marca sessão como pronta
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            session.isReady = true;
+            logger.info(`🔑 Sessão ${sessionId} marcada como pronta (isReady=true)`);
+          } else {
+            logger.warn(`⚠️ Sessão ${sessionId} não encontrada no Map ao marcar como pronta`);
+          }
+          
+          // Obtém telefone
+          const phone = sock.user?.id?.split(':')[0] || 'Conectado';
+          logger.info(`📞 Telefone da sessão ${sessionId}: ${phone}`);
+          
+          // Notifica callbacks
+          logger.info(`🔔 Notificando ${this.connectionCallbacks.length} callback(s) de conexão para ${sessionId}`);
+          this.connectionCallbacks.forEach(cb => {
+            try {
+              cb(sessionId, 'open', { phone, user: sock.user });
+            } catch (error) {
+              logger.error(`Erro ao executar callback de conexão: ${error.message}`);
+            }
+          });
         }
       });
 
@@ -73,8 +248,10 @@ class SessionManager {
         lastUsed: Date.now()
       });
 
-      // Aguarda a conexão estar pronta
-      await this.waitForConnection(sessionId);
+      // Aguarda a conexão estar pronta caso seja solicitado
+      if (waitForConnection) {
+        await this.waitForConnection(sessionId);
+      }
 
       return sock;
     } catch (error) {
@@ -159,9 +336,23 @@ class SessionManager {
   async removeSession(sessionId) {
     const session = this.sessions.get(sessionId);
     if (session) {
-      await session.sock.logout();
+      try {
+        await session.sock.logout();
+      } catch (error) {
+        logger.warn(`Erro ao fazer logout da sessão ${sessionId}: ${error.message}`);
+      }
       this.sessions.delete(sessionId);
       logger.info(`Sessão ${sessionId} removida`);
+    }
+    
+    // Remove arquivos de autenticação
+    const authPath = path.join(this.authFolder, sessionId);
+    try {
+      const fs = await import('fs/promises');
+      await fs.rm(authPath, { recursive: true, force: true });
+      logger.info(`Arquivos de autenticação removidos: ${authPath}`);
+    } catch (error) {
+      logger.warn(`Erro ao remover arquivos de autenticação: ${error.message}`);
     }
   }
 
@@ -172,6 +363,78 @@ class SessionManager {
     for (const [sessionId, _] of this.sessions) {
       await this.removeSession(sessionId);
     }
+  }
+
+  /**
+   * Restaura sessões a partir de instâncias persistidas
+   * @param {Array<{sessionId: string}>} instances
+   */
+  async restoreSessions(instances = []) {
+    if (!Array.isArray(instances) || instances.length === 0) {
+      return [];
+    }
+
+    const restored = [];
+
+    for (const instance of instances) {
+      const sessionId = instance?.sessionId;
+      if (!sessionId) {
+        continue;
+      }
+
+      if (this.sessions.has(sessionId)) {
+        restored.push(sessionId);
+        continue;
+      }
+
+      try {
+        await this.createSession(sessionId, { waitForConnection: false });
+        restored.push(sessionId);
+        logger.info(`🔄 Sessão ${sessionId} em restauração após reinício.`);
+        
+        // Aguarda até 5 segundos para a sessão conectar, verificando a cada 500ms
+        let attempts = 0;
+        const maxAttempts = 10; // 10 x 500ms = 5 segundos
+        let connected = false;
+        
+        while (attempts < maxAttempts && !connected) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          attempts++;
+          
+          const session = this.sessions.get(sessionId);
+          if (session && session.sock && session.sock.user) {
+            const phone = session.sock.user?.id?.split(':')[0] || 'Conectado';
+            logger.info(`✅ Sessão ${sessionId} restaurada e conectada: ${phone} (tentativa ${attempts})`);
+            
+            // Marca como pronta
+            session.isReady = true;
+            
+            // Emite evento de conexão aberta
+            this.connectionCallbacks.forEach(cb => {
+              try {
+                cb(sessionId, 'open', { phone, user: session.sock.user });
+              } catch (cbError) {
+                logger.error(`Erro ao executar callback após restauração: ${cbError.message}`);
+              }
+            });
+            
+            connected = true;
+            break;
+          }
+        }
+        
+        if (!connected) {
+          logger.warn(`⚠️ Sessão ${sessionId} não conectou após ${maxAttempts * 500}ms. Permanecerá em connecting.`);
+        }
+      } catch (error) {
+        logger.error(`Erro ao restaurar sessão ${sessionId}: ${error.message}`);
+        this.connectionCallbacks.forEach(cb => {
+          cb(sessionId, 'restore-error', { error: error.message });
+        });
+      }
+    }
+
+    return restored;
   }
 }
 

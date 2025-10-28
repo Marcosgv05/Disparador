@@ -1,0 +1,83 @@
+{
+  "name": "Teste 4",
+  "contacts": [
+    {
+      "name": "Alice",
+      "phone": "558585423903",
+      "status": "sent",
+      "statusDetails": {
+        "messageId": "3EB01AEF884B50F227E61F"
+      },
+      "sentAt": "2025-10-28T17:57:21.503Z",
+      "receivedAt": null,
+      "readAt": null,
+      "repliedAt": null,
+      "error": null
+    },
+    {
+      "name": "Bruno",
+      "phone": "558599667548",
+      "status": "sent",
+      "statusDetails": {
+        "messageId": "3EB05C1AE50484171B6F8D"
+      },
+      "sentAt": "2025-10-28T17:57:24.998Z",
+      "receivedAt": null,
+      "readAt": null,
+      "repliedAt": null,
+      "error": null
+    },
+    {
+      "name": "Guilherme",
+      "phone": "558591895552",
+      "status": "sent",
+      "statusDetails": {
+        "messageId": "3EB05D0CF408E260068498"
+      },
+      "sentAt": "2025-10-28T17:57:29.102Z",
+      "receivedAt": null,
+      "readAt": null,
+      "repliedAt": null,
+      "error": null
+    }
+  ],
+  "numbers": [
+    "558585423903",
+    "558599667548",
+    "558591895552"
+  ],
+  "messages": [
+    "Oi"
+  ],
+  "status": "completed",
+  "createdAt": "2025-10-28T17:56:50.087Z",
+  "startedAt": "2025-10-28T17:57:20.390Z",
+  "completedAt": "2025-10-28T17:57:32.110Z",
+  "stats": {
+    "total": 3,
+    "sent": 6,
+    "received": 0,
+    "read": 0,
+    "replied": 0,
+    "failed": 0,
+    "pending": 0
+  },
+  "currentIndex": 3,
+  "results": [
+    {
+      "success": true,
+      "phone": "558585423903",
+      "messageId": "3EB01AEF884B50F227E61F"
+    },
+    {
+      "success": true,
+      "phone": "558599667548",
+      "messageId": "3EB05C1AE50484171B6F8D"
+    },
+    {
+      "success": true,
+      "phone": "558591895552",
+      "messageId": "3EB05D0CF408E260068498"
+    }
+  ]
+}

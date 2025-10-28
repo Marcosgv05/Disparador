@@ -13,7 +13,7 @@ import campaignManager from './services/campaignManager.js';
 import dispatcher from './services/dispatcher.js';
 import scheduler from './services/scheduler.js';
 import instanceManager from './services/instanceManager.js';
-import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet } from './utils/excelLoader.js';
+import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
 
@@ -26,6 +26,17 @@ const io = new Server(httpServer, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST']
+  }
+});
+
+// Deletar campanha
+app.delete('/api/campaign/:name', async (req, res) => {
+  try {
+    const { name } = req.params;
+    await campaignManager.deleteCampaign(name);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -73,6 +84,124 @@ await campaignManager.initialize();
 await instanceManager.initialize();
 await scheduler.start();
 
+// Restaura sessões persistidas após reinício do servidor
+const persistedInstances = instanceManager.listInstances();
+const instancesToRestore = persistedInstances.filter(inst => inst.sessionId);
+
+if (instancesToRestore.length > 0) {
+  logger.info(`🔄 Restaurando ${instancesToRestore.length} sessão(ões) persistidas...`);
+
+  for (const inst of instancesToRestore) {
+    try {
+      if (inst.status === 'connected') {
+        instanceManager.updateInstance(inst.id, { status: 'connecting' });
+      }
+    } catch (error) {
+      logger.warn(`Não foi possível atualizar status da instância ${inst.id}: ${error.message}`);
+    }
+  }
+
+  // Aguarda restauração das sessões
+  const restoredSessions = await sessionManager.restoreSessions(instancesToRestore);
+  logger.info(`👋 ${restoredSessions.length} sessão(oes) restaurada(s) com sucesso`);
+  
+  // Verifica novamente o status de cada instância após restauração
+  setTimeout(() => {
+    logger.info('🔍 Verificando status final das instâncias restauradas...');
+    for (const inst of instancesToRestore) {
+      try {
+        const currentInst = instanceManager.getInstance(inst.id);
+        if (currentInst && currentInst.status === 'connecting' && currentInst.sessionId) {
+          const session = sessionManager.getSession(currentInst.sessionId);
+          if (session && session.user) {
+            const phone = session.user?.id?.split(':')[0] || 'Conectado';
+            instanceManager.updateInstance(currentInst.id, { 
+              status: 'connected',
+              phone 
+            });
+            io.emit('session-connected', { sessionId: currentInst.sessionId, phone });
+            logger.info(`✅ Instância ${currentInst.id} atualizada para conectada na verificação final`);
+          }
+        }
+      } catch (error) {
+        logger.warn(`Erro ao verificar instância ${inst.id}: ${error.message}`);
+      }
+    }
+  }, 6000); // 6 segundos após restauração
+}
+
+// Registra callbacks para status de mensagens
+sessionManager.onMessageStatus((phone, status, details) => {
+  const { campaignName } = details;
+  
+  if (!campaignName) return;
+  
+  // Atualiza status no campaignManager
+  const contact = campaignManager.updateContactStatus(campaignName, phone, status, details);
+  
+  if (contact) {
+    // Emite atualização via WebSocket
+    io.emit('contact-status-updated', {
+      campaignName,
+      phone,
+      status,
+      details,
+      sentAt: contact.sentAt,
+      receivedAt: contact.receivedAt,
+      readAt: contact.readAt,
+      repliedAt: contact.repliedAt
+    });
+    
+    logger.info(`📊 Status atualizado: ${phone} -> ${status}`);
+  }
+});
+
+// Registra callbacks para mudanças de conexão
+sessionManager.onConnectionUpdate(async (sessionId, event, data) => {
+  if (event === 'qr') {
+    // Converte QR Code para base64 e emite
+    const qrCodeData = await QRCode.toDataURL(data.qr);
+    io.emit('qr-code', { sessionId, qrCode: qrCodeData });
+    logger.info(`📱 QR Code emitido via WebSocket para ${sessionId}`);
+  } else if (event === 'open') {
+    // Conexão estabelecida
+    logger.info(`🔔 Emitindo evento 'session-connected' via WebSocket para ${sessionId}`);
+    logger.info(`📡 Dados: sessionId=${sessionId}, phone=${data.phone}`);
+    io.emit('session-connected', { sessionId, phone: data.phone });
+    logger.info(`✅ Sessão ${sessionId} conectada: ${data.phone}`);
+    
+    // Atualiza instância se estiver em restauração
+    try {
+      const instance = instanceManager.getInstanceBySession(sessionId);
+      if (instance) {
+        logger.info(`🔍 Instância encontrada: ${instance.id}, status atual: ${instance.status}`);
+        if (instance.status === 'connecting') {
+          instanceManager.updateInstance(instance.id, { 
+            status: 'connected',
+            phone: data.phone 
+          });
+          logger.info(`📱 Instância ${instance.id} atualizada para conectada após restauração`);
+        } else {
+          logger.info(`ℹ️ Instância ${instance.id} já está em status: ${instance.status}`);
+        }
+      } else {
+        logger.warn(`⚠️ Nenhuma instância encontrada para sessionId: ${sessionId}`);
+      }
+    } catch (error) {
+      logger.warn(`Erro ao atualizar instância após restauração: ${error.message}`);
+    }
+  } else if (event === 'close') {
+    // Conexão fechada
+    if (!data.shouldReconnect) {
+      io.emit('session-error', { sessionId, error: 'Sessão desconectada. Faça login novamente.' });
+      logger.info(`❌ Sessão ${sessionId} desconectada`);
+    }
+  } else if (event === 'restore-error') {
+    io.emit('session-error', { sessionId, error: data.error || 'Falha ao restaurar sessão persistida.' });
+    logger.warn(`Erro ao restaurar sessão ${sessionId}: ${data.error}`);
+  }
+});
+
 // WebSocket para atualizações em tempo real
 io.on('connection', (socket) => {
   logger.info('Cliente conectado via WebSocket');
@@ -92,39 +221,28 @@ function emitProgress(data) {
 // Criar sessão (conectar WhatsApp)
 app.post('/api/session/create', async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, forceNew } = req.body;
     
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId é obrigatório' });
     }
 
-    // Cria sessão e captura QR Code
-    let qrCodeData = null;
-    
-    const sock = await sessionManager.createSession(sessionId);
-    
-    // Escuta evento de QR Code
-    sock.ev.on('connection.update', async (update) => {
-      const { qr } = update;
-      if (qr) {
-        // Converte QR Code para base64
-        qrCodeData = await QRCode.toDataURL(qr);
-        io.emit('qr-code', { sessionId, qrCode: qrCodeData });
-      }
-      
-      if (update.connection === 'open') {
-        io.emit('session-connected', { sessionId });
-      }
-    });
-
+    // Responde imediatamente
     res.json({ 
       success: true, 
       message: 'Sessão criada. Aguarde o QR Code.',
       sessionId 
     });
+
+    // Cria sessão de forma assíncrona
+    await sessionManager.createSession(sessionId, { 
+      waitForConnection: false,
+      forceNew: forceNew || false
+    });
     
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    logger.error(`Erro ao criar sessão: ${error.message}`);
+    io.emit('session-error', { sessionId: req.body.sessionId, error: error.message });
   }
 });
 
@@ -204,7 +322,7 @@ app.post('/api/campaign/create', async (req, res) => {
       return res.status(400).json({ error: 'Nome da campanha é obrigatório' });
     }
 
-    const campaign = campaignManager.createCampaign(name);
+    const campaign = await campaignManager.createCampaign(name);
     res.json({ success: true, campaign });
     
   } catch (error) {
@@ -267,22 +385,55 @@ app.post('/api/campaign/:name/upload-numbers', upload.single('file'), async (req
 
     const filePath = req.file.path;
     
-    // Valida planilha
-    const validation = await validatePhoneSpreadsheet(filePath);
+    // Carrega contatos com nome
+    const contacts = await loadContactsFromExcel(filePath);
+    
+    if (contacts.length === 0) {
+      await fs.unlink(filePath);
+      return res.status(400).json({ 
+        error: 'Nenhum contato encontrado na planilha'
+      });
+    }
+
+    // Valida números
+    const validation = {
+      total: contacts.length,
+      valid: 0,
+      invalid: 0,
+      validContacts: [],
+      invalidContacts: []
+    };
+
+    for (const contact of contacts) {
+      const cleaned = contact.phone.replace(/\D/g, '');
+      if (cleaned.length >= 10 && cleaned.length <= 15) {
+        validation.valid++;
+        validation.validContacts.push({
+          name: contact.name,
+          phone: cleaned
+        });
+      } else {
+        validation.invalid++;
+        validation.invalidContacts.push(contact);
+      }
+    }
     
     if (validation.valid === 0) {
       await fs.unlink(filePath);
       return res.status(400).json({ 
-        error: 'Nenhum número válido encontrado na planilha',
+        error: 'Nenhum número válido encontrado',
         validation 
       });
     }
 
-    // Adiciona números válidos
-    const campaign = campaignManager.addNumbers(name, validation.validNumbers);
+    // Adiciona contatos válidos
+    const campaign = campaignManager.addContacts(name, validation.validContacts);
     
     // Remove arquivo temporário
     await fs.unlink(filePath);
+    
+    // Emite atualização via WebSocket
+    io.emit('contacts-updated', { campaignName: name, contacts: campaign.contacts });
     
     res.json({ 
       success: true, 
@@ -291,9 +442,7 @@ app.post('/api/campaign/:name/upload-numbers', upload.single('file'), async (req
         total: validation.total,
         valid: validation.valid,
         invalid: validation.invalid,
-        validNumbers: validation.validNumbers.slice(0, 20), // Primeiros 20 para preview
-        invalidNumbers: validation.invalidNumbers,
-        details: validation.details.slice(0, 20) // Primeiros 20 para preview
+        contacts: validation.validContacts.slice(0, 50) // Primeiros 50 para preview
       }
     });
     
@@ -345,8 +494,8 @@ app.post('/api/campaign/:name/upload-messages', upload.single('file'), async (re
   }
 });
 
-// Adicionar mensagens manualmente
-app.post('/api/campaign/:name/add-messages', (req, res) => {
+// Adicionar mensagens manualmente (array completo)
+app.post('/api/campaign/:name/add-messages', async (req, res) => {
   try {
     const { name } = req.params;
     const { messages } = req.body;
@@ -356,6 +505,7 @@ app.post('/api/campaign/:name/add-messages', (req, res) => {
     }
 
     const campaign = campaignManager.setMessages(name, messages);
+    await campaignManager.saveCampaign(name);
     res.json({ success: true, campaign });
     
   } catch (error) {
@@ -363,11 +513,65 @@ app.post('/api/campaign/:name/add-messages', (req, res) => {
   }
 });
 
-// Remover número
-app.delete('/api/campaign/:name/number/:phoneNumber', (req, res) => {
+// Adicionar uma mensagem individual
+app.post('/api/campaign/:name/message', async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({ error: 'Mensagem não pode estar vazia' });
+    }
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    campaign.messages.push(message.trim());
+    await campaignManager.saveCampaign(name);
+    
+    res.json({ success: true, campaign });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remover uma mensagem pelo índice
+app.delete('/api/campaign/:name/message/:index', async (req, res) => {
+  try {
+    const { name, index } = req.params;
+    const messageIndex = parseInt(index, 10);
+    
+    if (isNaN(messageIndex)) {
+      return res.status(400).json({ error: 'Índice inválido' });
+    }
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    if (messageIndex < 0 || messageIndex >= campaign.messages.length) {
+      return res.status(400).json({ error: 'Índice fora do intervalo' });
+    }
+
+    campaign.messages.splice(messageIndex, 1);
+    await campaignManager.saveCampaign(name);
+    
+    res.json({ success: true, campaign });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remover número/contato
+app.delete('/api/campaign/:name/number/:phoneNumber', async (req, res) => {
   try {
     const { name, phoneNumber } = req.params;
-    const campaign = campaignManager.removeNumber(name, phoneNumber);
+    const campaign = await campaignManager.removeNumber(name, phoneNumber);
     res.json({ success: true, campaign });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -603,6 +807,43 @@ app.use((err, req, res, next) => {
     });
   } else {
     res.status(500).send('Erro interno do servidor');
+  }
+});
+
+// Registra callback para atualização de status de mensagens
+sessionManager.onMessageStatus((phone, status, details) => {
+  const { campaignName, messageId, message } = details;
+  
+  if (!campaignName) return;
+  
+  try {
+    logger.info(`📊 Atualizando status: ${phone} -> ${status} (Campanha: ${campaignName})`);
+    
+    const statusDetails = { messageId };
+    if (message) statusDetails.message = message;
+    
+    campaignManager.updateContactStatus(campaignName, phone, status, statusDetails);
+    
+    // Emite atualização via WebSocket
+    const campaign = campaignManager.getCampaign(campaignName);
+    if (campaign) {
+      const contact = campaign.contacts.find(c => c.phone === phone);
+      if (contact) {
+        io.emit('contact-status-updated', {
+          campaignName,
+          phone,
+          status: contact.status,
+          details: contact.statusDetails,
+          sentAt: contact.sentAt,
+          receivedAt: contact.receivedAt,
+          readAt: contact.readAt,
+          repliedAt: contact.repliedAt,
+          error: contact.error
+        });
+      }
+    }
+  } catch (error) {
+    logger.error(`Erro ao atualizar status de contato: ${error.message}`);
   }
 });
 

@@ -69,7 +69,18 @@ class Dispatcher {
 
         // Envia a mensagem
         logger.info(`📤 Enviando para ${phoneNumber}...`);
-        const result = await messageSender.sendMessage(phoneNumber, message);
+        const result = await messageSender.sendMessage(phoneNumber, message, null, campaignName);
+
+        // Atualiza status do contato
+        if (result.success) {
+          campaignManager.updateContactStatus(campaignName, phoneNumber, 'sent', {
+            messageId: result.messageId
+          });
+        } else {
+          campaignManager.updateContactStatus(campaignName, phoneNumber, 'failed', {
+            error: result.error
+          });
+        }
 
         // Atualiza progresso
         campaignManager.updateProgress(campaignName, result);

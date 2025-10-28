@@ -122,15 +122,8 @@
                         </div>
 
                         <div class="instances-grid" id="instancesGrid">
-                            <!-- Slots serão gerados dinamicamente -->
+                            <!-- 8 instâncias fixas serão geradas automaticamente -->
                         </div>
-
-                        <button class="btn btn-success" onclick="addInstanceSlot()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                            </svg>
-                            Adicionar Nova Instância
-                        </button>
                     </div>
 
                     <div id="sessionsList" class="sessions-list">
@@ -141,73 +134,96 @@
 
                 <!-- Campaign Section -->
                 <section id="campaign" class="section">
-                    <h2>Gerenciar Campanhas</h2>
-                    
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="create">Nova Campanha</button>
-                        <button class="tab-btn" data-tab="manage">Gerenciar</button>
-                    </div>
+                    <h2>Campanhas</h2>
 
-                    <!-- Create Campaign Tab -->
-                    <div id="create" class="tab-content active">
-                        <div class="form-group">
-                            <label>Nome da Campanha</label>
-                            <input type="text" id="campaignName" placeholder="Ex: promocao-natal" class="input">
+                    <div class="campaign-grid">
+                        <div class="campaign-card">
+                            <h3>Nova Campanha</h3>
+                            <p class="card-subtitle">Defina o nome e gere instantaneamente a campanha. Ela já aparece na lista ao lado.</p>
+
+                            <div class="form-group">
+                                <label>Nome da Campanha</label>
+                                <input type="text" id="campaignName" placeholder="Ex: promocao-natal" class="input">
+                            </div>
+
+                            <button class="btn btn-primary btn-block" onclick="createCampaign()">Criar Campanha</button>
+
+                            <div id="campaignCreationStatus" class="creation-status" style="display: none;"></div>
                         </div>
 
-                        <button class="btn btn-primary" onclick="createCampaign()">Criar Campanha</button>
-                    </div>
-
-                    <!-- Manage Campaign Tab -->
-                    <div id="manage" class="tab-content">
-                        <div class="form-group">
-                            <label>Selecione uma Campanha</label>
-                            <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()">
-                                <option value="">-- Selecione --</option>
-                            </select>
-                        </div>
-
-                        <div id="campaignDetails" style="display: none;">
-                            <div class="campaign-actions">
-                                <h3>Adicionar Números</h3>
-                                
-                                <div class="upload-area">
-                                    <label class="upload-label">
-                                        <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
-                                        <div class="upload-icon">📁</div>
-                                        <p>Clique ou arraste uma planilha de números</p>
-                                        <small>Formatos: CSV, XLSX</small>
-                                    </label>
+                        <div class="campaign-card full">
+                            <div class="campaign-manage-header">
+                                <div>
+                                    <h3>Gerenciamento de Campanhas</h3>
+                                    <p class="card-subtitle">Selecione uma campanha para acompanhar números, mensagens e status.</p>
                                 </div>
-
-                                <button class="btn btn-secondary" onclick="downloadTemplate('numbers')">
-                                    Baixar Template de Números
-                                </button>
-
-                                <hr>
-
-                                <h3>Adicionar Mensagens</h3>
-                                
-                                <div class="upload-area">
-                                    <label class="upload-label">
-                                        <input type="file" id="messagesFile" accept=".csv,.xlsx,.xls" onchange="uploadMessages()" style="display: none;">
-                                        <div class="upload-icon">📝</div>
-                                        <p>Clique ou arraste uma planilha de mensagens</p>
-                                        <small>Formatos: CSV, XLSX</small>
-                                    </label>
+                                <div class="form-group compact">
+                                    <label>Campanha</label>
+                                    <div class="campaign-select-actions">
+                                        <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()">
+                                            <option value="">-- Selecione --</option>
+                                        </select>
+                                        <button class="btn btn-danger" id="deleteCampaignButton" onclick="deleteCampaign()">
+                                            🗑️ Excluir
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
 
-                                <button class="btn btn-secondary" onclick="downloadTemplate('messages')">
-                                    Baixar Template de Mensagens
-                                </button>
+                            <div id="campaignDetails" style="display: none;">
+                                <div class="campaign-actions">
+                                    <div class="inline-actions">
+                                        <div>
+                                            <h4>Adicionar Números</h4>
+                                            <div class="upload-area">
+                                                <label class="upload-label">
+                                                    <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
+                                                    <div class="upload-icon">📁</div>
+                                                    <p>Clique ou arraste uma planilha de números</p>
+                                                    <small>Formatos: CSV, XLSX</small>
+                                                </label>
+                                            </div>
+                                            <button class="btn btn-secondary" onclick="downloadTemplate('numbers')">
+                                                Baixar Template de Números
+                                            </button>
+                                        </div>
 
-                                <hr>
+                                        <div>
+                                            <h4>Gerenciar Mensagens</h4>
+                                            <div class="message-input-container">
+                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite a mensagem aqui..." rows="3"></textarea>
+                                                <button class="btn btn-primary" onclick="addMessage()">➕ Adicionar Mensagem</button>
+                                            </div>
+                                            <div id="messagesList" class="messages-list"></div>
+                                        </div>
+                                    </div>
 
-                                <h3>Status da Campanha</h3>
-                                <div id="campaignStats" class="stats-grid"></div>
+                                    <hr>
 
-                                <h3>Números Cadastrados</h3>
-                                <div id="numbersList" class="numbers-list"></div>
+                                    <h4>Status da Campanha</h4>
+                                    <div id="campaignStats" class="stats-grid"></div>
+
+                                    <h4>Contatos da Campanha</h4>
+                                    <div class="contacts-table-container">
+                                        <table class="contacts-table" id="contactsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Nome</th>
+                                                    <th>Telefone</th>
+                                                    <th>Status</th>
+                                                    <th>Detalhes</th>
+                                                    <th>Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="contactsTableBody">
+                                                <tr>
+                                                    <td colspan="6" class="empty-state">Nenhum contato adicionado</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
