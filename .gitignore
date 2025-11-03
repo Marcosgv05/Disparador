@@ -19,6 +19,7 @@ uploads/
 campaigns.json
 schedules.json
 instances.json
+data/
 
 # OS
 .DS_Store

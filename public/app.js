@@ -10,8 +10,45 @@ let state = {
     campaigns: [],
     sessions: [],
     instances: [],
-    instanceCounter: 0
+    instanceCounter: 0,
+    user: null
 };
+
+// ==== AUTENTICAÇÃO ====
+
+// Verifica se está logado ao carregar a página
+(function checkAuth() {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (!token || !user) {
+        window.location.href = '/login.html';
+        return;
+    }
+    
+    state.user = JSON.parse(user);
+    document.getElementById('userName').textContent = state.user.name;
+})();
+
+async function handleLogout() {
+    if (!confirm('Deseja realmente sair?')) return;
+    
+    try {
+        await fetch(`${API_URL}/api/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao fazer logout:', error);
+    }
+    
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login.html';
+}
 
 // ==== UTILITIES ====
 
@@ -75,10 +112,13 @@ async function deleteCampaign() {
 
 async function apiCall(endpoint, options = {}) {
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_URL}${endpoint}`, {
             ...options,
+            credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '',
                 ...options.headers
             }
         });
@@ -827,10 +867,10 @@ socket.on('contact-status-updated', (data) => {
 async function loadInstances() {
     try {
         const { instances } = await apiCall('/api/instances');
-        state.instances = instances;
+        state.instances = instances || [];
         
         // Atualiza contador
-        if (instances.length > 0) {
+        if (instances && instances.length > 0) {
             const maxId = Math.max(...instances.map(i => {
                 const match = i.id.match(/instance-(\d+)/);
                 return match ? parseInt(match[1]) : 0;
@@ -841,24 +881,33 @@ async function loadInstances() {
         renderInstances();
     } catch (error) {
         console.error('Erro ao carregar instâncias:', error);
+        state.instances = []; // Garante array vazio em caso de erro
+        renderInstances();
     }
 }
 
 async function addInstanceSlot() {
-    // Garante que o ID seja único verificando IDs existentes
-    const existingIds = state.instances.map(i => {
-        const match = i.id.match(/instance-(\d+)/);
-        return match ? parseInt(match[1]) : 0;
-    });
+    // Calcula o próximo número sequencial baseado apenas nas instâncias do usuário atual
+    let nextNumber = 1;
     
-    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
-    state.instanceCounter = maxId + 1;
+    if (state.instances && state.instances.length > 0) {
+        // Pega todos os números existentes das instâncias do usuário
+        const existingNumbers = state.instances.map(i => {
+            const match = i.id.match(/instance-(\d+)/);
+            return match ? parseInt(match[1]) : 0;
+        }).filter(n => n > 0);
+        
+        // Encontra o próximo número disponível sequencialmente
+        while (existingNumbers.includes(nextNumber)) {
+            nextNumber++;
+        }
+    }
     
-    const instanceId = `instance-${state.instanceCounter}`;
+    const instanceId = `instance-${String(nextNumber).padStart(2, '0')}`;
     
     const instanceData = {
         id: instanceId,
-        name: `Instância ${state.instanceCounter}`,
+        name: `Instância ${nextNumber}`,
         sessionId: null,
         status: 'disconnected',
         phone: null
@@ -875,19 +924,30 @@ async function addInstanceSlot() {
         showToast('Instância adicionada', 'success');
     } catch (error) {
         console.error('Erro ao adicionar instância:', error);
+        showToast('Erro ao adicionar instância: ' + error.message, 'error');
     }
 }
 
 function renderInstances() {
     const grid = document.getElementById('instancesGrid');
     
-    if (state.instances.length === 0) {
-        grid.innerHTML = '<p class="empty-state">Carregando instâncias...</p>';
+    if (!state.instances || state.instances.length === 0) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <p>📱 Nenhuma instância encontrada</p>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                    Clique em "+ Adicionar Instância" para começar
+                </p>
+            </div>
+        `;
         return;
     }
     
     grid.innerHTML = state.instances.map(inst => {
-        const number = inst.id.replace('instance-', '');
+        // Extrai apenas o número do ID (remove zeros à esquerda)
+        const numberMatch = inst.id.match(/instance-0*(\d+)/);
+        const number = numberMatch ? numberMatch[1] : inst.id.replace('instance-', '');
+        
         const statusInfo = {
             'connected': { icon: '✓', text: 'Conectado', color: 'success' },
             'connecting': { icon: '⟳', text: 'Aguardando conexão', color: 'warning' },
@@ -925,6 +985,9 @@ function renderInstances() {
                 ` : ''}
                 <button class="btn btn-danger btn-block" onclick="disconnectInstance('${inst.id}')" ${inst.status !== 'connected' ? 'disabled' : ''}>
                     📵 Desconectar
+                </button>
+                <button class="btn btn-danger btn-block" onclick="removeInstance('${inst.id}')" ${inst.status === 'connected' ? 'disabled' : ''}>
+                    🗑️ Remover Instância
                 </button>
             </div>
             
@@ -1052,15 +1115,44 @@ async function disconnectInstance(instanceId) {
 }
 
 async function removeInstance(instanceId) {
-    if (!confirm('Remover esta instância?')) return;
+    const instance = state.instances.find(i => i.id === instanceId);
+    
+    if (!instance) {
+        showToast('Instância não encontrada', 'error');
+        return;
+    }
+    
+    // Não permite remover se estiver conectada
+    if (instance.status === 'connected') {
+        showToast('Desconecte a instância antes de removê-la', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Tem certeza que deseja remover a ${instance.name}?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+    }
     
     try {
+        // Remove sessão se existir
+        if (instance.sessionId) {
+            try {
+                await apiCall(`/api/session/${instance.sessionId}`, { method: 'DELETE' });
+            } catch (err) {
+                console.warn('Erro ao remover sessão:', err);
+            }
+        }
+        
+        // Remove instância
         await apiCall(`/api/instances/${instanceId}`, { method: 'DELETE' });
+        
+        // Remove do estado local
         state.instances = state.instances.filter(i => i.id !== instanceId);
         renderInstances();
-        showToast('Instância removida', 'success');
+        
+        showToast('Instância removida com sucesso', 'success');
     } catch (error) {
         console.error('Erro ao remover instância:', error);
+        showToast('Erro ao remover instância: ' + error.message, 'error');
     }
 }
 

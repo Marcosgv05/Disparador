@@ -28,11 +28,16 @@ class InstanceManager {
   }
 
   /**
-   * Obtém próximo número disponível
+   * Obtém próximo número disponível para um usuário específico
    */
-  getNextInstanceNumber() {
+  getNextInstanceNumber(userId = null) {
+    // Filtra instâncias do usuário se userId fornecido
+    const userInstances = userId 
+      ? this.instances.filter(i => i.userId === userId)
+      : this.instances;
+
     const usedNumbers = new Set(
-      this.instances
+      userInstances
         .map(instance => this.extractNumber(instance.id))
         .filter(number => Number.isInteger(number) && number > 0)
     );
@@ -86,27 +91,8 @@ class InstanceManager {
     await this.loadInstances();
     this.normalizeInstances();
     
-    // Cria 8 instâncias fixas se não existirem
-    for (let i = 1; i <= 8; i++) {
-      const instanceId = `instance-${this.formatNumber(i)}`;
-      const exists = this.instances.find(inst => inst.id === instanceId);
-      
-      if (!exists) {
-        const instance = {
-          id: instanceId,
-          name: `Instância ${this.formatNumber(i)}`,
-          sessionId: null,
-          status: 'disconnected',
-          phone: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        this.instances.push(instance);
-      }
-    }
-    
-    // Salva instâncias criadas
-    await this.saveInstances();
+    // NÃO cria instâncias fixas automaticamente em modo multi-tenant
+    // Cada usuário criará suas próprias instâncias
     
     logger.info(`📱 ${this.instances.length} instâncias carregadas`);
   }
@@ -114,16 +100,22 @@ class InstanceManager {
   /**
    * Adiciona nova instância
    */
-  addInstance(instanceData) {
-    const number = this.getNextInstanceNumber();
+  addInstance(instanceData, userId) {
+    if (!userId) {
+      throw new Error('userId é obrigatório');
+    }
+
+    // Calcula o próximo número baseado apenas nas instâncias do usuário
+    const number = this.getNextInstanceNumber(userId);
     const formatted = this.formatNumber(number);
 
     const instance = {
       id: `instance-${formatted}`,
-      name: instanceData.name || `Instância ${formatted}`,
+      name: instanceData.name || `Instância ${number}`,
       sessionId: instanceData.sessionId || null,
       status: instanceData.status || 'disconnected',
       phone: instanceData.phone || null,
+      userId: userId,
       createdAt: instanceData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -139,18 +131,23 @@ class InstanceManager {
     
     this.saveInstances();
     
-    logger.info(`📱 Instância "${instance.name}" adicionada`);
+    logger.info(`📱 Instância "${instance.name}" adicionada para usuário ${userId}`);
     return instance;
   }
 
   /**
    * Atualiza instância
    */
-  updateInstance(instanceId, updates) {
+  updateInstance(instanceId, updates, userId = null) {
     const index = this.instances.findIndex(i => i.id === instanceId);
     
     if (index === -1) {
       throw new Error('Instância não encontrada');
+    }
+
+    // Valida propriedade se userId fornecido
+    if (userId && this.instances[index].userId !== userId) {
+      throw new Error('Acesso negado a esta instância');
     }
 
     this.instances[index] = {
@@ -166,11 +163,16 @@ class InstanceManager {
   /**
    * Remove instância
    */
-  removeInstance(instanceId) {
+  removeInstance(instanceId, userId = null) {
     const index = this.instances.findIndex(i => i.id === instanceId);
     
     if (index === -1) {
       throw new Error('Instância não encontrada');
+    }
+
+    // Valida propriedade se userId fornecido
+    if (userId && this.instances[index].userId !== userId) {
+      throw new Error('Acesso negado a esta instância');
     }
 
     const instance = this.instances[index];
@@ -184,8 +186,19 @@ class InstanceManager {
   /**
    * Obtém instância por ID
    */
-  getInstance(instanceId) {
-    return this.instances.find(i => i.id === instanceId);
+  getInstance(instanceId, userId = null) {
+    const instance = this.instances.find(i => i.id === instanceId);
+    
+    if (!instance) {
+      return null;
+    }
+
+    // Valida propriedade se userId fornecido
+    if (userId && instance.userId !== userId) {
+      throw new Error('Acesso negado a esta instância');
+    }
+
+    return instance;
   }
 
   /**
@@ -196,9 +209,12 @@ class InstanceManager {
   }
 
   /**
-   * Lista todas as instâncias
+   * Lista todas as instâncias (opcionalmente filtradas por userId)
    */
-  listInstances() {
+  listInstances(userId = null) {
+    if (userId) {
+      return this.instances.filter(i => i.userId === userId);
+    }
     return [...this.instances];
   }
 

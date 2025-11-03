@@ -1,6 +1,6 @@
 # 📱 WhatsApp Multi-Sender
 
-Ferramenta profissional de disparo em massa para WhatsApp usando Baileys API. Suporta múltiplas sessões simultâneas e alternância inteligente de mensagens.
+Ferramenta profissional de disparo em massa para WhatsApp usando Baileys API. Suporta múltiplas sessões simultâneas, alternância inteligente de mensagens e **sistema multi-tenant com autenticação**.
 
 ## 🎯 Três Formas de Usar
 
@@ -29,6 +29,31 @@ npm start
 **Ideal para:** Envios rápidos, múltiplas sessões simultâneas, simplicidade.
 
 → **[Veja as Diferenças](COMPARACAO.md)**
+
+## 🔐 Sistema Multi-Tenant
+
+A interface web possui **autenticação completa** e **isolamento de dados por usuário**:
+
+### ✨ Funcionalidades de Autenticação
+- 🔑 **Login/Registro** com email e senha
+- 🛡️ **JWT Authentication** com tokens seguros
+- 👥 **Multi-Tenant**: Cada usuário vê apenas seus próprios dados
+- 🎭 **Roles**: Suporte para usuários comuns e admins
+- 🔒 **Segurança**: Senhas hasheadas com bcrypt, cookies httpOnly
+
+### 🎯 Isolamento de Dados
+Cada usuário possui:
+- 📱 **Instâncias WhatsApp** próprias
+- 📋 **Campanhas** independentes
+- 📊 **Agendamentos** isolados
+- 📈 **Estatísticas** individuais
+
+**Perfeito para:**
+- Agências que gerenciam múltiplos clientes
+- SaaS de disparo de mensagens
+- Revenda de serviço WhatsApp
+
+→ **[Guia Completo de Autenticação](AUTH.md)**
 
 ## 🚀 Características
 
@@ -193,6 +218,34 @@ windsurf-project/
 - Nunca compartilhe a pasta `auth_sessions/` ou arquivos `.env`
 - Use delays adequados para evitar bloqueios do WhatsApp
 - Respeite as políticas de uso do WhatsApp
+
+## 🚀 Deploy em Produção
+
+### Railway (Recomendado)
+
+```bash
+# 1. Configure as variáveis de ambiente no Railway:
+JWT_SECRET=seu-hash-seguro-aqui
+SESSION_SECRET=outro-hash-seguro-aqui
+CORS_ORIGIN=https://seu-app.up.railway.app
+NODE_ENV=production
+
+# 2. Conecte seu repositório GitHub
+# 3. Deploy automático!
+```
+
+### Criar Admin após Deploy
+```bash
+railway run npm run create-admin
+```
+
+**Credenciais padrão:**
+- Email: `admin@whatsapp.com`
+- Senha: `admin123`
+
+⚠️ **Troque a senha após primeiro login!**
+
+→ **[Guia Completo de Deploy](DEPLOY.md)**
 
 ## ⚠️ Avisos Importantes
 

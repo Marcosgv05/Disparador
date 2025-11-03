@@ -45,15 +45,20 @@ class CampaignManager {
   /**
    * Cria uma nova campanha
    * @param {string} name - Nome da campanha
-   * @param {Array<string>} messages - Mensagens para alternância
+   * @param {number} userId - ID do usuário proprietário
    */
-  async createCampaign(name) {
+  async createCampaign(name, userId) {
+    if (!userId) {
+      throw new Error('userId é obrigatório');
+    }
+
     if (this.campaigns.has(name)) {
       throw new Error(`Campanha "${name}" já existe`);
     }
 
     const campaign = {
       name,
+      userId,
       contacts: [], // Array de {name, phone, status, statusDetails}
       numbers: [], // Backward compatibility
       messages: [],
@@ -446,16 +451,54 @@ class CampaignManager {
   /**
    * Obtém informações da campanha
    * @param {string} campaignName 
+   * @param {number} userId - Opcional, valida propriedade
    */
-  getCampaign(campaignName) {
-    return this.campaigns.get(campaignName);
+  getCampaign(campaignName, userId = null) {
+    const campaign = this.campaigns.get(campaignName);
+    
+    if (!campaign) {
+      return null;
+    }
+
+    // Valida propriedade se userId fornecido
+    if (userId && campaign.userId !== userId) {
+      throw new Error('Acesso negado a esta campanha');
+    }
+
+    return campaign;
   }
 
   /**
-   * Lista todas as campanhas
+   * Lista todas as campanhas (opcionalmente filtradas por userId)
+   * @param {number} userId - Opcional, filtra por usuário
    */
-  listCampaigns() {
-    return Array.from(this.campaigns.values());
+  listCampaigns(userId = null) {
+    const campaigns = Array.from(this.campaigns.values());
+    
+    if (userId) {
+      return campaigns.filter(c => c.userId === userId);
+    }
+    
+    return campaigns;
+  }
+
+  /**
+   * Valida se usuário tem acesso à campanha
+   * @param {string} campaignName 
+   * @param {number} userId 
+   */
+  validateOwnership(campaignName, userId) {
+    const campaign = this.campaigns.get(campaignName);
+    
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    if (campaign.userId !== userId) {
+      throw new Error('Acesso negado a esta campanha');
+    }
+
+    return true;
   }
 
   /**

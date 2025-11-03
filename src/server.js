@@ -6,6 +6,8 @@ import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import session from 'express-session';
+import cookieParser from 'cookie-parser';
 
 // Importa serviços
 import sessionManager from './whatsapp/sessionManager.js';
@@ -16,6 +18,8 @@ import instanceManager from './services/instanceManager.js';
 import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
+import authRoutes from './routes/auth.js';
+import { requireAuth, optionalAuth, validateCampaignOwnership } from './middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,13 +34,17 @@ const io = new Server(httpServer, {
 });
 
 // Deletar campanha
-app.delete('/api/campaign/:name', async (req, res) => {
+app.delete('/api/campaign/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
+    
+    // Valida propriedade
+    campaignManager.validateOwnership(name, req.user.id);
+    
     await campaignManager.deleteCampaign(name);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(403).json({ error: error.message });
   }
 });
 
@@ -66,8 +74,27 @@ const upload = multer({
 });
 
 // Middlewares
-app.use(cors());
+const corsOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : ['http://localhost:3000'];
+
+app.use(cors({
+  origin: corsOrigins,
+  credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'whatsapp-dispatcher-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // HTTPS apenas em produção
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+  }
+}));
 
 // Log de requisições (apenas em desenvolvimento)
 app.use((req, res, next) => {
@@ -76,6 +103,9 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Rotas de autenticação (públicas)
+app.use('/api/auth', authRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -216,15 +246,21 @@ function emitProgress(data) {
   io.emit('progress', data);
 }
 
-// ====== ROTAS DE SESSÃO ======
+// ====== ROTAS DE SESSÃO (Protegidas) ======
 
 // Criar sessão (conectar WhatsApp)
-app.post('/api/session/create', async (req, res) => {
+app.post('/api/session/create', requireAuth, async (req, res) => {
   try {
     const { sessionId, forceNew } = req.body;
     
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId é obrigatório' });
+    }
+
+    // Verifica se o sessionId corresponde a uma instância do usuário
+    const instance = instanceManager.getInstanceBySession(sessionId);
+    if (instance && instance.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado a esta instância' });
     }
 
     // Responde imediatamente
@@ -246,20 +282,36 @@ app.post('/api/session/create', async (req, res) => {
   }
 });
 
-// Listar sessões
-app.get('/api/session/list', (req, res) => {
+// Listar sessões do usuário
+app.get('/api/session/list', requireAuth, (req, res) => {
   try {
-    const sessions = sessionManager.getAllSessions();
-    res.json({ sessions });
+    const allSessions = sessionManager.getAllSessions();
+    
+    // Filtra sessões pelas instâncias do usuário
+    const userInstances = instanceManager.listInstances(req.user.id);
+    const userSessionIds = userInstances.map(i => i.sessionId).filter(Boolean);
+    
+    const userSessions = allSessions.filter(session => 
+      userSessionIds.includes(session.id)
+    );
+    
+    res.json({ sessions: userSessions });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Remover sessão
-app.delete('/api/session/:sessionId', async (req, res) => {
+app.delete('/api/session/:sessionId', requireAuth, async (req, res) => {
   try {
     const { sessionId } = req.params;
+    
+    // Verifica se o sessionId corresponde a uma instância do usuário
+    const instance = instanceManager.getInstanceBySession(sessionId);
+    if (instance && instance.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado a esta sessão' });
+    }
+    
     await sessionManager.removeSession(sessionId);
     res.json({ success: true, message: 'Sessão removida' });
   } catch (error) {
@@ -267,12 +319,12 @@ app.delete('/api/session/:sessionId', async (req, res) => {
   }
 });
 
-// ====== ROTAS DE INSTÂNCIAS ======
+// ====== ROTAS DE INSTÂNCIAS (Protegidas) ======
 
-// Listar instâncias
-app.get('/api/instances', (req, res) => {
+// Listar instâncias do usuário
+app.get('/api/instances', requireAuth, (req, res) => {
   try {
-    const instances = instanceManager.listInstances();
+    const instances = instanceManager.listInstances(req.user.id);
     res.json({ instances });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -280,9 +332,9 @@ app.get('/api/instances', (req, res) => {
 });
 
 // Adicionar instância
-app.post('/api/instances', (req, res) => {
+app.post('/api/instances', requireAuth, (req, res) => {
   try {
-    const instance = instanceManager.addInstance(req.body);
+    const instance = instanceManager.addInstance(req.body, req.user.id);
     res.json({ success: true, instance });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -290,31 +342,31 @@ app.post('/api/instances', (req, res) => {
 });
 
 // Atualizar instância
-app.patch('/api/instances/:instanceId', (req, res) => {
+app.patch('/api/instances/:instanceId', requireAuth, (req, res) => {
   try {
     const { instanceId } = req.params;
-    const instance = instanceManager.updateInstance(instanceId, req.body);
+    const instance = instanceManager.updateInstance(instanceId, req.body, req.user.id);
     res.json({ success: true, instance });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(403).json({ error: error.message });
   }
 });
 
 // Remover instância
-app.delete('/api/instances/:instanceId', (req, res) => {
+app.delete('/api/instances/:instanceId', requireAuth, (req, res) => {
   try {
     const { instanceId } = req.params;
-    const instance = instanceManager.removeInstance(instanceId);
+    const instance = instanceManager.removeInstance(instanceId, req.user.id);
     res.json({ success: true, instance });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(403).json({ error: error.message });
   }
 });
 
-// ====== ROTAS DE CAMPANHA ======
+// ====== ROTAS DE CAMPANHA (Protegidas) ======
 
 // Criar campanha
-app.post('/api/campaign/create', async (req, res) => {
+app.post('/api/campaign/create', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
     
@@ -322,7 +374,7 @@ app.post('/api/campaign/create', async (req, res) => {
       return res.status(400).json({ error: 'Nome da campanha é obrigatório' });
     }
 
-    const campaign = await campaignManager.createCampaign(name);
+    const campaign = await campaignManager.createCampaign(name, req.user.id);
     res.json({ success: true, campaign });
     
   } catch (error) {
@@ -330,10 +382,10 @@ app.post('/api/campaign/create', async (req, res) => {
   }
 });
 
-// Listar campanhas
-app.get('/api/campaign/list', (req, res) => {
+// Listar campanhas do usuário
+app.get('/api/campaign/list', requireAuth, (req, res) => {
   try {
-    const campaigns = campaignManager.listCampaigns();
+    const campaigns = campaignManager.listCampaigns(req.user.id);
     res.json({ campaigns });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -341,10 +393,10 @@ app.get('/api/campaign/list', (req, res) => {
 });
 
 // Obter campanha específica
-app.get('/api/campaign/:name', (req, res) => {
+app.get('/api/campaign/:name', requireAuth, (req, res) => {
   try {
     const { name } = req.params;
-    const campaign = campaignManager.getCampaign(name);
+    const campaign = campaignManager.getCampaign(name, req.user.id);
     
     if (!campaign) {
       return res.status(404).json({ error: 'Campanha não encontrada' });
@@ -352,12 +404,12 @@ app.get('/api/campaign/:name', (req, res) => {
     
     res.json({ campaign });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(403).json({ error: error.message });
   }
 });
 
 // Adicionar número individual
-app.post('/api/campaign/:name/add-number', (req, res) => {
+app.post('/api/campaign/:name/add-number', requireAuth, validateCampaignOwnership(campaignManager), (req, res) => {
   try {
     const { name } = req.params;
     const { phoneNumber } = req.body;
@@ -375,7 +427,7 @@ app.post('/api/campaign/:name/add-number', (req, res) => {
 });
 
 // Upload de planilha de números
-app.post('/api/campaign/:name/upload-numbers', upload.single('file'), async (req, res) => {
+app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwnership(campaignManager), upload.single('file'), async (req, res) => {
   try {
     const { name } = req.params;
     
@@ -455,7 +507,7 @@ app.post('/api/campaign/:name/upload-numbers', upload.single('file'), async (req
 });
 
 // Upload de planilha de mensagens
-app.post('/api/campaign/:name/upload-messages', upload.single('file'), async (req, res) => {
+app.post('/api/campaign/:name/upload-messages', requireAuth, validateCampaignOwnership(campaignManager), upload.single('file'), async (req, res) => {
   try {
     const { name } = req.params;
     
@@ -495,7 +547,7 @@ app.post('/api/campaign/:name/upload-messages', upload.single('file'), async (re
 });
 
 // Adicionar mensagens manualmente (array completo)
-app.post('/api/campaign/:name/add-messages', async (req, res) => {
+app.post('/api/campaign/:name/add-messages', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name } = req.params;
     const { messages } = req.body;
@@ -514,7 +566,7 @@ app.post('/api/campaign/:name/add-messages', async (req, res) => {
 });
 
 // Adicionar uma mensagem individual
-app.post('/api/campaign/:name/message', async (req, res) => {
+app.post('/api/campaign/:name/message', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name } = req.params;
     const { message } = req.body;
@@ -539,7 +591,7 @@ app.post('/api/campaign/:name/message', async (req, res) => {
 });
 
 // Remover uma mensagem pelo índice
-app.delete('/api/campaign/:name/message/:index', async (req, res) => {
+app.delete('/api/campaign/:name/message/:index', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name, index } = req.params;
     const messageIndex = parseInt(index, 10);
@@ -568,7 +620,7 @@ app.delete('/api/campaign/:name/message/:index', async (req, res) => {
 });
 
 // Remover número/contato
-app.delete('/api/campaign/:name/number/:phoneNumber', async (req, res) => {
+app.delete('/api/campaign/:name/number/:phoneNumber', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name, phoneNumber } = req.params;
     const campaign = await campaignManager.removeNumber(name, phoneNumber);
@@ -579,7 +631,7 @@ app.delete('/api/campaign/:name/number/:phoneNumber', async (req, res) => {
 });
 
 // Salvar campanha
-app.post('/api/campaign/:name/save', async (req, res) => {
+app.post('/api/campaign/:name/save', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name } = req.params;
     await campaignManager.saveCampaign(name);
@@ -616,12 +668,15 @@ app.delete('/api/campaign/:name', async (req, res) => {
   }
 });
 
-// ====== ROTAS DE DISPARO ======
+// ====== ROTAS DE DISPARO (Protegidas) ======
 
 // Iniciar disparo
-app.post('/api/dispatch/start/:campaignName', async (req, res) => {
+app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
   try {
     const { campaignName } = req.params;
+    
+    // Valida propriedade
+    campaignManager.validateOwnership(campaignName, req.user.id);
     
     // Inicia disparo em background
     dispatcher.runCampaign(campaignName)
@@ -640,7 +695,7 @@ app.post('/api/dispatch/start/:campaignName', async (req, res) => {
 });
 
 // Pausar disparo
-app.post('/api/dispatch/pause', (req, res) => {
+app.post('/api/dispatch/pause', requireAuth, (req, res) => {
   try {
     dispatcher.pause();
     res.json({ success: true, message: 'Disparo pausado' });
@@ -650,7 +705,7 @@ app.post('/api/dispatch/pause', (req, res) => {
 });
 
 // Retomar disparo
-app.post('/api/dispatch/resume', (req, res) => {
+app.post('/api/dispatch/resume', requireAuth, (req, res) => {
   try {
     dispatcher.resume();
     res.json({ success: true, message: 'Disparo retomado' });
@@ -660,7 +715,7 @@ app.post('/api/dispatch/resume', (req, res) => {
 });
 
 // Parar disparo
-app.post('/api/dispatch/stop', (req, res) => {
+app.post('/api/dispatch/stop', requireAuth, (req, res) => {
   try {
     dispatcher.stop();
     res.json({ success: true, message: 'Disparo parado' });
@@ -670,7 +725,7 @@ app.post('/api/dispatch/stop', (req, res) => {
 });
 
 // Status do disparo
-app.get('/api/dispatch/status', (req, res) => {
+app.get('/api/dispatch/status', requireAuth, (req, res) => {
   try {
     const status = dispatcher.getStatus();
     res.json(status);
@@ -679,10 +734,10 @@ app.get('/api/dispatch/status', (req, res) => {
   }
 });
 
-// ====== ROTAS DE AGENDAMENTO ======
+// ====== ROTAS DE AGENDAMENTO (Protegidas) ======
 
 // Configurar agendamento
-app.post('/api/schedule/:campaignName', (req, res) => {
+app.post('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     const schedule = req.body;
@@ -709,7 +764,7 @@ app.post('/api/schedule/:campaignName', (req, res) => {
 });
 
 // Obter agendamento
-app.get('/api/schedule/:campaignName', (req, res) => {
+app.get('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     const schedule = scheduler.getSchedule(campaignName);
@@ -726,8 +781,8 @@ app.get('/api/schedule/:campaignName', (req, res) => {
   }
 });
 
-// Listar todos os agendamentos
-app.get('/api/schedule', (req, res) => {
+// Listar todos os agendamentos do usuário
+app.get('/api/schedule', requireAuth, (req, res) => {
   try {
     const schedules = scheduler.listSchedules();
     res.json({ schedules });
@@ -737,7 +792,7 @@ app.get('/api/schedule', (req, res) => {
 });
 
 // Remover agendamento
-app.delete('/api/schedule/:campaignName', (req, res) => {
+app.delete('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     scheduler.removeSchedule(campaignName);
@@ -748,7 +803,7 @@ app.delete('/api/schedule/:campaignName', (req, res) => {
 });
 
 // Habilitar/desabilitar agendamento
-app.patch('/api/schedule/:campaignName/toggle', (req, res) => {
+app.patch('/api/schedule/:campaignName/toggle', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     const { enabled } = req.body;
