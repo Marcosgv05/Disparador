@@ -11,6 +11,7 @@
     "web": "node src/server.js",
     "dev": "node --watch src/index.js",
     "create-admin": "node src/scripts/createAdmin.js",
+    "reset-admin": "node src/scripts/resetAdminPassword.js",
     "migrate": "node src/scripts/migrateToMultiTenant.js"
   },
   "keywords": [
