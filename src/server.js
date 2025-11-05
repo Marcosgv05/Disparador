@@ -104,6 +104,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Rota de teste (para debug)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    cors: req.headers.origin || 'no-origin'
+  });
+});
+
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
 
