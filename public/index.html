@@ -203,10 +203,22 @@
 
                                         <div>
                                             <h4>Gerenciar Mensagens</h4>
+                                            
+                                            <!-- Adicionar uma mensagem -->
                                             <div class="message-input-container">
-                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite a mensagem aqui..." rows="3"></textarea>
+                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite uma mensagem aqui..." rows="3"></textarea>
                                                 <button class="btn btn-primary" onclick="addMessage()">➕ Adicionar Mensagem</button>
                                             </div>
+                                            
+                                            <!-- Adicionar múltiplas mensagens -->
+                                            <div class="message-input-container" style="margin-top: 15px;">
+                                                <label style="font-weight: 600; margin-bottom: 5px; display: block;">
+                                                    📝 Adicionar Várias Mensagens (uma por linha)
+                                                </label>
+                                                <textarea id="bulkMessagesText" class="input message-textarea" placeholder="Cole várias mensagens aqui, uma por linha...&#10;&#10;Exemplo:&#10;Olá {nome}! Tudo bem?&#10;Temos uma promoção especial!&#10;Aproveite enquanto dura!" rows="6"></textarea>
+                                                <button class="btn btn-success" onclick="addBulkMessages()">➕ Adicionar Todas as Mensagens</button>
+                                            </div>
+                                            
                                             <div id="messagesList" class="messages-list"></div>
                                         </div>
                                     </div>
@@ -251,6 +263,64 @@
                         <select id="dispatchCampaign" class="input">
                             <option value="">-- Selecione --</option>
                         </select>
+                    </div>
+
+                    <!-- Configurações de Delay -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #e0e0e0;">
+                        <h4 style="margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                            ⏱️ Configurações de Tempo
+                        </h4>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    ⏳ Delay entre mensagens (segundos)
+                                    <span style="font-size: 0.85em; color: #666; font-weight: normal;">
+                                        - Tempo de espera entre cada envio
+                                    </span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="messageDelay" 
+                                    class="input" 
+                                    value="3" 
+                                    min="1" 
+                                    max="360"
+                                    placeholder="Ex: 3"
+                                >
+                                <small style="color: #666; margin-top: 5px; display: block;">
+                                    💡 Recomendado: 3-5 segundos | Máximo: 360s (6 minutos)
+                                </small>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="display: flex; align-items: center; gap: 5px;">
+                                    🔄 Delay entre números (segundos)
+                                    <span style="font-size: 0.85em; color: #666; font-weight: normal;">
+                                        - Tempo adicional ao trocar de contato
+                                    </span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="numberDelay" 
+                                    class="input" 
+                                    value="5" 
+                                    min="1" 
+                                    max="120"
+                                    placeholder="Ex: 5"
+                                >
+                                <small style="color: #666; margin-top: 5px; display: block;">
+                                    💡 Recomendado: 5-10 segundos
+                                </small>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+                            <small style="color: #856404;">
+                                <strong>⚠️ Importante:</strong> Delays muito curtos podem causar bloqueio pelo WhatsApp. 
+                                Use valores maiores para envios em larga escala.
+                            </small>
+                        </div>
                     </div>
 
                     <div class="dispatch-controls">

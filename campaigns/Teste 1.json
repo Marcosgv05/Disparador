@@ -1,0 +1,23 @@
+{
+  "name": "Teste 1",
+  "userId": 2,
+  "contacts": [],
+  "numbers": [],
+  "messages": [],
+  "status": "idle",
+  "createdAt": "2025-11-05T19:24:43.278Z",
+  "startedAt": null,
+  "completedAt": null,
+  "stats": {
+    "total": 0,
+    "sent": 0,
+    "received": 0,
+    "read": 0,
+    "replied": 0,
+    "failed": 0,
+    "pending": 0
+  },
+  "instanceStats": {},
+  "currentIndex": 0,
+  "results": []
+}

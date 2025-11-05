@@ -17,8 +17,11 @@ class Dispatcher {
   /**
    * Executa uma campanha
    * @param {string} campaignName 
+   * @param {Object} options - Opções de delay customizadas
+   * @param {number} options.messageDelay - Delay entre mensagens em ms
+   * @param {number} options.numberDelay - Delay entre números em ms
    */
-  async runCampaign(campaignName) {
+  async runCampaign(campaignName, options = {}) {
     try {
       const campaign = campaignManager.getCampaign(campaignName);
       if (!campaign) {
@@ -32,6 +35,10 @@ class Dispatcher {
       this.isRunning = true;
       this.currentCampaign = campaignName;
 
+      // Define delays (usa customizados ou padrão)
+      const messageDelay = options.messageDelay || settings.messageDelay;
+      const numberDelay = options.numberDelay || settings.numberDelay;
+
       // Inicia a campanha
       campaignManager.startCampaign(campaignName);
 
@@ -40,7 +47,9 @@ class Dispatcher {
 
       logger.info(`\n🚀 Iniciando disparo da campanha "${campaignName}"`);
       logger.info(`📊 Total de números: ${campaign.numbers.length}`);
-      logger.info(`📝 Total de mensagens: ${campaign.messages.length}\n`);
+      logger.info(`📝 Total de mensagens: ${campaign.messages.length}`);
+      logger.info(`⏱️ Delay entre mensagens: ${messageDelay}ms`);
+      logger.info(`⏱️ Delay entre números: ${numberDelay}ms\n`);
 
       // Loop de envio
       while (campaignManager.canContinue(campaignName)) {
@@ -74,8 +83,14 @@ class Dispatcher {
         // Atualiza status do contato
         if (result.success) {
           campaignManager.updateContactStatus(campaignName, phoneNumber, 'sent', {
-            messageId: result.messageId
+            messageId: result.messageId,
+            sessionId: result.sessionId
           });
+          
+          // Rastreia estatísticas por instância
+          if (result.sessionId) {
+            campaignManager.trackInstanceStat(campaignName, result.sessionId, 'sent');
+          }
         } else {
           campaignManager.updateContactStatus(campaignName, phoneNumber, 'failed', {
             error: result.error
@@ -89,8 +104,8 @@ class Dispatcher {
         const stats = currentCampaign.stats;
         logger.info(`Progresso: ${stats.sent + stats.failed}/${stats.total} | ✅ ${stats.sent} | ❌ ${stats.failed} | ⏳ ${stats.pending}\n`);
 
-        // Delay antes do próximo envio
-        await delay(settings.messageDelay);
+        // Delay antes do próximo envio (usa messageDelay customizado)
+        await delay(messageDelay);
       }
 
       // Finaliza a campanha

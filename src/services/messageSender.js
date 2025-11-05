@@ -33,6 +33,8 @@ class MessageSender {
 
       // Obtém a sessão
       let session;
+      let usedSessionId = sessionId;
+      
       if (sessionId) {
         session = sessionManager.getSession(sessionId);
         if (!session) {
@@ -44,6 +46,7 @@ class MessageSender {
           throw new Error('Nenhuma sessão disponível');
         }
         session = availableSession.sock;
+        usedSessionId = availableSession.id;
       }
 
       // Envia a mensagem e captura o messageId
@@ -56,10 +59,10 @@ class MessageSender {
         sessionManager.trackSentMessage(messageId, cleanPhone, campaignName);
       }
       
-      logger.info(`✅ Mensagem enviada para ${phoneNumber}`);
+      logger.info(`✅ Mensagem enviada para ${phoneNumber} via ${usedSessionId}`);
       this.sendingStats.sent++;
       
-      return { success: true, phone: phoneNumber, messageId };
+      return { success: true, phone: phoneNumber, messageId, sessionId: usedSessionId };
     } catch (error) {
       logger.error(`❌ Erro ao enviar para ${phoneNumber}:`, error.message);
       this.sendingStats.failed++;

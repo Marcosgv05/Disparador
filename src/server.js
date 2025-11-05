@@ -683,12 +683,24 @@ app.delete('/api/campaign/:name', async (req, res) => {
 app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
   try {
     const { campaignName } = req.params;
+    const { messageDelay, numberDelay } = req.body || {};
     
     // Valida propriedade
     campaignManager.validateOwnership(campaignName, req.user.id);
     
+    // Prepara opções de delay
+    const options = {};
+    if (messageDelay && messageDelay > 0) {
+      options.messageDelay = messageDelay;
+    }
+    if (numberDelay && numberDelay > 0) {
+      options.numberDelay = numberDelay;
+    }
+    
+    logger.info(`Iniciando disparo com delays personalizados: messageDelay=${options.messageDelay || 'padrão'}ms, numberDelay=${options.numberDelay || 'padrão'}ms`);
+    
     // Inicia disparo em background
-    dispatcher.runCampaign(campaignName)
+    dispatcher.runCampaign(campaignName, options)
       .then(() => {
         io.emit('dispatch-complete', { campaignName });
       })
@@ -696,7 +708,14 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
         io.emit('dispatch-error', { campaignName, error: error.message });
       });
 
-    res.json({ success: true, message: 'Disparo iniciado' });
+    res.json({ 
+      success: true, 
+      message: 'Disparo iniciado',
+      delays: {
+        messageDelay: options.messageDelay || settings.messageDelay,
+        numberDelay: options.numberDelay || settings.numberDelay
+      }
+    });
     
   } catch (error) {
     res.status(500).json({ error: error.message });

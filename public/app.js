@@ -572,6 +572,58 @@ async function addMessage() {
     }
 }
 
+async function addBulkMessages() {
+    const textarea = document.getElementById('bulkMessagesText');
+    const text = textarea.value.trim();
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!text) {
+        showToast('Cole as mensagens no campo', 'warning');
+        return;
+    }
+    
+    if (!campaignName) {
+        showToast('Selecione uma campanha', 'warning');
+        return;
+    }
+    
+    // Separa por linha e remove linhas vazias
+    const messages = text.split('\n')
+        .map(msg => msg.trim())
+        .filter(msg => msg.length > 0);
+    
+    if (messages.length === 0) {
+        showToast('Nenhuma mensagem válida encontrada', 'warning');
+        return;
+    }
+    
+    try {
+        let added = 0;
+        let failed = 0;
+        
+        for (const message of messages) {
+            try {
+                await apiCall(`/api/campaign/${campaignName}/message`, {
+                    method: 'POST',
+                    body: JSON.stringify({ message })
+                });
+                added++;
+            } catch (error) {
+                console.error('Erro ao adicionar mensagem:', message, error);
+                failed++;
+            }
+        }
+        
+        showToast(`✅ ${added} mensagens adicionadas! ${failed > 0 ? `(${failed} falharam)` : ''}`, 'success');
+        textarea.value = '';
+        loadCampaignDetails();
+        
+    } catch (error) {
+        console.error(error);
+        showToast('Erro ao adicionar mensagens', 'error');
+    }
+}
+
 async function removeMessage(campaignName, index) {
     if (!confirm('Remover esta mensagem?')) return;
     
@@ -751,16 +803,35 @@ function downloadTemplate(type) {
 
 async function startDispatch() {
     const campaignName = document.getElementById('dispatchCampaign').value;
+    const messageDelay = parseInt(document.getElementById('messageDelay').value) || 3;
+    const numberDelay = parseInt(document.getElementById('numberDelay').value) || 5;
     
     if (!campaignName) {
         showToast('Selecione uma campanha', 'warning');
         return;
     }
     
-    if (!confirm('Iniciar disparo da campanha?')) return;
+    // Validação dos delays
+    if (messageDelay < 1 || messageDelay > 360) {
+        showToast('Delay entre mensagens deve estar entre 1 e 360 segundos', 'warning');
+        return;
+    }
+    
+    if (numberDelay < 1 || numberDelay > 120) {
+        showToast('Delay entre números deve estar entre 1 e 120 segundos', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Iniciar disparo da campanha?\n\n⏱️ Configurações:\n• Delay entre mensagens: ${messageDelay}s\n• Delay entre números: ${numberDelay}s`)) return;
     
     try {
-        await apiCall(`/api/dispatch/start/${campaignName}`, { method: 'POST' });
+        await apiCall(`/api/dispatch/start/${campaignName}`, { 
+            method: 'POST',
+            body: JSON.stringify({ 
+                messageDelay: messageDelay * 1000, // Converte para milissegundos
+                numberDelay: numberDelay * 1000
+            })
+        });
         showToast('Disparo iniciado!', 'success');
         document.getElementById('dispatchProgress').style.display = 'block';
     } catch (error) {
@@ -808,7 +879,8 @@ socket.on('progress', (data) => {
         progress.style.width = `${percent}%`;
         progress.textContent = `${percent.toFixed(0)}%`;
         
-        stats.innerHTML = `
+        // Estatísticas gerais
+        let statsHTML = `
             <div class="stat-item">
                 <h4>${data.campaign.stats.sent}</h4>
                 <p>Enviadas</p>
@@ -822,6 +894,49 @@ socket.on('progress', (data) => {
                 <p>Pendentes</p>
             </div>
         `;
+        
+        // Estatísticas por instância
+        if (data.campaign.instanceStats && Object.keys(data.campaign.instanceStats).length > 0) {
+            statsHTML += '<div style="width: 100%; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;"><h4 style="margin-bottom: 15px;">📊 Estatísticas por Instância</h4><div class="instance-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
+            
+            Object.entries(data.campaign.instanceStats).forEach(([sessionId, stats]) => {
+                const instanceNumber = sessionId.replace('instance-', '').replace(/^0+/, '');
+                const total = stats.sent + stats.failed;
+                const successRate = total > 0 ? ((stats.sent / total) * 100).toFixed(1) : 0;
+                
+                statsHTML += `
+                    <div class="instance-stat-card" style="background: #f5f5f5; padding: 15px; border-radius: 8px; border: 2px solid #ddd;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px;">
+                                ${instanceNumber}
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-weight: 600; color: #333;">Instância ${instanceNumber}</p>
+                                <p style="margin: 0; font-size: 0.85em; color: #666;">${total} envios</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #666;">✅ Enviadas</p>
+                                <p style="margin: 0; font-weight: bold; color: #10b981; font-size: 1.1em;">${stats.sent}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #666;">❌ Falhas</p>
+                                <p style="margin: 0; font-weight: bold; color: #ef4444; font-size: 1.1em;">${stats.failed}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; font-size: 0.9em; color: #666;">Taxa</p>
+                                <p style="margin: 0; font-weight: bold; color: #3b82f6; font-size: 1.1em;">${successRate}%</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            statsHTML += '</div></div>';
+        }
+        
+        stats.innerHTML = statsHTML;
     }
 });
 

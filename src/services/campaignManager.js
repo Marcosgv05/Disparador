@@ -75,6 +75,7 @@ class CampaignManager {
         failed: 0,
         pending: 0
       },
+      instanceStats: {}, // Estatísticas por instância: { 'instance-01': { sent: 5, failed: 1 } }
       currentIndex: 0,
       results: []
     };
@@ -419,6 +420,36 @@ class CampaignManager {
   }
 
   /**
+   * Rastreia estatísticas por instância
+   * @param {string} campaignName 
+   * @param {string} sessionId 
+   * @param {string} status - 'sent' ou 'failed'
+   */
+  trackInstanceStat(campaignName, sessionId, status) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    // Inicializa estatísticas da instância se não existir
+    if (!campaign.instanceStats[sessionId]) {
+      campaign.instanceStats[sessionId] = {
+        sent: 0,
+        failed: 0
+      };
+    }
+
+    // Incrementa contador
+    if (status === 'sent') {
+      campaign.instanceStats[sessionId].sent++;
+    } else if (status === 'failed') {
+      campaign.instanceStats[sessionId].failed++;
+    }
+
+    return campaign.instanceStats[sessionId];
+  }
+
+  /**
    * Obtém o próximo número a ser processado
    * @param {string} campaignName 
    */
@@ -554,6 +585,11 @@ class CampaignManager {
       if (campaign.createdAt) campaign.createdAt = new Date(campaign.createdAt);
       if (campaign.startedAt) campaign.startedAt = new Date(campaign.startedAt);
       if (campaign.completedAt) campaign.completedAt = new Date(campaign.completedAt);
+      
+      // Inicializa instanceStats se não existir (compatibilidade com campanhas antigas)
+      if (!campaign.instanceStats) {
+        campaign.instanceStats = {};
+      }
       
       this.campaigns.set(campaignName, campaign);
       this.activeCampaign = campaignName;
