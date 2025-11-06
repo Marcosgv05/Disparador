@@ -1,29 +1,58 @@
-import jwt from 'jsonwebtoken';
+import admin from 'firebase-admin';
 import { logger } from '../config/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'whatsapp-dispatcher-secret-key-change-in-production';
+// Inicializar Firebase Admin (se não foi inicializado)
+if (!admin.apps.length) {
+  // Em produção, use credenciais do Firebase
+  // Em desenvolvimento, aceita qualquer token
+  if (process.env.FIREBASE_PROJECT_ID) {
+    admin.initializeApp({
+      projectId: process.env.FIREBASE_PROJECT_ID
+    });
+  }
+}
 
 /**
- * Middleware para verificar autenticação
+ * Middleware para verificar autenticação com Firebase
  */
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
   try {
-    // Verifica token no header ou cookie
-    const token = req.headers.authorization?.replace('Bearer ', '') || 
-                  req.cookies?.token ||
-                  req.session?.token;
+    // Verifica token no header
+    const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (!token) {
       return res.status(401).json({ error: 'Autenticação necessária' });
     }
 
-    // Verifica e decodifica token
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    // Verifica token do Firebase
+    if (admin.apps.length > 0) {
+      // Produção: valida com Firebase Admin
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = {
+        id: decodedToken.uid,
+        email: decodedToken.email,
+        name: decodedToken.name || decodedToken.email,
+        role: 'user'
+      };
+    } else {
+      // Desenvolvimento: aceita qualquer token e extrai email do payload
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        req.user = {
+          id: payload.user_id || payload.sub,
+          email: payload.email,
+          name: payload.name || payload.email,
+          role: 'user'
+        };
+      } catch (e) {
+        logger.warn('Token Firebase inválido em modo desenvolvimento');
+        return res.status(401).json({ error: 'Token inválido' });
+      }
+    }
     
     next();
   } catch (error) {
-    logger.error(`Erro de autenticação: ${error.message}`);
+    logger.error(`Erro de autenticação Firebase: ${error.message}`);
     return res.status(401).json({ error: 'Token inválido ou expirado' });
   }
 }
@@ -39,33 +68,30 @@ export function requireAdmin(req, res, next) {
 }
 
 /**
- * Gera token JWT
+ * Gera token JWT (DEPRECADO - agora usa Firebase)
+ * Mantido por compatibilidade com código legado
  */
 export function generateToken(user) {
-  return jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
-      name: user.name,
-      role: user.role 
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  logger.warn('generateToken está deprecado. Use Firebase Authentication.');
+  // Retorna objeto fake para não quebrar código antigo
+  return 'firebase-auth-token';
 }
 
 /**
  * Middleware opcional - não falha se não autenticado
  */
-export function optionalAuth(req, res, next) {
+export async function optionalAuth(req, res, next) {
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '') || 
-                  req.cookies?.token ||
-                  req.session?.token;
+    const token = req.headers.authorization?.replace('Bearer ', '');
 
-    if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
+    if (token && admin.apps.length > 0) {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = {
+        id: decodedToken.uid,
+        email: decodedToken.email,
+        name: decodedToken.name || decodedToken.email,
+        role: 'user'
+      };
     }
   } catch (error) {
     // Ignora erro, apenas não popula req.user
