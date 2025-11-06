@@ -113,10 +113,96 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Endpoint de emergência para criar admin (APENAS DESENVOLVIMENTO/PRIMEIRO DEPLOY)
+app.post('/api/emergency/create-admin', async (req, res) => {
+  try {
+    const { secret } = req.body;
+    
+    // Proteção básica
+    if (secret !== process.env.EMERGENCY_SECRET && secret !== 'nexus-emergency-2025') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    // Importa User model dinamicamente
+    const User = (await import('./models/User.js')).default;
+    
+    // Verifica se admin já existe
+    const existing = await User.findByEmail('admin@whatsapp.com');
+    
+    if (existing) {
+      return res.json({ 
+        message: 'Admin já existe', 
+        email: 'admin@whatsapp.com',
+        tip: 'Use o endpoint /api/emergency/reset-admin para resetar a senha'
+      });
+    }
+    
+    // Cria admin
+    await User.create({
+      email: 'admin@whatsapp.com',
+      password: 'admin123',
+      name: 'Administrador',
+      role: 'admin'
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Admin criado com sucesso!',
+      credentials: {
+        email: 'admin@whatsapp.com',
+        password: 'admin123'
+      }
+    });
+    
+  } catch (error) {
+    logger.error(`Erro ao criar admin: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint de emergência para resetar senha do admin
+app.post('/api/emergency/reset-admin', async (req, res) => {
+  try {
+    const { secret } = req.body;
+    
+    // Proteção básica
+    if (secret !== process.env.EMERGENCY_SECRET && secret !== 'nexus-emergency-2025') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    const User = (await import('./models/User.js')).default;
+    
+    // Reseta senha
+    const success = await User.updatePassword('admin@whatsapp.com', 'admin123');
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Senha do admin resetada!',
+        credentials: {
+          email: 'admin@whatsapp.com',
+          password: 'admin123'
+        }
+      });
+    } else {
+      res.status(404).json({ error: 'Admin não encontrado' });
+    }
+    
+  } catch (error) {
+    logger.error(`Erro ao resetar admin: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Inicializa banco de dados
+import dbManager from './db/database.js';
+await dbManager.initialize();
+logger.info('✅ Banco de dados inicializado');
 
 // Inicializa gerenciadores
 await campaignManager.initialize();
