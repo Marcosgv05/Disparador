@@ -16,39 +16,16 @@ let state = {
 
 // ==== AUTENTICAÇÃO ====
 
-// Verifica se está logado ao carregar a página
-(function checkAuth() {
-    const token = localStorage.getItem('token');
-    const user = localStorage.getItem('user');
-    
-    if (!token || !user) {
-        window.location.href = '/login.html';
-        return;
-    }
-    
-    state.user = JSON.parse(user);
-    document.getElementById('userName').textContent = state.user.name;
-})();
+// Autenticação agora é gerenciada pelo Firebase
+// Ver firebase-auth.js para detalhes
 
-async function handleLogout() {
-    if (!confirm('Deseja realmente sair?')) return;
-    
-    try {
-        await fetch(`${API_URL}/api/auth/logout`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-    } catch (error) {
-        console.error('Erro ao fazer logout:', error);
-    }
-    
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login.html';
+// Carrega dados do usuário do localStorage (já validado pelo Firebase)
+const userData = localStorage.getItem('user');
+if (userData) {
+    state.user = JSON.parse(userData);
 }
+
+// handleLogout é definido no index.html após verificação do Firebase
 
 // ==== UTILITIES ====
 
@@ -112,7 +89,7 @@ async function deleteCampaign() {
 
 async function apiCall(endpoint, options = {}) {
     try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('firebaseToken');
         const response = await fetch(`${API_URL}${endpoint}`, {
             ...options,
             credentials: 'include',

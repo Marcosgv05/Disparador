@@ -213,34 +213,38 @@
         </div>
     </div>
 
-    <script>
-        const API_URL = window.location.origin;
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { firebaseConfig } from './firebase-config.js';
 
-        function switchTab(tab) {
-            // Atualiza tabs
+        // Inicializa Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Funções globais
+        window.switchTab = function(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
-
-            // Atualiza forms
             document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
             document.getElementById(tab + 'Form').classList.add('active');
-
-            // Limpa alert
             hideAlert();
-        }
+        };
 
-        function showAlert(message, type) {
+        window.showAlert = function(message, type) {
             const alert = document.getElementById('alert');
             alert.className = `alert alert-${type}`;
             alert.textContent = message;
             alert.style.display = 'block';
-        }
+        };
 
-        function hideAlert() {
+        window.hideAlert = function() {
             document.getElementById('alert').style.display = 'none';
-        }
+        };
 
-        async function handleLogin(event) {
+        // Login com Firebase
+        window.handleLogin = async function(event) {
             event.preventDefault();
             hideAlert();
 
@@ -248,31 +252,56 @@
             const password = document.getElementById('loginPassword').value;
 
             try {
-                const response = await fetch(`${API_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showAlert('Login realizado com sucesso! Redirecionando...', 'success');
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
-                } else {
-                    showAlert(data.error || 'Erro ao fazer login', 'error');
-                }
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Pega token do Firebase
+                const token = await user.getIdToken();
+                
+                showAlert('✅ Login realizado com sucesso! Redirecionando...', 'success');
+                
+                // Salva token e dados do usuário
+                localStorage.setItem('firebaseToken', token);
+                localStorage.setItem('user', JSON.stringify({
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName || user.email.split('@')[0]
+                }));
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
             } catch (error) {
-                showAlert('Erro de conexão com o servidor', 'error');
+                console.error('Erro no login:', error);
+                let errorMessage = 'Erro ao fazer login';
+                
+                switch(error.code) {
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'Usuário desativado';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'Usuário não encontrado';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Senha incorreta';
+                        break;
+                    case 'auth/invalid-credential':
+                        errorMessage = 'Email ou senha incorretos';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'error');
             }
-        }
+        };
 
-        async function handleRegister(event) {
+        // Registro com Firebase
+        window.handleRegister = async function(event) {
             event.preventDefault();
             hideAlert();
 
@@ -286,33 +315,58 @@
                 return;
             }
 
-            try {
-                const response = await fetch(`${API_URL}/api/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password }),
-                    credentials: 'include'
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    showAlert('Conta criada com sucesso! Redirecionando...', 'success');
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 1000);
-                } else {
-                    showAlert(data.error || 'Erro ao criar conta', 'error');
-                }
-            } catch (error) {
-                showAlert('Erro de conexão com o servidor', 'error');
+            if (password.length < 6) {
+                showAlert('A senha deve ter no mínimo 6 caracteres', 'error');
+                return;
             }
-        }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Atualiza o nome do usuário
+                await updateProfile(user, {
+                    displayName: name
+                });
+                
+                // Pega token do Firebase
+                const token = await user.getIdToken();
+                
+                showAlert('✅ Conta criada com sucesso! Redirecionando...', 'success');
+                
+                // Salva token e dados do usuário
+                localStorage.setItem('firebaseToken', token);
+                localStorage.setItem('user', JSON.stringify({
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: name
+                }));
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+            } catch (error) {
+                console.error('Erro no registro:', error);
+                let errorMessage = 'Erro ao criar conta';
+                
+                switch(error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'Este email já está cadastrado';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Email inválido';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Senha muito fraca. Use no mínimo 6 caracteres';
+                        break;
+                }
+                
+                showAlert(errorMessage, 'error');
+            }
+        };
 
         // Verifica se já está logado
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('firebaseToken');
         if (token) {
             window.location.href = '/';
         }

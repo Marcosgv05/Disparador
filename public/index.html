@@ -511,6 +511,32 @@
 
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Firebase Authentication Check -->
+    <script type="module">
+        import { checkAuthState, logout } from './firebase-auth.js';
+        
+        // Verifica autenticação antes de carregar app
+        try {
+            const user = await checkAuthState();
+            console.log('✅ Usuário autenticado:', user.email);
+            
+            // Define função global de logout
+            window.handleLogout = async function() {
+                if (confirm('Deseja realmente sair?')) {
+                    await logout();
+                }
+            };
+            
+            // Atualiza nome do usuário
+            document.getElementById('userName').textContent = user.displayName || user.email;
+            
+        } catch (error) {
+            console.error('❌ Não autenticado:', error.message);
+            window.location.href = '/login.html';
+        }
+    </script>
+    
     <script src="/app.js"></script>
 </body>
 </html>
