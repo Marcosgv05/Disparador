@@ -186,10 +186,14 @@ socket.on('qr-code', async (data) => {
 });
 
 socket.on('session-connected', async (data) => {
+    console.log('🔔 Evento session-connected recebido:', data);
     const instance = state.instances.find(i => i.sessionId === data.sessionId);
+    console.log('🔍 Instância encontrada:', instance);
+    
     if (instance) {
         // Atualiza instância no backend
         try {
+            console.log('📡 Atualizando instância no backend...', instance.id);
             await apiCall(`/api/instances/${instance.id}`, {
                 method: 'PATCH',
                 body: JSON.stringify({ 
@@ -197,16 +201,22 @@ socket.on('session-connected', async (data) => {
                     phone: data.phone || 'Conectado'
                 })
             });
+            console.log('✅ Instância atualizada no backend com sucesso');
         } catch (error) {
-            console.error('Erro ao atualizar instância:', error);
+            console.error('❌ Erro ao atualizar instância:', error);
+            showToast('Conexão estabelecida, mas erro ao salvar. Atualize a página.', 'warning');
         }
         
         instance.status = 'connected';
         instance.phone = data.phone || 'Conectado';
         instance.qrCode = null;
+        console.log('🎨 Renderizando instâncias...');
         renderInstances();
+        showToast(`✅ Sessão ${data.sessionId} conectada com sucesso!`, 'success');
+    } else {
+        console.warn('⚠️ Instância não encontrada para sessionId:', data.sessionId);
+        console.log('📋 Instâncias disponíveis:', state.instances.map(i => i.sessionId));
     }
-    showToast(`Sessão ${data.sessionId} conectada!`, 'success');
     loadSessions();
 });
 
@@ -1262,35 +1272,7 @@ socket.on('qr-code', async (data) => {
     }
 });
 
-socket.on('session-connected', async (data) => {
-    console.log('Sessão conectada:', data);
-    const instance = state.instances.find(i => i.sessionId === data.sessionId);
-    if (instance) {
-        // Atualiza instância no backend
-        try {
-            await apiCall(`/api/instances/${instance.id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({ 
-                    status: 'connected',
-                    phone: data.phone || 'Conectado'
-                })
-            });
-            
-            instance.status = 'connected';
-            instance.phone = data.phone || 'Conectado';
-            instance.qrCode = null;
-            renderInstances();
-            
-            showToast(`✅ Sessão ${data.sessionId} conectada com sucesso!`, 'success');
-            loadSessions();
-        } catch (error) {
-            console.error('Erro ao atualizar instância:', error);
-            showToast('Conexão estabelecida, mas erro ao salvar. Atualize a página.', 'warning');
-        }
-    } else {
-        console.warn('Instância não encontrada para sessionId conectado:', data.sessionId);
-    }
-});
+// Código duplicado removido - mantido apenas o primeiro listener acima
 
 socket.on('session-error', async (data) => {
     console.error('Erro na sessão:', data);
