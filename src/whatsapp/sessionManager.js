@@ -1,12 +1,12 @@
 import makeWASocket, { 
   DisconnectReason, 
-  useMultiFileAuthState,
   fetchLatestBaileysVersion 
 } from '@whiskeysockets/baileys';
 import qrcode from 'qrcode-terminal';
 import { logger } from '../config/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { useDatabaseAuthState, clearAuthState } from './authStateDB.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,21 +95,18 @@ class SessionManager {
     try {
       logger.info(`Criando sessão: ${sessionId}`);
       
-      // Se forceNew, remove arquivos de autenticação antigos
+      // Se forceNew, remove credenciais antigas do banco
       if (forceNew) {
-        const authPath = path.join(this.authFolder, sessionId);
         try {
-          const fs = await import('fs/promises');
-          await fs.rm(authPath, { recursive: true, force: true });
-          logger.info(`Arquivos de autenticação antigos removidos para nova sessão`);
+          const removed = clearAuthState(sessionId);
+          logger.info(`${removed} credenciais antigas removidas do banco para nova sessão`);
         } catch (error) {
-          // Ignora se não existir
+          logger.warn(`Erro ao limpar credenciais antigas: ${error.message}`);
         }
       }
       
-      const { state, saveCreds } = await useMultiFileAuthState(
-        path.join(this.authFolder, sessionId)
-      );
+      // Usa banco de dados em vez de arquivos
+      const { state, saveCreds } = await useDatabaseAuthState(sessionId);
 
       const { version } = await fetchLatestBaileysVersion();
 
@@ -118,8 +115,19 @@ class SessionManager {
         auth: state,
         printQRInTerminal: false,
         logger: logger.child({ session: sessionId }),
-        browser: ['WhatsApp Multi-Sender', 'Chrome', '10.0'],
-        getMessage: async () => undefined
+        browser: ['Nexus Disparador', 'Chrome', '10.0'],
+        getMessage: async () => undefined,
+        // Configurações para manter conexão estável no Railway
+        keepAliveIntervalMs: 30000, // Ping a cada 30s
+        connectTimeoutMs: 60000, // Timeout de 60s
+        defaultQueryTimeoutMs: 60000,
+        emitOwnEvents: false,
+        markOnlineOnConnect: true,
+        // Configurações de retry
+        retryRequestDelayMs: 250,
+        maxMsgRetryCount: 5,
+        // WebSocket
+        qrTimeout: 60000
       });
 
       // Evento de atualização de credenciais
@@ -194,9 +202,10 @@ class SessionManager {
         }
 
         if (connection === 'close') {
-          const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
           
-          logger.info(`Conexão fechada para ${sessionId}. Reconectar: ${shouldReconnect}`);
+          logger.info(`Conexão fechada para ${sessionId}. StatusCode: ${statusCode}, Reconectar: ${shouldReconnect}`);
           
           // Marca sessão como não pronta
           const session = this.sessions.get(sessionId);
@@ -206,13 +215,30 @@ class SessionManager {
           
           // Notifica callbacks
           this.connectionCallbacks.forEach(cb => {
-            cb(sessionId, 'close', { shouldReconnect, lastDisconnect });
+            cb(sessionId, 'close', { shouldReconnect, lastDisconnect, statusCode });
           });
           
           if (shouldReconnect) {
-            await this.createSession(sessionId);
+            // Aguarda 3s antes de reconectar para evitar loops rápidos
+            logger.info(`⏳ Aguardando 3s antes de reconectar ${sessionId}...`);
+            setTimeout(async () => {
+              try {
+                logger.info(`🔄 Reconectando ${sessionId}...`);
+                await this.createSession(sessionId, { waitForConnection: false });
+              } catch (error) {
+                logger.error(`Erro ao reconectar ${sessionId}: ${error.message}`);
+              }
+            }, 3000);
           } else {
+            logger.warn(`🚫 Sessão ${sessionId} foi deslogada. Removendo...`);
             this.sessions.delete(sessionId);
+            // Limpa credenciais do banco se foi deslogado
+            try {
+              clearAuthState(sessionId);
+              logger.info(`🗑️ Credenciais de ${sessionId} removidas após logout`);
+            } catch (error) {
+              logger.error(`Erro ao limpar credenciais: ${error.message}`);
+            }
           }
         } else if (connection === 'open') {
           logger.info(`✅ Sessão ${sessionId} conectada com sucesso!`);
@@ -345,14 +371,12 @@ class SessionManager {
       logger.info(`Sessão ${sessionId} removida`);
     }
     
-    // Remove arquivos de autenticação
-    const authPath = path.join(this.authFolder, sessionId);
+    // Remove credenciais do banco de dados
     try {
-      const fs = await import('fs/promises');
-      await fs.rm(authPath, { recursive: true, force: true });
-      logger.info(`Arquivos de autenticação removidos: ${authPath}`);
+      const removed = clearAuthState(sessionId);
+      logger.info(`${removed} credenciais removidas do banco para ${sessionId}`);
     } catch (error) {
-      logger.warn(`Erro ao remover arquivos de autenticação: ${error.message}`);
+      logger.warn(`Erro ao remover credenciais do banco: ${error.message}`);
     }
   }
 
