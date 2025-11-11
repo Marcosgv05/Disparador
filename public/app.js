@@ -87,7 +87,7 @@ async function deleteCampaign() {
     }
 }
 
-async function apiCall(endpoint, options = {}) {
+async function apiCall(endpoint, options = {}, retryCount = 0) {
     try {
         const token = localStorage.getItem('firebaseToken');
         const response = await fetch(`${API_URL}${endpoint}`, {
@@ -95,10 +95,27 @@ async function apiCall(endpoint, options = {}) {
             credentials: 'include',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
+                'Authorization': `Bearer ${token}`,
                 ...options.headers
             }
         });
+        
+        // Se token expirou (401), tenta renovar e retentar
+        if (response.status === 401 && retryCount === 0) {
+            console.log('🔄 Token expirado, renovando...');
+            try {
+                // Importa dinamicamente o módulo de auth
+                const { refreshToken } = await import('./firebase-auth.js');
+                await refreshToken();
+                // Retenta a requisição com token novo
+                return apiCall(endpoint, options, retryCount + 1);
+            } catch (refreshError) {
+                console.error('❌ Falha ao renovar token:', refreshError);
+                showToast('Sessão expirada. Faça login novamente.', 'error');
+                setTimeout(() => window.location.href = '/login.html', 2000);
+                throw new Error('Token expirado');
+            }
+        }
         
         // Verifica se a resposta é JSON
         const contentType = response.headers.get('content-type');

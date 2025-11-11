@@ -10,6 +10,21 @@ const auth = getAuth(app);
 // Estado de autenticação
 let currentUser = null;
 
+// Renovar token automaticamente a cada 50 minutos (tokens expiram em 1 hora)
+setInterval(async () => {
+    if (currentUser) {
+        try {
+            const newToken = await currentUser.getIdToken(true); // Force refresh
+            localStorage.setItem('firebaseToken', newToken);
+            console.log('🔄 Token do Firebase renovado automaticamente');
+        } catch (error) {
+            console.error('❌ Erro ao renovar token:', error);
+            // Se falhar, força logout
+            await logout();
+        }
+    }
+}, 50 * 60 * 1000); // 50 minutos
+
 // Verifica autenticação e retorna promessa
 export function checkAuthState() {
     return new Promise((resolve, reject) => {
@@ -48,6 +63,23 @@ export async function logout() {
         localStorage.removeItem('firebaseToken');
         localStorage.removeItem('user');
         window.location.href = '/login.html';
+    }
+}
+
+// Função para renovar token manualmente
+export async function refreshToken() {
+    if (!currentUser) {
+        throw new Error('Usuário não autenticado');
+    }
+    
+    try {
+        const newToken = await currentUser.getIdToken(true); // Force refresh
+        localStorage.setItem('firebaseToken', newToken);
+        console.log('✅ Token renovado com sucesso');
+        return newToken;
+    } catch (error) {
+        console.error('❌ Erro ao renovar token:', error);
+        throw error;
     }
 }
 
