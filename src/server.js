@@ -20,6 +20,7 @@ import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
 import authRoutes from './routes/auth.js';
 import { requireAuth, optionalAuth, validateCampaignOwnership } from './middleware/auth.js';
+import { clearAuthState, listAuthSessions } from './whatsapp/authStateDB.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -410,6 +411,54 @@ app.delete('/api/session/:sessionId', requireAuth, async (req, res) => {
     await sessionManager.removeSession(sessionId);
     res.json({ success: true, message: 'Sessão removida' });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ====== ROTAS ADMINISTRATIVAS ======
+
+// Listar todas as sessões do banco (admin)
+app.get('/api/admin/sessions', requireAuth, async (req, res) => {
+  try {
+    const sessions = await listAuthSessions();
+    res.json({ sessions });
+  } catch (error) {
+    logger.error('Erro ao listar sessões:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Limpar todas as sessões do banco (admin)
+app.post('/api/admin/clear-sessions', requireAuth, async (req, res) => {
+  try {
+    logger.info(`🗑️ Usuário ${req.user.email} solicitou limpeza de todas as sessões`);
+    
+    // Listar sessões antes de limpar
+    const sessionsBefore = await listAuthSessions();
+    let totalKeys = 0;
+    sessionsBefore.forEach(s => totalKeys += parseInt(s.keys_count));
+    
+    // Limpar cada sessão
+    const cleared = [];
+    for (const session of sessionsBefore) {
+      const removed = await clearAuthState(session.session_id);
+      cleared.push({
+        sessionId: session.session_id,
+        keysRemoved: removed
+      });
+    }
+    
+    logger.info(`✅ ${sessionsBefore.length} sessões limpas, ${totalKeys} chaves removidas`);
+    
+    res.json({ 
+      success: true, 
+      message: `${sessionsBefore.length} sessão(ões) limpa(s) do banco`,
+      sessionsCleared: sessionsBefore.length,
+      totalKeysRemoved: totalKeys,
+      details: cleared
+    });
+  } catch (error) {
+    logger.error('Erro ao limpar sessões:', error);
     res.status(500).json({ error: error.message });
   }
 });
