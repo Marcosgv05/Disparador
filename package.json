@@ -23,7 +23,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.8",
+    "@whiskeysockets/baileys": "^6.7.21",
     "pino": "^8.19.0",
     "pino-pretty": "^10.3.0",
     "qrcode-terminal": "^0.12.0",
