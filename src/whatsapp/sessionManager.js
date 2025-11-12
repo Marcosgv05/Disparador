@@ -115,7 +115,7 @@ class SessionManager {
         auth: state,
         printQRInTerminal: false,
         logger: logger.child({ session: sessionId }),
-        browser: ['Nexus Disparador', 'Chrome', '10.0'],
+        browser: ['Chrome (Linux)', '', ''],
         getMessage: async () => undefined,
         // CRÍTICO: Desabilita sincronização de histórico e app state (evita erro "Invalid patch mac")
         syncFullHistory: false,
