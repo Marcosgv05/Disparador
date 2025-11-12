@@ -117,8 +117,9 @@ class SessionManager {
         logger: logger.child({ session: sessionId }),
         browser: ['Nexus Disparador', 'Chrome', '10.0'],
         getMessage: async () => undefined,
-        // CRÍTICO: Desabilita sincronização de histórico (evita erro "Invalid patch mac")
+        // CRÍTICO: Desabilita sincronização de histórico e app state (evita erro "Invalid patch mac")
         syncFullHistory: false,
+        shouldSyncHistoryMessage: () => false, // Não sincroniza mensagens antigas
         // Configurações para manter conexão estável no Railway
         keepAliveIntervalMs: 30000, // Ping a cada 30s
         connectTimeoutMs: 60000, // Timeout de 60s
@@ -134,6 +135,11 @@ class SessionManager {
 
       // Evento de atualização de credenciais
       sock.ev.on('creds.update', saveCreds);
+
+      // Ignorar eventos de sincronização de app state (evita "Invalid patch mac")
+      sock.ev.on('messaging-history.set', () => {
+        logger.info(`Ignorando sincronização de histórico para ${sessionId}`);
+      });
 
       // Evento de atualização de status de mensagens
       sock.ev.on('messages.update', (updates) => {

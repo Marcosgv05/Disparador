@@ -68,6 +68,12 @@ export async function useDatabaseAuthState(sessionId) {
   // Função para escrever dados
   const writeData = async (key, data) => {
     try {
+      // Ignora chaves de app state que causam "Invalid patch mac"
+      if (key.startsWith('app-state-sync-key-') || key.startsWith('app-state-sync-version-')) {
+        logger.debug(`Ignorando chave de app state: ${key}`);
+        return;
+      }
+      
       const serialized = JSON.stringify(data, BufferJSON.replacer);
       
       if (isProduction) {
