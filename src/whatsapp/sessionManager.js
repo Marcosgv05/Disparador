@@ -117,6 +117,8 @@ class SessionManager {
         logger: logger.child({ session: sessionId }),
         browser: ['Nexus Disparador', 'Chrome', '10.0'],
         getMessage: async () => undefined,
+        // CRÍTICO: Desabilita sincronização de histórico (evita erro "Invalid patch mac")
+        syncFullHistory: false,
         // Configurações para manter conexão estável no Railway
         keepAliveIntervalMs: 30000, // Ping a cada 30s
         connectTimeoutMs: 60000, // Timeout de 60s
