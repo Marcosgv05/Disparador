@@ -1,4 +1,4 @@
-# 📱 Nexus Disparador - Guia Completo de Uso
+# 📱 Vext - Guia Completo de Uso
 
 > Sistema completo de disparo de mensagens WhatsApp com gerenciamento de campanhas, agendamento e multi-instâncias.
 
@@ -713,6 +713,6 @@ Cliente B:
 
 ---
 
-**🎉 Pronto para usar o Nexus Disparador!**
+**🎉 Pronto para usar o Vext!**
 
 Siga este guia passo a passo e aproveite todas as funcionalidades do sistema.

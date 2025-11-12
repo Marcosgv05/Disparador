@@ -4,9 +4,9 @@
 
 export const firebaseConfig = {
   apiKey: "AIzaSyD0MdHtbvvEXZaVq0GZJEaofdKbX0Hg2ec",
-  authDomain: "nexus-9b811.firebaseapp.com",
-  projectId: "nexus-9b811",
-  storageBucket: "nexus-9b811.firebasestorage.app",
+  authDomain: "vext-9b811.firebaseapp.com",
+  projectId: "vext-9b811",
+  storageBucket: "vext-9b811.firebasestorage.app",
   messagingSenderId: "751715537565",
   appId: "1:751715537565:web:58d226a4604f621bddfa74",
   measurementId: "G-L81ZPW9E58"

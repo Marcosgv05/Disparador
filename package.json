@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-multi-sender",
+  "name": "vext",
   "version": "1.0.0",
-  "description": "Ferramenta de disparo de WhatsApp com múltiplas sessões e alternância de mensagens",
+  "description": "Vext - Sistema de disparo de WhatsApp com múltiplas sessões e alternância de mensagens",
   "main": "src/index.js",
   "type": "module",
   "scripts": {
