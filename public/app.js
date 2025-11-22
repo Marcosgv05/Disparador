@@ -448,15 +448,39 @@ async function uploadNumbers() {
     formData.append('file', file);
     
     try {
-        const response = await fetch(`${API_URL}/api/campaign/${campaignName}/upload-numbers`, {
+        let token = localStorage.getItem('firebaseToken');
+        
+        let response = await fetch(`${API_URL}/api/campaign/${campaignName}/upload-numbers`, {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'include',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
+        
+        // Se o token estiver expirado, tenta renovar uma vez
+        if (response.status === 401) {
+            try {
+                const { refreshToken } = await import('./firebase-auth.js');
+                token = await refreshToken();
+                
+                response = await fetch(`${API_URL}/api/campaign/${campaignName}/upload-numbers`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include',
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+            } catch (refreshError) {
+                console.error('Erro ao renovar token para upload de números:', refreshError);
+                showToast('Sessão expirada. Faça login novamente.', 'error');
+                setTimeout(() => window.location.href = '/login.html', 2000);
+                throw new Error('Token expirado');
+            }
+        }
         
         const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error);
+            throw new Error(data.error || 'Erro ao enviar planilha de números');
         }
         
         // Mostra modal com detalhes
