@@ -4,216 +4,209 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Vext</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        body { font-family: 'Inter', sans-serif; }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
         }
-
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            max-width: 400px;
-            width: 100%;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 30px;
-            text-align: center;
-        }
-
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            background: white;
-            border: none;
-            font-size: 16px;
-            font-weight: 600;
-            color: #666;
-            transition: all 0.3s;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-        }
-
-        .form-container {
-            padding: 30px;
-        }
-
-        .form {
-            display: none;
-        }
-
-        .form.active {
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 15px;
-            transition: border 0.3s;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .alert {
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-size: 13px;
-            background: #f8f9fa;
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>📱 Vext</h1>
-            <p>Sistema de Gerenciamento de Campanhas</p>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <!-- Background decoration -->
+        <div class="pointer-events-none absolute inset-0">
+            <div class="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-indigo-500/30 blur-3xl"></div>
+            <div class="absolute -bottom-40 -right-10 h-96 w-96 rounded-full bg-purple-600/30 blur-3xl"></div>
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.18),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),_transparent_55%)]"></div>
         </div>
 
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('login')">Login</button>
-            <button class="tab" onclick="switchTab('register')">Registrar</button>
-        </div>
+        <div class="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                <!-- Branding / Hero -->
+                <div class="hidden lg:flex flex-col justify-center space-y-8 pr-4">
+                    <div class="inline-flex items-center space-x-3 px-3 py-1 rounded-full border border-indigo-400/40 bg-indigo-500/10 w-max">
+                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs font-medium tracking-wide text-indigo-100">Plataforma ativa • Envio em alta escala</span>
+                    </div>
 
-        <div class="form-container">
-            <div id="alert" style="display: none;"></div>
+                    <div class="flex items-center space-x-4">
+                        <div class="h-16 w-16 rounded-2xl bg-white/10 flex items-center justify-center shadow-xl border border-white/20">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-4xl font-semibold tracking-tight text-white">Vext</h1>
+                            <p class="text-sm text-slate-200">Sistema de campanhas para WhatsApp em escala</p>
+                        </div>
+                    </div>
 
-            <!-- Login Form -->
-            <form id="loginForm" class="form active" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" required placeholder="seu@email.com">
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Senha</label>
-                    <input type="password" id="loginPassword" required placeholder="••••••••">
-                </div>
-                <button type="submit" class="btn">Entrar</button>
-            </form>
+                    <p class="text-lg text-slate-200/90 leading-relaxed max-w-xl">
+                        Centralize campanhas, contatos e disparos em um único painel. Conecte múltiplos números, acompanhe métricas em tempo real e mantenha seu time sempre online.
+                    </p>
 
-            <!-- Register Form -->
-            <form id="registerForm" class="form" onsubmit="handleRegister(event)">
-                <div class="form-group">
-                    <label for="registerName">Nome</label>
-                    <input type="text" id="registerName" required placeholder="Seu nome completo">
+                    <div class="grid grid-cols-3 gap-4 max-w-md">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <p class="text-2xl font-semibold text-white">1M+</p>
+                            <p class="mt-1 text-xs text-slate-200">Mensagens enviadas/mês</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <p class="text-2xl font-semibold text-white">99.9%</p>
+                            <p class="mt-1 text-xs text-slate-200">Uptime da plataforma</p>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                            <p class="text-2xl font-semibold text-white">24/7</p>
+                            <p class="mt-1 text-xs text-slate-200">Monitoramento contínuo</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="registerEmail">Email</label>
-                    <input type="email" id="registerEmail" required placeholder="seu@email.com">
-                </div>
-                <div class="form-group">
-                    <label for="registerPassword">Senha</label>
-                    <input type="password" id="registerPassword" required minlength="6" placeholder="Mínimo 6 caracteres">
-                </div>
-                <div class="form-group">
-                    <label for="registerPasswordConfirm">Confirmar Senha</label>
-                    <input type="password" id="registerPasswordConfirm" required placeholder="Repita a senha">
-                </div>
-                <button type="submit" class="btn">Criar Conta</button>
-            </form>
-        </div>
 
-        <div class="footer">
-            © 2025 Vext. Todos os direitos reservados.
+                <!-- Auth Card -->
+                <div class="glass rounded-2xl border border-slate-800/60 bg-slate-900/70 shadow-2xl backdrop-blur-xl px-6 py-8 sm:px-8 sm:py-9">
+                    <!-- Header Mobile -->
+                    <div class="mb-6 lg:hidden text-center">
+                        <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/90 shadow-lg">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-semibold text-white">Vext</h2>
+                        <p class="text-sm text-slate-300">Gerenciamento de Campanhas</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-semibold tracking-tight text-white">Acesse seu painel</h2>
+                        <p class="mt-2 text-sm text-slate-300">Faça login ou crie uma conta para começar a disparar campanhas.</p>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="mb-6 flex rounded-xl bg-slate-900/60 p-1 ring-1 ring-slate-700/60">
+                        <button onclick="switchTab('login')" id="tab-login" class="flex-1 rounded-lg py-2.5 text-sm font-medium text-indigo-300 shadow-sm bg-slate-800">
+                            Login
+                        </button>
+                        <button onclick="switchTab('register')" id="tab-register" class="flex-1 rounded-lg py-2.5 text-sm font-medium text-slate-300/80 hover:text-white transition-colors">
+                            Criar Conta
+                        </button>
+                    </div>
+
+                    <!-- Alert Box -->
+                    <div id="alert" class="hidden p-4 rounded-lg text-sm border flex items-center gap-3"></div>
+
+                    <!-- Login Form -->
+                    <form id="loginForm" onsubmit="handleLogin(event)" class="space-y-5 block">
+                        <div>
+                            <label for="loginEmail" class="mb-1 block text-sm font-medium text-slate-200">Email</label>
+                            <input
+                                type="email"
+                                id="loginEmail"
+                                required
+                                placeholder="seu@email.com"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <div>
+                            <div class="mb-1 flex items-center justify-between">
+                                <label for="loginPassword" class="block text-sm font-medium text-slate-200">Senha</label>
+                                <a href="#" class="text-xs font-medium text-indigo-300 hover:text-indigo-200">Esqueceu a senha?</a>
+                            </div>
+                            <input
+                                type="password"
+                                id="loginPassword"
+                                required
+                                placeholder="••••••••"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="inline-flex w-full items-center justify-center rounded-lg border border-transparent bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 hover:-translate-y-0.5"
+                        >
+                            Entrar na plataforma
+                        </button>
+                    </form>
+
+                    <!-- Register Form -->
+                    <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-5 hidden">
+                        <div>
+                            <label for="registerName" class="mb-1 block text-sm font-medium text-slate-200">Nome Completo</label>
+                            <input
+                                type="text"
+                                id="registerName"
+                                required
+                                placeholder="Seu nome"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="registerEmail" class="mb-1 block text-sm font-medium text-slate-200">Email</label>
+                            <input
+                                type="email"
+                                id="registerEmail"
+                                required
+                                placeholder="seu@email.com"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="registerPassword" class="mb-1 block text-sm font-medium text-slate-200">Senha</label>
+                            <input
+                                type="password"
+                                id="registerPassword"
+                                required
+                                minlength="6"
+                                placeholder="Mínimo 6 caracteres"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <div>
+                            <label for="registerPasswordConfirm" class="mb-1 block text-sm font-medium text-slate-200">Confirmar Senha</label>
+                            <input
+                                type="password"
+                                id="registerPasswordConfirm"
+                                required
+                                placeholder="Repita a senha"
+                                class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-3 text-sm text-slate-50 placeholder:text-slate-400 outline-none ring-2 ring-transparent transition focus:border-indigo-400 focus:ring-indigo-500/40"
+                            >
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="inline-flex w-full items-center justify-center rounded-lg border border-transparent bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 hover:-translate-y-0.5"
+                        >
+                            Criar minha conta
+                        </button>
+                    </form>
+
+                    <div class="mt-7 border-t border-slate-800 pt-5 text-center">
+                        <p class="text-xs text-slate-400">
+                            Ao continuar, você concorda com nossos
+                            <a href="#" class="text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline">Termos de Serviço</a>
+                            e
+                            <a href="#" class="text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline">Política de Privacidade</a>.
+                        </p>
+                        <p class="mt-3 text-xs text-slate-500">© 2025 Vext. Todos os direitos reservados.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase SDK & Scripts -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -223,24 +216,49 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // Funções globais
+        // DOM Elements
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegister = document.getElementById('tab-register');
+        const alertBox = document.getElementById('alert');
+
+        // UI Functions
         window.switchTab = function(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
-            document.getElementById(tab + 'Form').classList.add('active');
             hideAlert();
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                loginForm.classList.add('block', 'slide-in');
+                registerForm.classList.add('hidden');
+                registerForm.classList.remove('block');
+                
+                // Update Tabs Style
+                tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 shadow-sm bg-white text-indigo-600';
+                tabRegister.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 transition-all duration-200';
+            } else {
+                loginForm.classList.add('hidden');
+                loginForm.classList.remove('block');
+                registerForm.classList.remove('hidden');
+                registerForm.classList.add('block', 'slide-in');
+                
+                // Update Tabs Style
+                tabRegister.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 shadow-sm bg-white text-indigo-600';
+                tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 transition-all duration-200';
+            }
         };
 
         window.showAlert = function(message, type) {
-            const alert = document.getElementById('alert');
-            alert.className = `alert alert-${type}`;
-            alert.textContent = message;
-            alert.style.display = 'block';
+            alertBox.classList.remove('hidden');
+            alertBox.className = type === 'success' 
+                ? 'p-4 rounded-lg text-sm border flex items-center gap-3 bg-green-50 text-green-700 border-green-200 slide-in'
+                : 'p-4 rounded-lg text-sm border flex items-center gap-3 bg-red-50 text-red-700 border-red-200 slide-in';
+            
+            const icon = type === 'success' ? '✅' : '⚠️';
+            alertBox.innerHTML = `<span class="text-lg">${icon}</span><span>${message}</span>`;
         };
 
         window.hideAlert = function() {
-            document.getElementById('alert').style.display = 'none';
+            alertBox.classList.add('hidden');
         };
 
         // Login com Firebase
@@ -250,17 +268,21 @@
 
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
+            const btn = event.target.querySelector('button');
+            const originalText = btn.innerText;
+
+            // Loading state
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
 
             try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                // Pega token do Firebase
                 const token = await user.getIdToken();
                 
-                showAlert('✅ Login realizado com sucesso! Redirecionando...', 'success');
+                showAlert('Login realizado com sucesso! Redirecionando...', 'success');
                 
-                // Salva token e dados do usuário
                 localStorage.setItem('firebaseToken', token);
                 localStorage.setItem('user', JSON.stringify({
                     uid: user.uid,
@@ -276,27 +298,17 @@
                 let errorMessage = 'Erro ao fazer login';
                 
                 switch(error.code) {
-                    case 'auth/invalid-email':
-                        errorMessage = 'Email inválido';
-                        break;
-                    case 'auth/user-disabled':
-                        errorMessage = 'Usuário desativado';
-                        break;
-                    case 'auth/user-not-found':
-                        errorMessage = 'Usuário não encontrado';
-                        break;
-                    case 'auth/wrong-password':
-                        errorMessage = 'Senha incorreta';
-                        break;
-                    case 'auth/invalid-credential':
-                        errorMessage = 'Email ou senha incorretos';
-                        break;
-                    case 'auth/too-many-requests':
-                        errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
-                        break;
+                    case 'auth/invalid-email': errorMessage = 'Email inválido'; break;
+                    case 'auth/user-disabled': errorMessage = 'Usuário desativado'; break;
+                    case 'auth/user-not-found': errorMessage = 'Usuário não encontrado'; break;
+                    case 'auth/wrong-password': errorMessage = 'Senha incorreta'; break;
+                    case 'auth/invalid-credential': errorMessage = 'Email ou senha incorretos'; break;
+                    case 'auth/too-many-requests': errorMessage = 'Muitas tentativas. Tente novamente mais tarde'; break;
                 }
                 
                 showAlert(errorMessage, 'error');
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         };
 
@@ -309,6 +321,8 @@
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
             const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+            const btn = event.target.querySelector('button');
+            const originalText = btn.innerText;
 
             if (password !== passwordConfirm) {
                 showAlert('As senhas não coincidem', 'error');
@@ -320,21 +334,19 @@
                 return;
             }
 
+            // Loading state
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>';
+
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
                 
-                // Atualiza o nome do usuário
-                await updateProfile(user, {
-                    displayName: name
-                });
-                
-                // Pega token do Firebase
+                await updateProfile(user, { displayName: name });
                 const token = await user.getIdToken();
                 
-                showAlert('✅ Conta criada com sucesso! Redirecionando...', 'success');
+                showAlert('Conta criada com sucesso! Redirecionando...', 'success');
                 
-                // Salva token e dados do usuário
                 localStorage.setItem('firebaseToken', token);
                 localStorage.setItem('user', JSON.stringify({
                     uid: user.uid,
@@ -350,22 +362,18 @@
                 let errorMessage = 'Erro ao criar conta';
                 
                 switch(error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMessage = 'Este email já está cadastrado';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage = 'Email inválido';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage = 'Senha muito fraca. Use no mínimo 6 caracteres';
-                        break;
+                    case 'auth/email-already-in-use': errorMessage = 'Este email já está cadastrado'; break;
+                    case 'auth/invalid-email': errorMessage = 'Email inválido'; break;
+                    case 'auth/weak-password': errorMessage = 'Senha muito fraca. Use no mínimo 6 caracteres'; break;
                 }
                 
                 showAlert(errorMessage, 'error');
+                btn.disabled = false;
+                btn.innerText = originalText;
             }
         };
 
-        // Verifica se já está logado
+        // Auto-redirect se já logado
         const token = localStorage.getItem('firebaseToken');
         if (token) {
             window.location.href = '/';
