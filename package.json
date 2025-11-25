@@ -4,12 +4,15 @@
   "description": "Vext - Sistema de disparo de WhatsApp com múltiplas sessões e alternância de mensagens",
   "main": "src/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "cli": "node src/index.js",
     "client": "node src/client.js",
     "web": "node src/server.js",
-    "dev": "node --watch src/index.js",
+    "dev": "node --watch src/server.js",
     "create-admin": "node src/scripts/createAdmin.js",
     "reset-admin": "node src/scripts/resetAdminPassword.js",
     "migrate": "node src/scripts/migrateToMultiTenant.js"
@@ -24,23 +27,24 @@
   "license": "ISC",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.21",
-    "pino": "^8.19.0",
-    "pino-pretty": "^10.3.0",
-    "qrcode-terminal": "^0.12.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1",
-    "xlsx": "^0.18.5",
-    "csv-parser": "^3.0.0",
-    "socket.io": "^4.6.1",
-    "qrcode": "^1.5.3",
     "bcrypt": "^5.1.1",
-    "jsonwebtoken": "^9.0.2",
-    "express-session": "^1.18.0",
     "better-sqlite3": "^9.4.3",
     "cookie-parser": "^1.4.6",
-    "pg": "^8.11.3",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.0.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.2.1",
+    "express-session": "^1.18.0",
     "firebase": "^10.7.1",
-    "firebase-admin": "^12.0.0"
+    "firebase-admin": "^12.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.11.3",
+    "pino": "^8.19.0",
+    "pino-pretty": "^10.3.0",
+    "qrcode": "^1.5.3",
+    "qrcode-terminal": "^0.12.0",
+    "socket.io": "^4.6.1",
+    "xlsx": "^0.18.5"
   }
 }

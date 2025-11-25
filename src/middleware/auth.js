@@ -1,5 +1,6 @@
 import admin from 'firebase-admin';
 import { logger } from '../config/logger.js';
+import dbManager from '../db/database.js';
 
 // Inicializar Firebase Admin (se não foi inicializado)
 if (!admin.apps.length) {
@@ -11,6 +12,9 @@ if (!admin.apps.length) {
     });
   }
 }
+
+// Lista de emails de administradores (pode ser configurado via env)
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@whatsapp.com,admin@vext.com').split(',').map(e => e.trim().toLowerCase());
 
 /**
  * Middleware para verificar autenticação com Firebase
@@ -24,31 +28,76 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ error: 'Autenticação necessária' });
     }
 
+    let userEmail, userId, userName;
+
     // Verifica token do Firebase
     if (admin.apps.length > 0) {
       // Produção: valida com Firebase Admin
       const decodedToken = await admin.auth().verifyIdToken(token);
-      req.user = {
-        id: decodedToken.uid,
-        email: decodedToken.email,
-        name: decodedToken.name || decodedToken.email,
-        role: 'user'
-      };
+      userId = decodedToken.uid;
+      userEmail = decodedToken.email;
+      userName = decodedToken.name || decodedToken.email;
     } else {
       // Desenvolvimento: aceita qualquer token e extrai email do payload
       try {
         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        req.user = {
-          id: payload.user_id || payload.sub,
-          email: payload.email,
-          name: payload.name || payload.email,
-          role: 'user'
-        };
+        userId = payload.user_id || payload.sub;
+        userEmail = payload.email;
+        userName = payload.name || payload.email;
       } catch (e) {
         logger.warn('Token Firebase inválido em modo desenvolvimento');
         return res.status(401).json({ error: 'Token inválido' });
       }
     }
+
+    // Verifica se é admin pela lista de emails ou pelo banco de dados
+    let role = 'user';
+    let maxInstances = 3;
+    let dbUserId = null;
+    
+    // Verifica na lista de admins
+    if (ADMIN_EMAILS.includes(userEmail?.toLowerCase())) {
+      role = 'admin';
+    }
+    
+    // Tenta buscar dados adicionais do banco (se existir)
+    try {
+      let dbUser = await dbManager.getUserByEmail(userEmail);
+      
+      // Se usuário não existe no banco local, cria automaticamente
+      if (!dbUser && userEmail) {
+        logger.info(`👤 Criando usuário no banco local: ${userEmail}`);
+        dbUser = await dbManager.createUser(
+          userEmail, 
+          'firebase-auth', // senha placeholder (não usada com Firebase)
+          userName || userEmail.split('@')[0],
+          role
+        );
+      }
+      
+      if (dbUser) {
+        dbUserId = dbUser.id;
+        role = dbUser.role || role;
+        maxInstances = dbUser.max_instances || 3;
+        
+        // Se é admin pela lista mas não no banco, atualiza o banco
+        if (ADMIN_EMAILS.includes(userEmail?.toLowerCase()) && dbUser.role !== 'admin') {
+          await dbManager.updateUser(dbUser.id, { role: 'admin' });
+          role = 'admin';
+        }
+      }
+    } catch (e) {
+      logger.warn(`Erro ao sincronizar usuário com banco: ${e.message}`);
+    }
+
+    req.user = {
+      id: dbUserId || userId, // Usa ID do banco se disponível, senão UID do Firebase
+      firebaseUid: userId,
+      email: userEmail,
+      name: userName,
+      role,
+      maxInstances
+    };
     
     next();
   } catch (error) {

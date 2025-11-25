@@ -52,12 +52,24 @@ class CampaignManager {
       throw new Error('userId é obrigatório');
     }
 
-    if (this.campaigns.has(name)) {
+    // Verifica se já existe uma campanha com esse nome PARA ESTE USUÁRIO
+    const existingCampaign = this.campaigns.get(name);
+    if (existingCampaign && existingCampaign.userId === userId) {
       throw new Error(`Campanha "${name}" já existe`);
+    }
+    
+    // Se existe mas é de outro usuário, cria com nome único
+    let finalName = name;
+    if (existingCampaign) {
+      finalName = `${name}_${userId}`;
+      if (this.campaigns.has(finalName)) {
+        throw new Error(`Campanha "${name}" já existe`);
+      }
     }
 
     const campaign = {
-      name,
+      name: finalName,
+      displayName: name, // Nome original para exibição
       userId,
       contacts: [], // Array de {name, phone, status, statusDetails}
       numbers: [], // Backward compatibility
@@ -80,12 +92,12 @@ class CampaignManager {
       results: []
     };
 
-    this.campaigns.set(name, campaign);
-    this.activeCampaign = name;
+    this.campaigns.set(finalName, campaign);
+    this.activeCampaign = finalName;
     
-    await this.saveCampaign(name);
+    await this.saveCampaign(finalName);
     
-    logger.info(`✅ Campanha "${name}" criada`);
+    logger.info(`✅ Campanha "${finalName}" criada para usuário ${userId}`);
     return campaign;
   }
 

@@ -221,29 +221,62 @@ windsurf-project/
 
 ## 🚀 Deploy em Produção
 
-### Railway (Recomendado)
+### Render (Recomendado)
+
+**Deploy com 1 clique usando Blueprint:**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+**Ou manualmente:**
+
+1. **Crie uma conta** em [render.com](https://render.com)
+
+2. **Crie um PostgreSQL Database:**
+   - Dashboard → New → PostgreSQL
+   - Nome: `vext-db`
+   - Plano: Free
+   - Copie a `Internal Database URL`
+
+3. **Crie um Web Service:**
+   - Dashboard → New → Web Service
+   - Conecte seu repositório GitHub
+   - Configure:
+     - **Build Command:** `npm install`
+     - **Start Command:** `npm start`
+     - **Plan:** Free
+
+4. **Configure as variáveis de ambiente:**
+   ```
+   NODE_ENV=production
+   DATABASE_URL=<cole a URL do PostgreSQL>
+   JWT_SECRET=<gere um hash seguro>
+   SESSION_SECRET=<gere outro hash seguro>
+   ADMIN_EMAILS=seu-email@gmail.com
+   CORS_ORIGIN=https://seu-app.onrender.com
+   ```
+
+5. **Adicione seu domínio no Firebase:**
+   - Firebase Console → Authentication → Settings
+   - Authorized domains → Add domain
+   - Adicione: `seu-app.onrender.com`
+
+6. **Deploy!** O Render faz deploy automático a cada push.
+
+### Variáveis de Ambiente Obrigatórias
+
+| Variável | Descrição |
+|----------|-----------|
+| `DATABASE_URL` | URL do PostgreSQL |
+| `JWT_SECRET` | Secret para tokens JWT |
+| `SESSION_SECRET` | Secret para sessões |
+| `ADMIN_EMAILS` | Emails dos admins (separados por vírgula) |
+| `CORS_ORIGIN` | URL do seu app |
+
+### Gerar Secrets Seguros
 
 ```bash
-# 1. Configure as variáveis de ambiente no Railway:
-JWT_SECRET=seu-hash-seguro-aqui
-SESSION_SECRET=outro-hash-seguro-aqui
-CORS_ORIGIN=https://seu-app.up.railway.app
-NODE_ENV=production
-
-# 2. Conecte seu repositório GitHub
-# 3. Deploy automático!
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
-
-### Criar Admin após Deploy
-```bash
-railway run npm run create-admin
-```
-
-**Credenciais padrão:**
-- Email: `admin@whatsapp.com`
-- Senha: `admin123`
-
-⚠️ **Troque a senha após primeiro login!**
 
 → **[Guia Completo de Deploy](DEPLOY.md)**
 

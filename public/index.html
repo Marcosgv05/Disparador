@@ -51,6 +51,12 @@
                         </svg>
                         Painel de Disparos
                     </a>
+                    <a href="/admin.html" class="nav-item" id="adminLink" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                        </svg>
+                        Administração
+                    </a>
                 </nav>
             </aside>
 
@@ -99,6 +105,47 @@
                         <h3>Campanhas Recentes</h3>
                         <div id="recentCampaigns" class="campaign-items">
                             <p class="empty-state">Nenhuma campanha criada ainda</p>
+                        </div>
+                    </div>
+
+                    <!-- Analytics integrado ao Dashboard -->
+                    <div class="analytics-section" style="margin-top: 30px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>📊 Relatórios de Mensagens</h3>
+                            <div>
+                                <select id="analyticsPeriod" class="form-control" style="width: 150px; display: inline-block;" onchange="loadAnalytics()">
+                                    <option value="7">Últimos 7 dias</option>
+                                    <option value="30" selected>Últimos 30 dias</option>
+                                    <option value="90">Últimos 90 dias</option>
+                                </select>
+                                <button class="btn btn-secondary" onclick="exportAnalytics()" style="margin-left: 5px;">📥 CSV</button>
+                            </div>
+                        </div>
+                        
+                        <div class="cards" style="margin-bottom: 20px;">
+                            <div class="card" style="text-align: center;">
+                                <h3 id="analyticsSent" style="font-size: 1.8em; color: #25D366; margin: 0;">0</h3>
+                                <p style="margin: 5px 0 0 0;">Enviadas</p>
+                            </div>
+                            <div class="card" style="text-align: center;">
+                                <h3 id="analyticsDelivered" style="font-size: 1.8em; color: #4CAF50; margin: 0;">0</h3>
+                                <p style="margin: 5px 0 0 0;">Entregues</p>
+                            </div>
+                            <div class="card" style="text-align: center;">
+                                <h3 id="analyticsRead" style="font-size: 1.8em; color: #2196F3; margin: 0;">0</h3>
+                                <p style="margin: 5px 0 0 0;">Lidas</p>
+                            </div>
+                            <div class="card" style="text-align: center;">
+                                <h3 id="analyticsFailed" style="font-size: 1.8em; color: #f44336; margin: 0;">0</h3>
+                                <p style="margin: 5px 0 0 0;">Falhas</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card" style="padding: 20px;">
+                            <h4 style="margin-top: 0;">📈 Evolução Diária</h4>
+                            <div id="analyticsChart" style="height: 200px; display: flex; align-items: flex-end; gap: 3px; padding-top: 10px;">
+                                <p style="color: #888; text-align: center; width: 100%;">Carregando...</p>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -204,10 +251,24 @@
                                         <div>
                                             <h4>Gerenciar Mensagens</h4>
                                             
+                                            <!-- Templates de Mensagens -->
+                                            <div class="templates-section" style="background: #1a1a2e; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                                    <h5 style="margin: 0;">📝 Templates Salvos</h5>
+                                                    <button class="btn btn-small btn-secondary" onclick="showTemplateModal()">+ Novo Template</button>
+                                                </div>
+                                                <div id="templatesQuickList" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                                    <!-- Templates serão carregados aqui -->
+                                                </div>
+                                            </div>
+                                            
                                             <!-- Adicionar uma mensagem -->
                                             <div class="message-input-container">
-                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite uma mensagem aqui..." rows="3"></textarea>
-                                                <button class="btn btn-primary" onclick="addMessage()">➕ Adicionar Mensagem</button>
+                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite uma mensagem aqui... Use {{nome}} para variáveis" rows="3"></textarea>
+                                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                                    <button class="btn btn-primary" onclick="addMessage()">➕ Adicionar Mensagem</button>
+                                                    <button class="btn btn-secondary" onclick="saveAsTemplate()">💾 Salvar como Template</button>
+                                                </div>
                                             </div>
                                             
                                             <!-- Adicionar múltiplas mensagens -->
@@ -480,6 +541,24 @@
                         <h3>Agendamentos Ativos</h3>
                         <div id="schedulesList"></div>
                     </div>
+
+                    <!-- Campanhas Agendadas (integrado) -->
+                    <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3>📅 Campanhas Agendadas</h3>
+                            <div>
+                                <select id="schedulerStatus" class="form-control" style="width: 130px; display: inline-block;" onchange="loadScheduledCampaigns()">
+                                    <option value="">Todos</option>
+                                    <option value="pending">Pendentes</option>
+                                    <option value="completed">Executados</option>
+                                </select>
+                                <button class="btn btn-primary" onclick="showSchedulerModal()" style="margin-left: 5px;">+ Nova Campanha</button>
+                            </div>
+                        </div>
+                        <div id="scheduledList" style="display: flex; flex-direction: column; gap: 10px;">
+                            <!-- Campanhas agendadas serão carregadas aqui -->
+                        </div>
+                    </div>
                     </div> <!-- Fim Tab Schedule -->
 
                 </section>
@@ -488,6 +567,8 @@
                 <section id="campaign" class="section" style="display: none;"></section>
                 <section id="dispatch" class="section" style="display: none;"></section>
                 <section id="schedule" class="section" style="display: none;"></section>
+
+                <!-- Seções removidas - funcionalidades integradas nas abas existentes -->
             </div>
         </main>
     </div>
@@ -516,7 +597,7 @@
     
     <!-- Firebase Authentication Check -->
     <script type="module">
-        import { checkAuthState, logout } from './firebase-auth.js';
+        import { checkAuthState, logout, getCurrentToken } from './firebase-auth.js';
         
         // Verifica autenticação antes de carregar app
         try {
@@ -532,6 +613,22 @@
             
             // Atualiza nome do usuário
             document.getElementById('userName').textContent = user.displayName || user.email;
+            
+            // Verifica se é admin para mostrar link de administração
+            try {
+                const token = await getCurrentToken();
+                const response = await fetch('/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                if (data.user && data.user.role === 'admin') {
+                    document.getElementById('adminLink').style.display = 'flex';
+                }
+                // Salva maxInstances para uso no app
+                window.userMaxInstances = data.user?.maxInstances || 3;
+            } catch (e) {
+                console.log('Não foi possível verificar role do usuário');
+            }
             
         } catch (error) {
             console.error('❌ Não autenticado:', error.message);

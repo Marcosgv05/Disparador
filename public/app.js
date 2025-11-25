@@ -140,8 +140,16 @@ async function apiCall(endpoint, options = {}, retryCount = 0) {
 
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', (e) => {
+        // Se o link tem href para outra página, deixa navegar normalmente
+        const href = item.getAttribute('href');
+        if (href && href !== '#' && !href.startsWith('#')) {
+            return; // Não previne o comportamento padrão
+        }
+        
         e.preventDefault();
         const sectionId = item.dataset.section;
+        
+        if (!sectionId) return; // Se não tem data-section, ignora
         
         // Update nav
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -149,7 +157,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
         
         // Update section
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById(sectionId).classList.add('active');
+        document.getElementById(sectionId)?.classList.add('active');
     });
 });
 
@@ -1030,6 +1038,13 @@ async function loadInstances() {
 }
 
 async function addInstanceSlot() {
+    // Verifica limite de instâncias do usuário
+    const maxInstances = window.userMaxInstances || 3;
+    if (state.instances && state.instances.length >= maxInstances) {
+        showToast(`Limite de ${maxInstances} instância(s) atingido. Entre em contato com o administrador.`, 'error');
+        return;
+    }
+    
     // Calcula o próximo número sequencial baseado apenas nas instâncias do usuário atual
     let nextNumber = 1;
     
@@ -1546,6 +1561,346 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// ==== TEMPLATES ====
+
+async function loadTemplates() {
+    try {
+        const { templates } = await apiCall('/api/templates');
+        
+        // Lista rápida de templates (na aba de campanhas)
+        const quickList = document.getElementById('templatesQuickList');
+        if (quickList) {
+            quickList.innerHTML = templates.length ? templates.slice(0, 10).map(t => `
+                <button class="btn btn-small" style="background: #2a2a4a; border: 1px solid #444;" onclick="applyTemplate(${t.id})" title="${t.content.substring(0, 100)}...">
+                    ${t.name}
+                </button>
+            `).join('') : '<span style="color: #666; font-size: 0.9em;">Nenhum template salvo</span>';
+        }
+        
+        // Lista completa (se existir container separado)
+        const container = document.getElementById('templatesList');
+        if (container) {
+            const category = document.getElementById('templateCategory')?.value;
+            const filtered = category ? templates.filter(t => t.category === category) : templates;
+            
+            container.innerHTML = filtered.length ? filtered.map(t => `
+                <div class="card template-card" style="padding: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <h4 style="margin: 0;">${t.name}</h4>
+                        <span class="badge" style="background: #25D366; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">${t.category || 'geral'}</span>
+                    </div>
+                    <p style="color: #888; font-size: 0.9em; margin: 10px 0; white-space: pre-wrap;">${t.content.substring(0, 150)}${t.content.length > 150 ? '...' : ''}</p>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <span style="color: #666; font-size: 0.8em;">Usado ${t.usage_count || 0}x</span>
+                        <div>
+                            <button class="btn btn-small" onclick="applyTemplate(${t.id})">Usar</button>
+                            <button class="btn btn-small btn-secondary" onclick="editTemplate(${t.id})">Editar</button>
+                            <button class="btn btn-small btn-danger" onclick="deleteTemplate(${t.id})">×</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('') : '<p style="color: #888;">Nenhum template encontrado.</p>';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+    }
+}
+
+// Aplica template no campo de mensagem
+async function applyTemplate(id) {
+    try {
+        const { template } = await apiCall(`/api/templates/${id}`);
+        const messageField = document.getElementById('newMessageText');
+        if (messageField) {
+            messageField.value = template.content;
+            showToast('Template aplicado!', 'success');
+        }
+        // Incrementa uso
+        await apiCall(`/api/templates/${id}/use`, { method: 'POST', body: JSON.stringify({}) });
+    } catch (error) {
+        showToast('Erro ao aplicar template', 'error');
+    }
+}
+
+// Salva mensagem atual como template
+async function saveAsTemplate() {
+    const messageField = document.getElementById('newMessageText');
+    const content = messageField?.value?.trim();
+    
+    if (!content) {
+        showToast('Digite uma mensagem primeiro', 'error');
+        return;
+    }
+    
+    const name = prompt('Nome do template:');
+    if (!name) return;
+    
+    try {
+        await apiCall('/api/templates', { 
+            method: 'POST', 
+            body: JSON.stringify({ name, content, category: 'geral' }) 
+        });
+        loadTemplates();
+        showToast('Template salvo!', 'success');
+    } catch (error) {
+        showToast('Erro ao salvar template', 'error');
+    }
+}
+
+function showTemplateModal(template = null) {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('modalTitle').textContent = template ? 'Editar Template' : 'Novo Template';
+    document.getElementById('modalBody').innerHTML = `
+        <form id="templateForm" style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="hidden" id="templateId" value="${template?.id || ''}">
+            <div>
+                <label>Nome do Template</label>
+                <input type="text" id="templateName" class="form-control" value="${template?.name || ''}" required>
+            </div>
+            <div>
+                <label>Categoria</label>
+                <select id="templateCat" class="form-control">
+                    <option value="geral" ${template?.category === 'geral' ? 'selected' : ''}>Geral</option>
+                    <option value="vendas" ${template?.category === 'vendas' ? 'selected' : ''}>Vendas</option>
+                    <option value="suporte" ${template?.category === 'suporte' ? 'selected' : ''}>Suporte</option>
+                    <option value="marketing" ${template?.category === 'marketing' ? 'selected' : ''}>Marketing</option>
+                </select>
+            </div>
+            <div>
+                <label>Conteúdo (use {{variavel}} para variáveis dinâmicas)</label>
+                <textarea id="templateContent" class="form-control" rows="6" required>${template?.content || ''}</textarea>
+                <small style="color: #888;">Ex: Olá {{nome}}, sua compra {{pedido}} foi confirmada!</small>
+            </div>
+            <button type="submit" class="btn btn-primary">Salvar Template</button>
+        </form>
+    `;
+    modal.style.display = 'flex';
+    
+    document.getElementById('templateForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('templateId').value;
+        const data = {
+            name: document.getElementById('templateName').value,
+            content: document.getElementById('templateContent').value,
+            category: document.getElementById('templateCat').value
+        };
+        
+        try {
+            if (id) {
+                await apiCall(`/api/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            } else {
+                await apiCall('/api/templates', { method: 'POST', body: JSON.stringify(data) });
+            }
+            closeModal();
+            loadTemplates();
+            showToast('Template salvo!', 'success');
+        } catch (error) {
+            showToast('Erro ao salvar template', 'error');
+        }
+    };
+}
+
+async function editTemplate(id) {
+    const { template } = await apiCall(`/api/templates/${id}`);
+    showTemplateModal(template);
+}
+
+async function deleteTemplate(id) {
+    if (!confirm('Excluir este template?')) return;
+    try {
+        await apiCall(`/api/templates/${id}`, { method: 'DELETE' });
+        loadTemplates();
+        showToast('Template excluído!', 'success');
+    } catch (error) {
+        showToast('Erro ao excluir', 'error');
+    }
+}
+
+
+// ==== SCHEDULED CAMPAIGNS ====
+
+async function loadScheduledCampaigns() {
+    try {
+        const status = document.getElementById('schedulerStatus')?.value || '';
+        const { campaigns } = await apiCall(`/api/scheduler${status ? `?status=${status}` : ''}`);
+        const container = document.getElementById('scheduledList');
+        
+        container.innerHTML = campaigns.length ? campaigns.map(c => {
+            const statusColors = { pending: '#FFC107', running: '#2196F3', completed: '#4CAF50', failed: '#f44336' };
+            const statusLabels = { pending: 'Pendente', running: 'Executando', completed: 'Concluído', failed: 'Falhou' };
+            const scheduledDate = new Date(c.scheduled_at);
+            
+            return `
+            <div class="card" style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin: 0;">${c.name}</h4>
+                    <p style="color: #888; margin: 5px 0;">📅 ${scheduledDate.toLocaleString('pt-BR')} | 👥 ${c.contacts.length} contatos</p>
+                    ${c.repeat_type && c.repeat_type !== 'none' ? `<span style="color: #2196F3; font-size: 0.8em;">🔄 Recorrente: ${c.repeat_type}</span>` : ''}
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="background: ${statusColors[c.status]}; color: white; padding: 3px 10px; border-radius: 15px; font-size: 0.8em;">${statusLabels[c.status]}</span>
+                    ${c.status === 'pending' ? `
+                        <button class="btn btn-small" onclick="executeScheduledCampaign(${c.id})">▶ Executar</button>
+                        <button class="btn btn-small btn-secondary" onclick="editScheduledCampaign(${c.id})">Editar</button>
+                    ` : ''}
+                    <button class="btn btn-small btn-danger" onclick="deleteScheduledCampaign(${c.id})">×</button>
+                </div>
+            </div>
+        `}).join('') : '<p style="color: #888;">Nenhum agendamento encontrado.</p>';
+    } catch (error) {
+        console.error('Erro ao carregar agendamentos:', error);
+    }
+}
+
+function showSchedulerModal(campaign = null) {
+    const modal = document.getElementById('confirmModal');
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    const defaultDate = now.toISOString().slice(0, 16);
+    
+    document.getElementById('modalTitle').textContent = campaign ? 'Editar Agendamento' : 'Novo Agendamento';
+    document.getElementById('modalBody').innerHTML = `
+        <form id="schedulerForm" style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="hidden" id="schedCampaignId" value="${campaign?.id || ''}">
+            <div>
+                <label>Nome da Campanha</label>
+                <input type="text" id="schedName" class="form-control" value="${campaign?.name || ''}" required>
+            </div>
+            <div>
+                <label>Mensagem</label>
+                <textarea id="schedMessage" class="form-control" rows="4" required>${campaign?.message || ''}</textarea>
+            </div>
+            <div>
+                <label>Contatos (um por linha ou separados por vírgula)</label>
+                <textarea id="schedContacts" class="form-control" rows="4" required placeholder="5511999999999">${campaign?.contacts?.join('\n') || ''}</textarea>
+            </div>
+            <div>
+                <label>Data e Hora</label>
+                <input type="datetime-local" id="schedDateTime" class="form-control" value="${campaign?.scheduled_at?.slice(0, 16) || defaultDate}" required>
+            </div>
+            <div>
+                <label>Repetir</label>
+                <select id="schedRepeat" class="form-control">
+                    <option value="">Não repetir</option>
+                    <option value="daily" ${campaign?.repeat_type === 'daily' ? 'selected' : ''}>Diariamente</option>
+                    <option value="weekly" ${campaign?.repeat_type === 'weekly' ? 'selected' : ''}>Semanalmente</option>
+                    <option value="monthly" ${campaign?.repeat_type === 'monthly' ? 'selected' : ''}>Mensalmente</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Salvar Agendamento</button>
+        </form>
+    `;
+    modal.style.display = 'flex';
+    
+    document.getElementById('schedulerForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('schedCampaignId').value;
+        const data = {
+            name: document.getElementById('schedName').value,
+            message: document.getElementById('schedMessage').value,
+            contacts: document.getElementById('schedContacts').value,
+            scheduled_at: document.getElementById('schedDateTime').value,
+            repeat_type: document.getElementById('schedRepeat').value || null
+        };
+        
+        try {
+            if (id) {
+                await apiCall(`/api/scheduler/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+            } else {
+                await apiCall('/api/scheduler', { method: 'POST', body: JSON.stringify(data) });
+            }
+            closeModal();
+            loadScheduledCampaigns();
+            showToast('Agendamento salvo!', 'success');
+        } catch (error) {
+            showToast(error.message || 'Erro ao salvar', 'error');
+        }
+    };
+}
+
+async function editScheduledCampaign(id) {
+    const { campaign } = await apiCall(`/api/scheduler/${id}`);
+    showSchedulerModal(campaign);
+}
+
+async function deleteScheduledCampaign(id) {
+    if (!confirm('Cancelar este agendamento?')) return;
+    try {
+        await apiCall(`/api/scheduler/${id}`, { method: 'DELETE' });
+        loadScheduledCampaigns();
+        showToast('Agendamento cancelado!', 'success');
+    } catch (error) {
+        showToast('Erro ao cancelar', 'error');
+    }
+}
+
+async function executeScheduledCampaign(id) {
+    if (!confirm('Executar esta campanha agora?')) return;
+    try {
+        await apiCall(`/api/scheduler/${id}/execute`, { method: 'POST' });
+        loadScheduledCampaigns();
+        showToast('Campanha em execução!', 'success');
+    } catch (error) {
+        showToast('Erro ao executar', 'error');
+    }
+}
+
+// ==== ANALYTICS ====
+
+async function loadAnalytics() {
+    try {
+        const days = document.getElementById('analyticsPeriod')?.value || 30;
+        const { summary, dailyData, recentCampaigns } = await apiCall(`/api/analytics/summary?days=${days}`);
+        
+        // Atualiza cards
+        document.getElementById('analyticsSent').textContent = summary?.total_sent || 0;
+        document.getElementById('analyticsDelivered').textContent = summary?.total_delivered || 0;
+        document.getElementById('analyticsRead').textContent = summary?.total_read || 0;
+        document.getElementById('analyticsFailed').textContent = summary?.total_failed || 0;
+        
+        // Renderiza gráfico simples
+        const chartContainer = document.getElementById('analyticsChart');
+        if (dailyData && dailyData.length > 0) {
+            const maxValue = Math.max(...dailyData.map(d => d.messages_sent || 0), 1);
+            chartContainer.innerHTML = dailyData.slice(-30).map(d => {
+                const height = ((d.messages_sent || 0) / maxValue * 250) || 5;
+                return `
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                        <div style="width: 100%; max-width: 30px; height: ${height}px; background: linear-gradient(to top, #25D366, #128C7E); border-radius: 3px 3px 0 0;" title="${d.date}: ${d.messages_sent} enviadas"></div>
+                        <span style="font-size: 0.6em; color: #888; margin-top: 5px; transform: rotate(-45deg);">${d.date.slice(5)}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            chartContainer.innerHTML = '<p style="color: #888; text-align: center; width: 100%;">Sem dados para exibir</p>';
+        }
+        
+        // Lista campanhas recentes
+        const campaignsList = document.getElementById('recentCampaignsList');
+        if (recentCampaigns && recentCampaigns.length > 0) {
+            campaignsList.innerHTML = recentCampaigns.map(c => `
+                <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333;">
+                    <span>${c.name}</span>
+                    <span style="color: #888;">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
+                </div>
+            `).join('');
+        } else {
+            campaignsList.innerHTML = '<p style="color: #888;">Nenhuma campanha recente</p>';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar analytics:', error);
+    }
+}
+
+async function exportAnalytics() {
+    try {
+        const days = document.getElementById('analyticsPeriod')?.value || 30;
+        window.open(`/api/analytics/export?days=${days}&format=csv`, '_blank');
+    } catch (error) {
+        showToast('Erro ao exportar', 'error');
+    }
+}
+
 // ==== INITIALIZATION ====
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1553,6 +1908,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSessions();
     loadInstances();
     loadSchedulesList();
+    loadTemplates();
+    loadScheduledCampaigns();
+    loadAnalytics();
+    
+    // Listener para filtro de categoria de templates
+    document.getElementById('templateCategory')?.addEventListener('change', loadTemplates);
     
     // Update campaign selects to include schedule
     const originalUpdateSelects = updateCampaignSelects;

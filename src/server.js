@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 
 // Importa serviços
 import sessionManager from './whatsapp/sessionManager.js';
@@ -19,6 +20,10 @@ import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsh
 import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
+import templatesRoutes from './routes/templates.js';
+import schedulerRoutes from './routes/scheduler.js';
+import analyticsRoutes from './routes/analytics.js';
 import { requireAuth, optionalAuth, validateCampaignOwnership } from './middleware/auth.js';
 import { clearAuthState, listAuthSessions } from './whatsapp/authStateDB.js';
 
@@ -74,15 +79,46 @@ const upload = multer({
   }
 });
 
+// Rate Limiting (proteção contra abuso)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // máximo 100 requisições por IP
+  message: { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/api/health' // Não limita health check
+});
+
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 10, // máximo 10 tentativas de login por hora
+  message: { error: 'Muitas tentativas de login. Tente novamente em 1 hora.' }
+});
+
 // Middlewares
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
-  : ['http://localhost:3000'];
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
 app.use(cors({
-  origin: corsOrigins,
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (mobile apps, Postman, etc)
+    if (!origin) return callback(null, true);
+    if (corsOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    callback(new Error('Bloqueado pelo CORS'));
+  },
   credentials: true
 }));
+
+// Aplica rate limiting em produção
+if (process.env.NODE_ENV === 'production') {
+  app.use(limiter);
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+}
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(session({
@@ -195,8 +231,26 @@ app.post('/api/emergency/reset-admin', async (req, res) => {
   }
 });
 
+// Health check para Render/monitoramento
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
+
+// Rotas de administração (protegidas)
+app.use('/api/admin', adminRoutes);
+
+// Rotas de templates, agendamentos e analytics
+app.use('/api/templates', templatesRoutes);
+app.use('/api/scheduler', schedulerRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -209,6 +263,10 @@ logger.info('✅ Banco de dados inicializado');
 await campaignManager.initialize();
 await instanceManager.initialize();
 await scheduler.start();
+
+// Inicia scheduler de campanhas agendadas
+import campaignScheduler from './services/campaignScheduler.js';
+campaignScheduler.start(60000); // Verifica a cada 1 minuto
 
 // Restaura sessões persistidas após reinício do servidor
 const persistedInstances = instanceManager.listInstances();

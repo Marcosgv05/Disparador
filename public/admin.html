@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administração - Vext</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
+        .tab-btn.active { background: rgba(99,102,241,0.2); color: #818cf8; }
+        .section { display: none; }
+        .section.active { display: block; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+    <header class="border-b border-slate-800 bg-slate-900/80 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="/" class="text-xl font-bold text-indigo-400">🛡️ Vext Admin</a>
+            <div class="flex items-center gap-4">
+                <span id="adminName" class="text-sm text-slate-300"></span>
+                <a href="/" class="px-3 py-1 text-sm bg-slate-800 rounded">← Voltar</a>
+                <button onclick="handleLogout()" class="px-3 py-1 text-sm bg-red-500/20 text-red-400 rounded">Sair</button>
+            </div>
+        </div>
+    </header>
+    <nav class="border-b border-slate-800 bg-slate-900/50">
+        <div class="max-w-7xl mx-auto px-4 flex gap-1 py-2 overflow-x-auto">
+            <button class="tab-btn active px-4 py-2 text-sm rounded" data-tab="dashboard">📊 Dashboard</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="users">👥 Usuários</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="plans">💳 Planos</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="notices">📢 Avisos</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="settings">⚙️ Config</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="blacklist">🚫 Blacklist</button>
+            <button class="tab-btn px-4 py-2 text-sm rounded text-slate-400" data-tab="logs">📋 Logs</button>
+        </div>
+    </nav>
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <section id="dashboard" class="section active">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass rounded-xl border border-slate-800 p-4"><p class="text-sm text-slate-400">Usuários</p><p id="statUsers" class="text-2xl font-bold">0</p></div>
+                <div class="glass rounded-xl border border-slate-800 p-4"><p class="text-sm text-slate-400">Ativos</p><p id="statActive" class="text-2xl font-bold text-emerald-400">0</p></div>
+                <div class="glass rounded-xl border border-slate-800 p-4"><p class="text-sm text-slate-400">Logins 24h</p><p id="statLogins" class="text-2xl font-bold text-blue-400">0</p></div>
+                <div class="glass rounded-xl border border-slate-800 p-4"><p class="text-sm text-slate-400">Blacklist</p><p id="statBlack" class="text-2xl font-bold text-red-400">0</p></div>
+            </div>
+            <div class="glass rounded-xl border border-slate-800 p-4"><h3 class="font-semibold mb-4">Atividades Recentes</h3><div id="activities" class="space-y-2 text-sm"></div></div>
+        </section>
+        <section id="users" class="section"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800 flex justify-between"><h2 class="font-semibold">Usuários</h2><button onclick="loadUsers()" class="px-3 py-1 bg-indigo-500 rounded text-sm">Atualizar</button></div><table class="w-full"><thead class="bg-slate-900/50"><tr><th class="px-4 py-2 text-left text-xs text-slate-400">USUÁRIO</th><th class="px-4 py-2 text-left text-xs text-slate-400">FUNÇÃO</th><th class="px-4 py-2 text-left text-xs text-slate-400">INSTÂNCIAS</th><th class="px-4 py-2 text-left text-xs text-slate-400">STATUS</th><th class="px-4 py-2 text-right text-xs text-slate-400">AÇÕES</th></tr></thead><tbody id="usersTable" class="divide-y divide-slate-800"></tbody></table></div></section>
+        <section id="plans" class="section"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800 flex justify-between"><h2 class="font-semibold">Planos</h2><button onclick="showPlanModal()" class="px-3 py-1 bg-indigo-500 rounded text-sm">+ Novo</button></div><div id="plansGrid" class="p-4 grid grid-cols-1 md:grid-cols-4 gap-4"></div></div></section>
+        <section id="notices" class="section"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800 flex justify-between"><h2 class="font-semibold">Avisos</h2><button onclick="showNoticeModal()" class="px-3 py-1 bg-indigo-500 rounded text-sm">+ Novo</button></div><div id="noticesList" class="p-4 space-y-3"></div></div></section>
+        <section id="settings" class="section"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800"><h2 class="font-semibold">Configurações</h2></div><div id="settingsList" class="p-4 space-y-3"></div></div></section>
+        <section id="blacklist" class="section"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800 flex justify-between"><h2 class="font-semibold">Blacklist</h2><button onclick="showBlacklistModal()" class="px-3 py-1 bg-red-500 rounded text-sm">+ Adicionar</button></div><div id="blacklistList" class="p-4"></div></div></section>
+        <section id="logs" class="section"><div class="grid md:grid-cols-2 gap-4"><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800"><h2 class="font-semibold">Logs de Login</h2></div><div id="loginLogs" class="p-4 max-h-80 overflow-y-auto space-y-2 text-sm"></div></div><div class="glass rounded-xl border border-slate-800"><div class="p-4 border-b border-slate-800"><h2 class="font-semibold">Logs de Atividade</h2></div><div id="activityLogs" class="p-4 max-h-80 overflow-y-auto space-y-2 text-sm"></div></div></div></section>
+    </main>
+    <div id="modal" class="fixed inset-0 z-50 hidden bg-black/70 flex items-center justify-center p-4"><div id="modalContent" class="glass rounded-xl border border-slate-700 bg-slate-900 w-full max-w-md"></div></div>
+    <div id="toast" class="fixed bottom-4 right-4 z-50 hidden px-4 py-2 rounded-lg"></div>
+    <script type="module" src="admin.js"></script>
+</body>
+</html>

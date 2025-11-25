@@ -304,6 +304,37 @@ body {
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.6);
 }
 
+/* Form Control (select, inputs genéricos) */
+.form-control,
+select.form-control {
+    padding: 0.6rem 1rem;
+    border: 2px solid rgba(51, 65, 85, 0.9);
+    border-radius: 10px;
+    font-size: 0.9rem;
+    transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+    background: rgba(15, 23, 42, 0.9);
+    color: var(--text);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239CA3AF' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 35px;
+}
+
+.form-control:focus,
+select.form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.6);
+}
+
+.form-control option {
+    background: #1E293B;
+    color: var(--text);
+    padding: 10px;
+}
+
 /* Buttons */
 .btn {
     display: inline-flex;
@@ -819,13 +850,17 @@ hr {
     bottom: 2rem;
     right: 2rem;
     padding: 1rem 1.5rem;
-    background: linear-gradient(135deg, rgba(79, 70, 229, 0.95), rgba(236, 72, 153, 0.95));
+    background: rgba(15, 23, 42, 0.95);
     color: white;
-    border-radius: 999px;
+    border-radius: 12px;
     box-shadow: var(--shadow-lg);
     transform: translateY(150%);
     transition: transform 0.3s;
     z-index: 1000;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(10px);
+    font-weight: 500;
+    max-width: 400px;
 }
 
 .toast.show {
@@ -833,15 +868,18 @@ hr {
 }
 
 .toast.error {
-    background: var(--danger);
+    background: rgba(239, 68, 68, 0.95);
+    border-color: rgba(239, 68, 68, 0.5);
 }
 
 .toast.success {
-    background: var(--success);
+    background: rgba(34, 197, 94, 0.95);
+    border-color: rgba(34, 197, 94, 0.5);
 }
 
 .toast.warning {
-    background: var(--warning);
+    background: rgba(249, 115, 22, 0.95);
+    border-color: rgba(249, 115, 22, 0.5);
 }
 
 /* Responsive */
