@@ -431,6 +431,21 @@ class DatabaseManager {
         )
       `);
       
+      // Tabela de avisos do sistema
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS system_notices (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          type VARCHAR(50) DEFAULT 'info',
+          is_active BOOLEAN DEFAULT true,
+          created_by INTEGER,
+          created_at TIMESTAMP NOT NULL,
+          starts_at TIMESTAMP,
+          ends_at TIMESTAMP
+        )
+      `);
+      
       // Migração: adiciona colunas se não existirem
       await client.query(`
         DO $$ 
