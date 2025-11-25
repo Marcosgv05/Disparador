@@ -280,6 +280,7 @@ class DatabaseManager {
   async createPostgresTables() {
     const client = await this.pool.connect();
     try {
+      // Tabela de usuários
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
           id SERIAL PRIMARY KEY,
@@ -288,8 +289,145 @@ class DatabaseManager {
           name VARCHAR(255) NOT NULL,
           role VARCHAR(50) DEFAULT 'user',
           max_instances INTEGER DEFAULT 3,
+          max_messages_day INTEGER DEFAULT 1000,
+          is_active BOOLEAN DEFAULT true,
+          plan_id INTEGER,
+          plan_expires_at TIMESTAMP,
+          firebase_uid VARCHAR(255),
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de planos
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS plans (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          max_instances INTEGER DEFAULT 3,
+          max_messages_day INTEGER DEFAULT 1000,
+          price DECIMAL(10,2) DEFAULT 0,
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de logs de atividade
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          user_email VARCHAR(255),
+          action VARCHAR(255) NOT NULL,
+          details TEXT,
+          ip_address VARCHAR(50),
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de logs de login
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS login_logs (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          email VARCHAR(255),
+          success BOOLEAN,
+          ip_address VARCHAR(50),
+          user_agent TEXT,
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de configurações do sistema
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS system_settings (
+          id SERIAL PRIMARY KEY,
+          key VARCHAR(255) UNIQUE NOT NULL,
+          value TEXT,
+          description TEXT,
+          updated_at TIMESTAMP
+        )
+      `);
+      
+      // Tabela de blacklist
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS blacklist (
+          id SERIAL PRIMARY KEY,
+          phone VARCHAR(50) UNIQUE NOT NULL,
+          reason TEXT,
+          added_by INTEGER,
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de templates de mensagens
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS message_templates (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          name VARCHAR(255) NOT NULL,
+          content TEXT NOT NULL,
+          variables TEXT,
+          category VARCHAR(100) DEFAULT 'geral',
+          usage_count INTEGER DEFAULT 0,
+          is_approved BOOLEAN DEFAULT false,
+          created_at TIMESTAMP,
+          updated_at TIMESTAMP
+        )
+      `);
+      
+      // Tabela de campanhas agendadas
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS scheduled_campaigns (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          template_id INTEGER,
+          message TEXT,
+          media_url TEXT,
+          media_type VARCHAR(50),
+          contacts TEXT,
+          instance_ids TEXT,
+          scheduled_at TIMESTAMP NOT NULL,
+          executed_at TIMESTAMP,
+          status VARCHAR(50) DEFAULT 'pending',
+          result TEXT,
+          repeat_type VARCHAR(50),
+          repeat_interval INTEGER,
+          repeat_until TIMESTAMP,
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de métricas de mensagens
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS message_metrics (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          campaign_id INTEGER,
+          instance_id VARCHAR(255),
+          phone VARCHAR(50),
+          status VARCHAR(50) NOT NULL,
+          error_message TEXT,
+          sent_at TIMESTAMP,
+          delivered_at TIMESTAMP,
+          read_at TIMESTAMP,
+          created_at TIMESTAMP NOT NULL
+        )
+      `);
+      
+      // Tabela de estatísticas diárias
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS daily_stats (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          date DATE NOT NULL,
+          messages_sent INTEGER DEFAULT 0,
+          messages_delivered INTEGER DEFAULT 0,
+          messages_read INTEGER DEFAULT 0,
+          messages_failed INTEGER DEFAULT 0,
+          campaigns_executed INTEGER DEFAULT 0,
+          UNIQUE(user_id, date)
         )
       `);
       
@@ -302,6 +440,9 @@ class DatabaseManager {
           END IF;
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_active') THEN
             ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT true;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='firebase_uid') THEN
+            ALTER TABLE users ADD COLUMN firebase_uid VARCHAR(255);
           END IF;
         END $$;
       `);
