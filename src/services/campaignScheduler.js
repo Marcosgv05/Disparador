@@ -45,6 +45,12 @@ class CampaignScheduler {
     this.isRunning = true;
 
     try {
+      // Verifica se o banco está inicializado
+      if (!dbManager.db && !dbManager.pool) {
+        logger.warn('📅 Scheduler: Banco de dados ainda não inicializado, aguardando...');
+        return;
+      }
+      
       const campaigns = await dbManager.getPendingCampaigns();
       
       for (const campaign of campaigns) {

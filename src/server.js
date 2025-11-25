@@ -18,6 +18,7 @@ import campaignManager from './services/campaignManager.js';
 import dispatcher from './services/dispatcher.js';
 import scheduler from './services/scheduler.js';
 import instanceManager from './services/instanceManager.js';
+import campaignScheduler from './services/campaignScheduler.js';
 import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
@@ -301,8 +302,7 @@ await campaignManager.initialize();
 await instanceManager.initialize();
 await scheduler.start();
 
-// Inicia scheduler de campanhas agendadas
-import campaignScheduler from './services/campaignScheduler.js';
+// Inicia scheduler de campanhas agendadas (após banco inicializado)
 campaignScheduler.start(60000); // Verifica a cada 1 minuto
 
 // Restaura sessões persistidas após reinício do servidor
