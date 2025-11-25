@@ -1,4 +1,4 @@
-import xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import fs from 'fs';
 import csvParser from 'csv-parser';
 import { logger } from '../config/logger.js';
@@ -158,108 +158,69 @@ function convertScientificToNumber(value) {
 }
 
 /**
- * Carrega contatos de arquivo XLSX
+ * Carrega contatos de arquivo XLSX usando ExcelJS
  * @param {string} filePath 
  */
 async function loadContactsFromXLSX(filePath) {
   try {
-    const workbook = xlsx.readFile(filePath, { cellNF: false, cellText: false });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
     
-    const range = xlsx.utils.decode_range(worksheet['!ref']);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('Planilha vazia');
+    }
+    
     const results = [];
-    
-    // Encontra colunas de nome e telefone
     let nameCol = -1;
     let phoneCol = -1;
     
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = xlsx.utils.encode_cell({ r: 0, c: col });
-      const cell = worksheet[cellAddress];
-      if (cell) {
-        const header = String(cell.v).toLowerCase();
-        
-        if (header.includes('name') || header.includes('nome') || header === 'n') {
-          nameCol = col;
-        }
-        if (header.includes('phone') || header.includes('telefone') || 
-            header.includes('numero') || header.includes('whatsapp') || header === 'p') {
-          phoneCol = col;
-        }
-      }
-    }
-    
-    // Fallbacks para colunas não identificadas explicitamente
-    if (nameCol === -1 && range.e.c > range.s.c) {
-      nameCol = range.s.c;
-    }
-
-    if (phoneCol === -1) {
-      // Procura uma coluna com valores numéricos (provável telefone)
-      for (let col = range.s.c; col <= range.e.c; col++) {
-        if (col === nameCol) continue;
-        let hasNumericValue = false;
-        for (let row = range.s.r + 1; row <= range.e.r; row++) {
-          const cellAddr = xlsx.utils.encode_cell({ r: row, c: col });
-          const cell = worksheet[cellAddr];
-          if (!cell || cell.v === undefined || cell.v === null || cell.v === '') {
-            continue;
-          }
-
-          const rawValue = typeof cell.v === 'number' ? convertScientificToNumber(cell.v) : String(cell.v);
-          const digits = rawValue.replace(/\D/g, '');
-
-          if (digits.length >= 8) {
-            hasNumericValue = true;
-            break;
-          }
-        }
-
-        if (hasNumericValue) {
-          phoneCol = col;
-          break;
-        }
-      }
-
-      // Se ainda não encontrou, assume coluna seguinte ao nome (se existir)
-      if (phoneCol === -1) {
-        if (nameCol !== -1 && nameCol + 1 <= range.e.c) {
-          phoneCol = nameCol + 1;
-        } else {
-          phoneCol = range.s.c;
-        }
-      }
-    }
-
-    // Lê os valores
-    for (let row = range.s.r + 1; row <= range.e.r; row++) {
-      const phoneCellAddr = xlsx.utils.encode_cell({ r: row, c: phoneCol });
-      const phoneCell = worksheet[phoneCellAddr];
+    // Encontra colunas de nome e telefone no header (primeira linha)
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell, colNumber) => {
+      const header = String(cell.value || '').toLowerCase();
       
-      if (phoneCell && phoneCell.v !== undefined && phoneCell.v !== null && phoneCell.v !== '') {
-        let phone = phoneCell.v;
-        if (typeof phone === 'number') {
-          phone = convertScientificToNumber(phone);
-        } else {
-          phone = String(phone).trim();
-        }
-        
-        let name = phone; // Default: nome é o próprio número
-        
-        if (nameCol !== -1) {
-          const nameCellAddr = xlsx.utils.encode_cell({ r: row, c: nameCol });
-          const nameCell = worksheet[nameCellAddr];
-          if (nameCell && nameCell.v) {
-            name = String(nameCell.v).trim();
-          }
-        }
-        
-        if (phone) {
-          results.push({ name, phone });
+      if (header.includes('name') || header.includes('nome') || header === 'n') {
+        nameCol = colNumber;
+      }
+      if (header.includes('phone') || header.includes('telefone') || 
+          header.includes('numero') || header.includes('whatsapp') || header === 'p') {
+        phoneCol = colNumber;
+      }
+    });
+    
+    // Fallbacks
+    if (phoneCol === -1) phoneCol = 1;
+    if (nameCol === -1 && worksheet.columnCount > 1) nameCol = phoneCol === 1 ? 2 : 1;
+    
+    // Lê os valores (começando da linha 2)
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Pula header
+      
+      let phone = row.getCell(phoneCol).value;
+      if (!phone) return;
+      
+      // Converte número para string
+      if (typeof phone === 'number') {
+        phone = convertScientificToNumber(phone);
+      } else if (typeof phone === 'object' && phone.text) {
+        phone = phone.text;
+      } else {
+        phone = String(phone).trim();
+      }
+      
+      let name = phone;
+      if (nameCol !== -1) {
+        const nameValue = row.getCell(nameCol).value;
+        if (nameValue) {
+          name = typeof nameValue === 'object' && nameValue.text ? nameValue.text : String(nameValue).trim();
         }
       }
-    }
+      
+      if (phone) {
+        results.push({ name, phone });
+      }
+    });
     
     logger.info(`${results.length} contatos carregados do XLSX`);
     return results;
@@ -270,56 +231,50 @@ async function loadContactsFromXLSX(filePath) {
 }
 
 /**
- * Carrega dados de arquivo XLSX (backward compatibility)
+ * Carrega dados de arquivo XLSX usando ExcelJS (backward compatibility)
  * @param {string} filePath 
  * @param {string} columnName 
  */
 async function loadFromXLSX(filePath, columnName) {
   try {
-    const workbook = xlsx.readFile(filePath, { cellNF: false, cellText: false });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
     
-    // Lê os valores brutos das células
-    const range = xlsx.utils.decode_range(worksheet['!ref']);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('Planilha vazia');
+    }
+    
     const results = [];
+    let columnIndex = 1;
     
-    // Encontra o índice da coluna
-    let columnIndex = -1;
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = xlsx.utils.encode_cell({ r: 0, c: col });
-      const cell = worksheet[cellAddress];
-      if (cell && String(cell.v).toLowerCase() === columnName.toLowerCase()) {
-        columnIndex = col;
-        break;
+    // Encontra o índice da coluna pelo nome
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell, colNumber) => {
+      if (String(cell.value || '').toLowerCase() === columnName.toLowerCase()) {
+        columnIndex = colNumber;
       }
-    }
+    });
     
-    // Se não encontrou a coluna pelo nome, usa a primeira
-    if (columnIndex === -1) {
-      columnIndex = range.s.c;
-    }
-    
-    // Lê os valores da coluna (começando da linha 1, pulando o header)
-    for (let row = range.s.r + 1; row <= range.e.r; row++) {
-      const cellAddress = xlsx.utils.encode_cell({ r: row, c: columnIndex });
-      const cell = worksheet[cellAddress];
+    // Lê os valores da coluna (começando da linha 2)
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Pula header
       
-      if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
-        let value = cell.v;
-        
-        // Se for número, converte notação científica
-        if (typeof value === 'number') {
-          value = convertScientificToNumber(value);
-        } else {
-          value = String(value);
-        }
-        
-        if (value.trim()) {
-          results.push(value.trim());
-        }
+      let value = row.getCell(columnIndex).value;
+      if (!value) return;
+      
+      if (typeof value === 'number') {
+        value = convertScientificToNumber(value);
+      } else if (typeof value === 'object' && value.text) {
+        value = value.text;
+      } else {
+        value = String(value);
       }
-    }
+      
+      if (value.trim()) {
+        results.push(value.trim());
+      }
+    });
     
     logger.info(`${results.length} itens carregados do XLSX`);
     return results;

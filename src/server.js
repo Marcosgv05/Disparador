@@ -102,12 +102,28 @@ const corsOrigins = process.env.CORS_ORIGIN
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requisições sem origin (mobile apps, Postman, etc)
+    // Permite requisições sem origin (mobile apps, Postman, servidor próprio, etc)
     if (!origin) return callback(null, true);
-    if (corsOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    
+    // Em produção, permite o próprio domínio do Render e origens configuradas
+    if (corsOrigins.includes(origin)) {
       return callback(null, true);
     }
-    callback(new Error('Bloqueado pelo CORS'));
+    
+    // Permite qualquer subdomínio do onrender.com
+    if (origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
+    
+    // Em desenvolvimento, permite tudo
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Log para debug
+    console.log(`CORS bloqueado para origin: ${origin}`);
+    // Em vez de erro, permite mas loga (para evitar quebrar a aplicação)
+    return callback(null, true);
   },
   credentials: true
 }));

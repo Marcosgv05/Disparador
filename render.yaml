@@ -26,6 +26,8 @@ services:
         generateValue: true
       - key: SESSION_SECRET
         generateValue: true
+      - key: FIREBASE_PROJECT_ID
+        value: vext-9b811
       - key: MESSAGE_DELAY
         value: 3000
       - key: NUMBER_DELAY
@@ -34,3 +36,5 @@ services:
         value: sequential
       - key: ADMIN_EMAILS
         sync: false  # Configure manualmente no dashboard do Render
+      - key: CORS_ORIGIN
+        sync: false  # Configure com a URL do seu app: https://seu-app.onrender.com

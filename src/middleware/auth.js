@@ -4,12 +4,32 @@ import dbManager from '../db/database.js';
 
 // Inicializar Firebase Admin (se não foi inicializado)
 if (!admin.apps.length) {
-  // Em produção, use credenciais do Firebase
-  // Em desenvolvimento, aceita qualquer token
-  if (process.env.FIREBASE_PROJECT_ID) {
-    admin.initializeApp({
-      projectId: process.env.FIREBASE_PROJECT_ID
-    });
+  try {
+    // Tenta inicializar com credenciais de serviço (se disponível)
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault()
+      });
+      logger.info('Firebase Admin inicializado com credenciais de serviço');
+    } 
+    // Ou com project ID (para verificação de tokens)
+    else if (process.env.FIREBASE_PROJECT_ID) {
+      admin.initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID
+      });
+      logger.info('Firebase Admin inicializado com project ID');
+    }
+    // Fallback: inicializa sem credenciais (modo desenvolvimento)
+    else {
+      // Tenta extrair do firebase-config.js se existir
+      const projectId = 'vext-9b811'; // ID do projeto do firebase-config.js
+      admin.initializeApp({
+        projectId: projectId
+      });
+      logger.info(`Firebase Admin inicializado com project ID padrão: ${projectId}`);
+    }
+  } catch (error) {
+    logger.warn(`Erro ao inicializar Firebase Admin: ${error.message}`);
   }
 }
 
