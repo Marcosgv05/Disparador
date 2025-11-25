@@ -972,98 +972,254 @@ class DatabaseManager {
     }
   }
 
+  /**
+   * Atualiza estatísticas diárias
+   */
+  async updateDailyStats(userId, date, field) {
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(
+          `INSERT INTO daily_stats (user_id, date, ${field}) VALUES ($1, $2, 1) 
+           ON CONFLICT(user_id, date) DO UPDATE SET ${field} = daily_stats.${field} + 1`,
+          [userId, date]
+        );
+      } finally { client.release(); }
+    } else {
+      this.db.prepare(
+        `INSERT INTO daily_stats (user_id, date, ${field}) VALUES (?, ?, 1) 
+         ON CONFLICT(user_id, date) DO UPDATE SET ${field} = ${field} + 1`
+      ).run(userId, date);
+    }
+  }
+
   // ==================== TEMPLATES DE MENSAGENS ====================
 
   async getTemplates(userId = null) {
-    const query = userId 
-      ? 'SELECT * FROM message_templates WHERE user_id = ? OR user_id IS NULL ORDER BY usage_count DESC'
-      : 'SELECT * FROM message_templates ORDER BY usage_count DESC';
-    return userId ? this.db.prepare(query).all(userId) : this.db.prepare(query).all();
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const query = userId 
+          ? 'SELECT * FROM message_templates WHERE user_id = $1 OR user_id IS NULL ORDER BY usage_count DESC'
+          : 'SELECT * FROM message_templates ORDER BY usage_count DESC';
+        const result = userId 
+          ? await client.query(query, [userId])
+          : await client.query(query);
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      const query = userId 
+        ? 'SELECT * FROM message_templates WHERE user_id = ? OR user_id IS NULL ORDER BY usage_count DESC'
+        : 'SELECT * FROM message_templates ORDER BY usage_count DESC';
+      return userId ? this.db.prepare(query).all(userId) : this.db.prepare(query).all();
+    }
   }
 
   async getTemplateById(id) {
-    return this.db.prepare('SELECT * FROM message_templates WHERE id = ?').get(id) || null;
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query('SELECT * FROM message_templates WHERE id = $1', [id]);
+        return result.rows[0] || null;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('SELECT * FROM message_templates WHERE id = ?').get(id) || null;
+    }
   }
 
   async createTemplate(data) {
     const { user_id, name, content, variables, category } = data;
     const now = new Date().toISOString();
-    const result = this.db.prepare(
-      'INSERT INTO message_templates (user_id, name, content, variables, category, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(user_id, name, content, variables ? JSON.stringify(variables) : null, category || 'geral', now);
-    return this.getTemplateById(result.lastInsertRowid);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          'INSERT INTO message_templates (user_id, name, content, variables, category, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [user_id, name, content, variables ? JSON.stringify(variables) : null, category || 'geral', now]
+        );
+        return result.rows[0];
+      } finally { client.release(); }
+    } else {
+      const result = this.db.prepare(
+        'INSERT INTO message_templates (user_id, name, content, variables, category, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(user_id, name, content, variables ? JSON.stringify(variables) : null, category || 'geral', now);
+      return this.getTemplateById(result.lastInsertRowid);
+    }
   }
 
   async updateTemplate(id, data) {
     const { name, content, variables, category, is_approved } = data;
     const now = new Date().toISOString();
-    const fields = ['updated_at = ?'];
-    const values = [now];
-    if (name !== undefined) { fields.push('name = ?'); values.push(name); }
-    if (content !== undefined) { fields.push('content = ?'); values.push(content); }
-    if (variables !== undefined) { fields.push('variables = ?'); values.push(JSON.stringify(variables)); }
-    if (category !== undefined) { fields.push('category = ?'); values.push(category); }
-    if (is_approved !== undefined) { fields.push('is_approved = ?'); values.push(is_approved ? 1 : 0); }
-    values.push(id);
-    this.db.prepare(`UPDATE message_templates SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-    return this.getTemplateById(id);
+    
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const fields = ['updated_at = $1'];
+        const values = [now];
+        let paramIndex = 2;
+        if (name !== undefined) { fields.push(`name = $${paramIndex++}`); values.push(name); }
+        if (content !== undefined) { fields.push(`content = $${paramIndex++}`); values.push(content); }
+        if (variables !== undefined) { fields.push(`variables = $${paramIndex++}`); values.push(JSON.stringify(variables)); }
+        if (category !== undefined) { fields.push(`category = $${paramIndex++}`); values.push(category); }
+        if (is_approved !== undefined) { fields.push(`is_approved = $${paramIndex++}`); values.push(is_approved); }
+        values.push(id);
+        await client.query(`UPDATE message_templates SET ${fields.join(', ')} WHERE id = $${paramIndex}`, values);
+        return this.getTemplateById(id);
+      } finally { client.release(); }
+    } else {
+      const fields = ['updated_at = ?'];
+      const values = [now];
+      if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+      if (content !== undefined) { fields.push('content = ?'); values.push(content); }
+      if (variables !== undefined) { fields.push('variables = ?'); values.push(JSON.stringify(variables)); }
+      if (category !== undefined) { fields.push('category = ?'); values.push(category); }
+      if (is_approved !== undefined) { fields.push('is_approved = ?'); values.push(is_approved ? 1 : 0); }
+      values.push(id);
+      this.db.prepare(`UPDATE message_templates SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      return this.getTemplateById(id);
+    }
   }
 
   async deleteTemplate(id) {
-    return this.db.prepare('DELETE FROM message_templates WHERE id = ?').run(id).changes > 0;
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query('DELETE FROM message_templates WHERE id = $1', [id]);
+        return result.rowCount > 0;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('DELETE FROM message_templates WHERE id = ?').run(id).changes > 0;
+    }
   }
 
   async incrementTemplateUsage(id) {
-    this.db.prepare('UPDATE message_templates SET usage_count = usage_count + 1 WHERE id = ?').run(id);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query('UPDATE message_templates SET usage_count = usage_count + 1 WHERE id = $1', [id]);
+      } finally { client.release(); }
+    } else {
+      this.db.prepare('UPDATE message_templates SET usage_count = usage_count + 1 WHERE id = ?').run(id);
+    }
   }
 
   // ==================== CAMPANHAS AGENDADAS ====================
 
   async getScheduledCampaigns(userId = null, status = null) {
-    let query = 'SELECT * FROM scheduled_campaigns WHERE 1=1';
-    const params = [];
-    if (userId) { query += ' AND user_id = ?'; params.push(userId); }
-    if (status) { query += ' AND status = ?'; params.push(status); }
-    query += ' ORDER BY scheduled_at ASC';
-    return this.db.prepare(query).all(...params);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        let query = 'SELECT * FROM scheduled_campaigns WHERE 1=1';
+        const params = [];
+        let paramIndex = 1;
+        if (userId) { query += ` AND user_id = $${paramIndex++}`; params.push(userId); }
+        if (status) { query += ` AND status = $${paramIndex++}`; params.push(status); }
+        query += ' ORDER BY scheduled_at ASC';
+        const result = await client.query(query, params);
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      let query = 'SELECT * FROM scheduled_campaigns WHERE 1=1';
+      const params = [];
+      if (userId) { query += ' AND user_id = ?'; params.push(userId); }
+      if (status) { query += ' AND status = ?'; params.push(status); }
+      query += ' ORDER BY scheduled_at ASC';
+      return this.db.prepare(query).all(...params);
+    }
   }
 
   async getScheduledCampaignById(id) {
-    return this.db.prepare('SELECT * FROM scheduled_campaigns WHERE id = ?').get(id) || null;
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query('SELECT * FROM scheduled_campaigns WHERE id = $1', [id]);
+        return result.rows[0] || null;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('SELECT * FROM scheduled_campaigns WHERE id = ?').get(id) || null;
+    }
   }
 
   async createScheduledCampaign(data) {
     const { user_id, name, template_id, message, media_url, media_type, contacts, instance_ids, scheduled_at, repeat_type, repeat_interval, repeat_until } = data;
     const now = new Date().toISOString();
-    const result = this.db.prepare(
-      `INSERT INTO scheduled_campaigns (user_id, name, template_id, message, media_url, media_type, contacts, instance_ids, scheduled_at, repeat_type, repeat_interval, repeat_until, created_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(user_id, name, template_id, message, media_url, media_type, JSON.stringify(contacts), instance_ids ? JSON.stringify(instance_ids) : null, scheduled_at, repeat_type, repeat_interval, repeat_until, now);
-    return this.getScheduledCampaignById(result.lastInsertRowid);
+    
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          `INSERT INTO scheduled_campaigns (user_id, name, template_id, message, media_url, media_type, contacts, instance_ids, scheduled_at, repeat_type, repeat_interval, repeat_until, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+          [user_id, name, template_id, message, media_url, media_type, JSON.stringify(contacts), instance_ids ? JSON.stringify(instance_ids) : null, scheduled_at, repeat_type, repeat_interval, repeat_until, now]
+        );
+        return result.rows[0];
+      } finally { client.release(); }
+    } else {
+      const result = this.db.prepare(
+        `INSERT INTO scheduled_campaigns (user_id, name, template_id, message, media_url, media_type, contacts, instance_ids, scheduled_at, repeat_type, repeat_interval, repeat_until, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(user_id, name, template_id, message, media_url, media_type, JSON.stringify(contacts), instance_ids ? JSON.stringify(instance_ids) : null, scheduled_at, repeat_type, repeat_interval, repeat_until, now);
+      return this.getScheduledCampaignById(result.lastInsertRowid);
+    }
   }
 
   async updateScheduledCampaign(id, data) {
-    const fields = [];
-    const values = [];
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && key !== 'id') {
-        fields.push(`${key} = ?`);
-        values.push(typeof value === 'object' ? JSON.stringify(value) : value);
-      }
-    });
-    if (fields.length === 0) return null;
-    values.push(id);
-    this.db.prepare(`UPDATE scheduled_campaigns SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-    return this.getScheduledCampaignById(id);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const fields = [];
+        const values = [];
+        let paramIndex = 1;
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== undefined && key !== 'id') {
+            fields.push(`${key} = $${paramIndex++}`);
+            values.push(typeof value === 'object' ? JSON.stringify(value) : value);
+          }
+        });
+        if (fields.length === 0) return null;
+        values.push(id);
+        await client.query(`UPDATE scheduled_campaigns SET ${fields.join(', ')} WHERE id = $${paramIndex}`, values);
+        return this.getScheduledCampaignById(id);
+      } finally { client.release(); }
+    } else {
+      const fields = [];
+      const values = [];
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && key !== 'id') {
+          fields.push(`${key} = ?`);
+          values.push(typeof value === 'object' ? JSON.stringify(value) : value);
+        }
+      });
+      if (fields.length === 0) return null;
+      values.push(id);
+      this.db.prepare(`UPDATE scheduled_campaigns SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      return this.getScheduledCampaignById(id);
+    }
   }
 
   async deleteScheduledCampaign(id) {
-    return this.db.prepare('DELETE FROM scheduled_campaigns WHERE id = ?').run(id).changes > 0;
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query('DELETE FROM scheduled_campaigns WHERE id = $1', [id]);
+        return result.rowCount > 0;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('DELETE FROM scheduled_campaigns WHERE id = ?').run(id).changes > 0;
+    }
   }
 
   async getPendingCampaigns() {
     const now = new Date().toISOString();
-    return this.db.prepare('SELECT * FROM scheduled_campaigns WHERE status = ? AND scheduled_at <= ?').all('pending', now);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query('SELECT * FROM scheduled_campaigns WHERE status = $1 AND scheduled_at <= $2', ['pending', now]);
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('SELECT * FROM scheduled_campaigns WHERE status = ? AND scheduled_at <= ?').all('pending', now);
+    }
   }
 
   // ==================== MÉTRICAS E ANALYTICS ====================
@@ -1071,63 +1227,149 @@ class DatabaseManager {
   async recordMessageMetric(data) {
     const { user_id, campaign_id, instance_id, phone, status, error_message } = data;
     const now = new Date().toISOString();
-    this.db.prepare(
-      'INSERT INTO message_metrics (user_id, campaign_id, instance_id, phone, status, error_message, sent_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(user_id, campaign_id, instance_id, phone, status, error_message, status === 'sent' ? now : null, now);
-    
-    // Atualiza estatísticas diárias
     const date = now.split('T')[0];
     const field = status === 'sent' ? 'messages_sent' : status === 'delivered' ? 'messages_delivered' : status === 'read' ? 'messages_read' : 'messages_failed';
-    this.db.prepare(`INSERT INTO daily_stats (user_id, date, ${field}) VALUES (?, ?, 1) ON CONFLICT(user_id, date) DO UPDATE SET ${field} = ${field} + 1`).run(user_id, date);
+    
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(
+          'INSERT INTO message_metrics (user_id, campaign_id, instance_id, phone, status, error_message, sent_at, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [user_id, campaign_id, instance_id, phone, status, error_message, status === 'sent' ? now : null, now]
+        );
+        // Atualiza estatísticas diárias
+        await client.query(
+          `INSERT INTO daily_stats (user_id, date, ${field}) VALUES ($1, $2, 1) 
+           ON CONFLICT(user_id, date) DO UPDATE SET ${field} = daily_stats.${field} + 1`,
+          [user_id, date]
+        );
+      } finally { client.release(); }
+    } else {
+      this.db.prepare(
+        'INSERT INTO message_metrics (user_id, campaign_id, instance_id, phone, status, error_message, sent_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(user_id, campaign_id, instance_id, phone, status, error_message, status === 'sent' ? now : null, now);
+      this.db.prepare(`INSERT INTO daily_stats (user_id, date, ${field}) VALUES (?, ?, 1) ON CONFLICT(user_id, date) DO UPDATE SET ${field} = ${field} + 1`).run(user_id, date);
+    }
   }
 
   async updateMessageStatus(phone, campaignId, status) {
     const now = new Date().toISOString();
     const field = status === 'delivered' ? 'delivered_at' : status === 'read' ? 'read_at' : null;
-    if (field) {
+    if (!field) return;
+    
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(`UPDATE message_metrics SET status = $1, ${field} = $2 WHERE phone = $3 AND campaign_id = $4`, [status, now, phone, campaignId]);
+      } finally { client.release(); }
+    } else {
       this.db.prepare(`UPDATE message_metrics SET status = ?, ${field} = ? WHERE phone = ? AND campaign_id = ?`).run(status, now, phone, campaignId);
     }
   }
 
   async getMessageMetrics(userId, startDate, endDate) {
-    return this.db.prepare(
-      `SELECT status, COUNT(*) as count FROM message_metrics 
-       WHERE user_id = ? AND created_at >= ? AND created_at <= ? 
-       GROUP BY status`
-    ).all(userId, startDate, endDate);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          `SELECT status, COUNT(*) as count FROM message_metrics 
+           WHERE user_id = $1 AND created_at >= $2 AND created_at <= $3 
+           GROUP BY status`,
+          [userId, startDate, endDate]
+        );
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare(
+        `SELECT status, COUNT(*) as count FROM message_metrics 
+         WHERE user_id = ? AND created_at >= ? AND created_at <= ? 
+         GROUP BY status`
+      ).all(userId, startDate, endDate);
+    }
   }
 
   async getDailyStats(userId, days = 30) {
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    return this.db.prepare(
-      'SELECT * FROM daily_stats WHERE user_id = ? AND date >= ? ORDER BY date ASC'
-    ).all(userId, startDate);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT * FROM daily_stats WHERE user_id = $1 AND date >= $2 ORDER BY date ASC',
+          [userId, startDate]
+        );
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare(
+        'SELECT * FROM daily_stats WHERE user_id = ? AND date >= ? ORDER BY date ASC'
+      ).all(userId, startDate);
+    }
   }
 
   async getCampaignMetrics(campaignId) {
-    return this.db.prepare(
-      `SELECT status, COUNT(*) as count FROM message_metrics WHERE campaign_id = ? GROUP BY status`
-    ).all(campaignId);
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          `SELECT status, COUNT(*) as count FROM message_metrics WHERE campaign_id = $1 GROUP BY status`,
+          [campaignId]
+        );
+        return result.rows;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare(
+        `SELECT status, COUNT(*) as count FROM message_metrics WHERE campaign_id = ? GROUP BY status`
+      ).all(campaignId);
+    }
   }
 
   async getAnalyticsSummary(userId, days = 30) {
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    const stats = this.db.prepare(`
-      SELECT 
-        COALESCE(SUM(messages_sent), 0) as total_sent,
-        COALESCE(SUM(messages_delivered), 0) as total_delivered,
-        COALESCE(SUM(messages_read), 0) as total_read,
-        COALESCE(SUM(messages_failed), 0) as total_failed,
-        COALESCE(SUM(campaigns_executed), 0) as total_campaigns
-      FROM daily_stats WHERE user_id = ? AND date >= ?
-    `).get(userId, startDate.split('T')[0]);
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const dailyData = this.getDailyStats(userId, days);
-    const recentCampaigns = this.db.prepare(
-      'SELECT * FROM scheduled_campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT 10'
-    ).all(userId);
-    
-    return { summary: stats, dailyData, recentCampaigns };
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const statsResult = await client.query(`
+          SELECT 
+            COALESCE(SUM(messages_sent), 0) as total_sent,
+            COALESCE(SUM(messages_delivered), 0) as total_delivered,
+            COALESCE(SUM(messages_read), 0) as total_read,
+            COALESCE(SUM(messages_failed), 0) as total_failed,
+            COALESCE(SUM(campaigns_executed), 0) as total_campaigns
+          FROM daily_stats WHERE user_id = $1 AND date >= $2
+        `, [userId, startDate]);
+        
+        const dailyData = await this.getDailyStats(userId, days);
+        
+        const campaignsResult = await client.query(
+          'SELECT * FROM scheduled_campaigns WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10',
+          [userId]
+        );
+        
+        return { 
+          summary: statsResult.rows[0] || { total_sent: 0, total_delivered: 0, total_read: 0, total_failed: 0, total_campaigns: 0 }, 
+          dailyData, 
+          recentCampaigns: campaignsResult.rows 
+        };
+      } finally { client.release(); }
+    } else {
+      const stats = this.db.prepare(`
+        SELECT 
+          COALESCE(SUM(messages_sent), 0) as total_sent,
+          COALESCE(SUM(messages_delivered), 0) as total_delivered,
+          COALESCE(SUM(messages_read), 0) as total_read,
+          COALESCE(SUM(messages_failed), 0) as total_failed,
+          COALESCE(SUM(campaigns_executed), 0) as total_campaigns
+        FROM daily_stats WHERE user_id = ? AND date >= ?
+      `).get(userId, startDate);
+      
+      const dailyData = await this.getDailyStats(userId, days);
+      const recentCampaigns = this.db.prepare(
+        'SELECT * FROM scheduled_campaigns WHERE user_id = ? ORDER BY created_at DESC LIMIT 10'
+      ).all(userId);
+      
+      return { summary: stats, dailyData, recentCampaigns };
+    }
   }
 }
 

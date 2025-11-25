@@ -9,6 +9,8 @@ import fs from 'fs/promises';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import pg from 'pg';
+import connectPgSimple from 'connect-pg-simple';
 
 // Importa serviços
 import sessionManager from './whatsapp/sessionManager.js';
@@ -137,17 +139,36 @@ if (process.env.NODE_ENV === 'production') {
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(session({
+
+// Configuração de sessão com suporte a PostgreSQL em produção
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'whatsapp-dispatcher-session-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // HTTPS apenas em produção
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
-}));
+};
+
+// Em produção com PostgreSQL, usa store persistente
+if (process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+  const PgSession = connectPgSimple(session);
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  sessionConfig.store = new PgSession({
+    pool,
+    tableName: 'user_sessions',
+    createTableIfMissing: true
+  });
+  logger.info('📦 Usando PostgreSQL para sessões HTTP');
+}
+
+app.use(session(sessionConfig));
 
 // Log de requisições (apenas em desenvolvimento)
 app.use((req, res, next) => {

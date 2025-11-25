@@ -82,10 +82,10 @@ class CampaignScheduler {
           // Atualiza estatísticas diárias
           const date = new Date().toISOString().split('T')[0];
           try {
-            dbManager.db.prepare(
-              'INSERT INTO daily_stats (user_id, date, campaigns_executed) VALUES (?, ?, 1) ON CONFLICT(user_id, date) DO UPDATE SET campaigns_executed = campaigns_executed + 1'
-            ).run(campaign.user_id, date);
-          } catch (e) {}
+            await dbManager.updateDailyStats(campaign.user_id, date, 'campaigns_executed');
+          } catch (e) {
+            logger.warn(`Erro ao atualizar estatísticas diárias: ${e.message}`);
+          }
 
           // Se for campanha recorrente, cria próxima execução
           if (campaign.repeat_type && campaign.repeat_type !== 'none') {

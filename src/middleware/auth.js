@@ -22,7 +22,7 @@ if (!admin.apps.length) {
     // Fallback: inicializa sem credenciais (modo desenvolvimento)
     else {
       // Tenta extrair do firebase-config.js se existir
-      const projectId = 'vext-9b811'; // ID do projeto do firebase-config.js
+      const projectId = 'nexus-9b811'; // ID do projeto do firebase-config.js
       admin.initializeApp({
         projectId: projectId
       });

@@ -27,7 +27,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: FIREBASE_PROJECT_ID
-        value: vext-9b811
+        value: nexus-9b811
       - key: MESSAGE_DELAY
         value: 3000
       - key: NUMBER_DELAY
