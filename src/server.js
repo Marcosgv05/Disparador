@@ -295,6 +295,18 @@ app.use('/api/templates', templatesRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// Endpoint público de planos (para página de pricing)
+app.get('/api/plans', async (req, res) => {
+  try {
+    const plans = await dbManager.getAllPlans();
+    const activePlans = (plans || []).filter(p => p.is_active !== false);
+    res.json({ success: true, plans: activePlans });
+  } catch (error) {
+    logger.error(`Erro ao listar planos públicos: ${error.message}`);
+    res.status(500).json({ success: false, error: 'Erro ao listar planos' });
+  }
+});
+
 // ======= ROTAS AUTO-PAUSE =======
 
 // Obtém configuração e status do auto-pause
@@ -418,7 +430,7 @@ autoPause.onPauseEvent((event) => {
 
 // Restaura sessões persistidas após reinício do servidor
 const persistedInstances = instanceManager.listInstances();
-const instancesToRestore = persistedInstances.filter(inst => inst.sessionId);
+const instancesToRestore = persistedInstances.filter(inst => inst.sessionId && inst.status === 'connected');
 
 if (instancesToRestore.length > 0) {
   logger.info(`🔄 Restaurando ${instancesToRestore.length} sessão(ões) persistidas...`);

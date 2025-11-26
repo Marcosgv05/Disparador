@@ -86,6 +86,10 @@
                     <div class="mb-6">
                         <h2 class="text-2xl font-semibold tracking-tight text-white">Acesse seu painel</h2>
                         <p class="mt-2 text-sm text-slate-300">Faça login ou crie uma conta para começar a disparar campanhas.</p>
+                        <p class="mt-2 text-xs text-slate-400">
+                            Ainda não escolheu um plano?
+                            <a href="/plans.html" class="text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline">Ver planos</a>
+                        </p>
                     </div>
 
                     <!-- Tabs -->
@@ -138,6 +142,11 @@
 
                     <!-- Register Form -->
                     <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-5 hidden">
+                        <div id="selectedPlanInfo" class="hidden rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+                            <p class="font-semibold text-emerald-200 text-sm">Plano selecionado</p>
+                            <p id="selectedPlanName" class="text-sm"></p>
+                            <p id="selectedPlanDetails" class="text-[11px] text-emerald-200/80"></p>
+                        </div>
                         <div>
                             <label for="registerName" class="mb-1 block text-sm font-medium text-slate-200">Nome Completo</label>
                             <input
@@ -221,6 +230,28 @@
         const tabLogin = document.getElementById('tab-login');
         const tabRegister = document.getElementById('tab-register');
         const alertBox = document.getElementById('alert');
+        const selectedPlanInfo = document.getElementById('selectedPlanInfo');
+        const selectedPlanName = document.getElementById('selectedPlanName');
+        const selectedPlanDetails = document.getElementById('selectedPlanDetails');
+
+        function loadSelectedPlan() {
+            const raw = localStorage.getItem('vextSelectedPlan');
+            if (!raw) {
+                selectedPlanInfo.classList.add('hidden');
+                selectedPlanName.textContent = '';
+                selectedPlanDetails.textContent = '';
+                return;
+            }
+
+            try {
+                const plan = JSON.parse(raw);
+                selectedPlanName.textContent = `${plan.name} • R$ ${(plan.price || 0).toFixed(2)}/mês`;
+                selectedPlanDetails.textContent = `📱 ${plan.maxInstances} instâncias • 💬 ${plan.maxMessagesDay} msgs/dia (pensado para reduzir bloqueios)`;
+                selectedPlanInfo.classList.remove('hidden');
+            } catch (e) {
+                selectedPlanInfo.classList.add('hidden');
+            }
+        }
 
         // UI Functions
         window.switchTab = function(tab) {
@@ -243,6 +274,7 @@
                 // Update Tabs Style
                 tabRegister.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 shadow-sm bg-white text-indigo-600';
                 tabLogin.className = 'flex-1 py-2.5 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 transition-all duration-200';
+                loadSelectedPlan();
             }
         };
 
@@ -323,6 +355,13 @@
             const btn = event.target.querySelector('button');
             const originalText = btn.innerText;
 
+            const selectedPlanRaw = localStorage.getItem('vextSelectedPlan');
+            if (!selectedPlanRaw) {
+                showAlert('Antes de criar sua conta, escolha um plano.', 'error');
+                setTimeout(() => { window.location.href = '/plans.html'; }, 1200);
+                return;
+            }
+
             if (password !== passwordConfirm) {
                 showAlert('As senhas não coincidem', 'error');
                 return;
@@ -346,11 +385,14 @@
                 
                 showAlert('Conta criada com sucesso! Redirecionando...', 'success');
                 
+                const selectedPlan = JSON.parse(selectedPlanRaw);
+
                 localStorage.setItem('firebaseToken', token);
                 localStorage.setItem('user', JSON.stringify({
                     uid: user.uid,
                     email: user.email,
-                    displayName: name
+                    displayName: name,
+                    plan: selectedPlan
                 }));
                 
                 setTimeout(() => {
@@ -377,6 +419,15 @@
         if (token) {
             window.location.href = '/';
         }
-    </script>
+
+        // Define aba inicial com base na URL (?mode=register)
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode');
+        if (mode === 'register') {
+            switchTab('register');
+        } else {
+            switchTab('login');
+        }
+</script>
 </body>
 </html>

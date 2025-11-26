@@ -263,10 +263,27 @@ class DatabaseManager {
     if (exists.count > 0) return;
     
     const plans = [
-      { name: 'Gratuito', description: 'Plano básico gratuito', max_instances: 1, max_messages_day: 100, price: 0 },
-      { name: 'Básico', description: 'Para pequenos negócios', max_instances: 3, max_messages_day: 500, price: 49.90 },
-      { name: 'Profissional', description: 'Para empresas em crescimento', max_instances: 10, max_messages_day: 2000, price: 149.90 },
-      { name: 'Enterprise', description: 'Sem limites', max_instances: 100, max_messages_day: 50000, price: 499.90 }
+      {
+        name: 'Start',
+        description: 'Para iniciar com segurança e volumes baixos (ideal para autônomos e pequenos negócios)',
+        max_instances: 1,
+        max_messages_day: 300,
+        price: 97.00
+      },
+      {
+        name: 'Pro',
+        description: 'Para pequenos e médios negócios com operação diária constante',
+        max_instances: 3,
+        max_messages_day: 1500,
+        price: 197.00
+      },
+      {
+        name: 'Agency',
+        description: 'Para agências e operações maiores com múltiplos chips e clientes',
+        max_instances: 10,
+        max_messages_day: 8000,
+        price: 497.00
+      }
     ];
     
     const stmt = this.db.prepare(`INSERT INTO plans (name, description, max_instances, max_messages_day, price, is_active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)`);

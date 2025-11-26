@@ -97,6 +97,7 @@ window.deleteUser = async (id) => { if (confirm('Excluir?')) { await api(`/api/a
 // Plans
 async function loadPlans() {
     const data = await api('/api/admin/plans');
+    plansCache = data.plans || [];
     document.getElementById('plansGrid').innerHTML = data.plans?.map(p => `
         <div class="glass border border-slate-700 rounded-lg p-4">
             <div class="flex justify-between mb-2"><span class="font-semibold">${p.name}</span><span class="text-emerald-400">R$ ${(p.price||0).toFixed(2)}</span></div>

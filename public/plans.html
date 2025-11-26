@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planos - Vext</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="relative min-h-screen overflow-hidden">
+    <div class="pointer-events-none absolute inset-0">
+      <div class="absolute -top-32 -left-24 h-80 w-80 rounded-full bg-indigo-500/30 blur-3xl"></div>
+      <div class="absolute -bottom-40 -right-10 h-96 w-96 rounded-full bg-purple-600/30 blur-3xl"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(129,140,248,0.18),_transparent_55%),_radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),_transparent_55%)]"></div>
+    </div>
+
+    <header class="relative z-10 border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <a href="/" class="flex items-center gap-2">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-400/40">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884" fill="#22c55e"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-sm font-semibold leading-tight text-white">Vext</p>
+            <p class="text-[11px] text-slate-400">Campanhas WhatsApp com anti-bloqueio</p>
+          </div>
+        </a>
+        <nav class="flex items-center gap-3 text-xs sm:text-sm">
+          <a href="/login.html" class="text-slate-300 hover:text-white">Entrar</a>
+          <a href="/login.html?mode=register" class="rounded-lg border border-indigo-400/50 bg-indigo-500/15 px-3 py-1.5 text-indigo-200 hover:bg-indigo-500/25">Já tenho plano</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="relative z-10 mx-auto max-w-5xl px-4 py-10">
+      <section class="mb-10 text-center">
+        <p class="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-400/40 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-100">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Passo 1 de 2: escolha seu plano
+        </p>
+        <h1 class="mb-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Planos pensados para proteger seus chips</h1>
+        <p class="mx-auto max-w-2xl text-sm text-slate-300">
+          Escolha o plano ideal para o seu volume de disparos. Todos já vêm com limites diários e delays humanizados
+          para reduzir a chance de bloqueio do WhatsApp. Depois você será direcionado para criar sua conta.
+        </p>
+      </section>
+
+      <section>
+        <div id="plansGrid" class="grid gap-5 md:grid-cols-3"></div>
+        <div id="plansError" class="mt-4 hidden rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"></div>
+      </section>
+
+      <section class="mt-10 max-w-3xl mx-auto text-sm text-slate-300">
+        <h2 class="mb-3 text-base font-semibold text-white">O que está incluído em todos os planos</h2>
+        <ul class="space-y-1 list-disc list-inside text-slate-300/90">
+          <li>Envio em massa de mensagens pelo painel web, com filas e delays humanizados.</li>
+          <li>Auto-pause inteligente para reduzir bloqueios quando a taxa de erros aumenta.</li>
+          <li>Agendamento de campanhas e repetição automática conforme sua estratégia.</li>
+          <li>Templates salvos de mensagens para reutilizar textos aprovados.</li>
+          <li>Blacklist de números problemáticos para evitar disparos desnecessários.</li>
+          <li>Métricas básicas de envios para acompanhar resultados das campanhas.</li>
+        </ul>
+        <p class="mt-3 text-xs text-slate-500">
+          Os limites de instâncias e mensagens por dia são aplicados por conta e ajudam a manter uma operação mais segura e com menor taxa de bloqueio.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const plansGrid = document.getElementById('plansGrid');
+    const plansError = document.getElementById('plansError');
+
+    function showError(msg) {
+      plansError.textContent = msg;
+      plansError.classList.remove('hidden');
+    }
+
+    function selectPlan(plan) {
+      const selected = {
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        maxInstances: plan.max_instances,
+        maxMessagesDay: plan.max_messages_day
+      };
+      localStorage.setItem('vextSelectedPlan', JSON.stringify(selected));
+      window.location.href = '/login.html?mode=register';
+    }
+
+    async function loadPlans() {
+      try {
+        const res = await fetch('/api/plans');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Erro ao carregar planos');
+        const plans = data.plans || [];
+
+        if (!plans.length) {
+          plansGrid.innerHTML = '<p class="text-center text-slate-300">Nenhum plano disponível no momento.</p>';
+          return;
+        }
+
+        plansGrid.innerHTML = '';
+        plans.forEach((p) => {
+          const name = (p.name || '').toLowerCase();
+          const isStart = name === 'start';
+          const isPro = name === 'pro';
+          const isAgency = name === 'agency' || name === 'agência';
+          const highlight = isPro;
+
+          const card = document.createElement('div');
+          card.className = `relative flex flex-col rounded-2xl border glass p-5 ${highlight ? 'border-indigo-400/70 shadow-indigo-500/40 shadow-lg' : 'border-slate-800'}`;
+
+          if (highlight) {
+            const badge = document.createElement('span');
+            badge.className = 'absolute -top-3 right-4 rounded-full bg-indigo-500 px-2 py-0.5 text-[10px] font-semibold text-indigo-50';
+            badge.textContent = 'MAIS USADO';
+            card.appendChild(badge);
+          }
+
+          const title = document.createElement('h3');
+          title.className = 'mb-1 text-lg font-semibold text-white';
+          title.textContent = p.name;
+          card.appendChild(title);
+
+          const desc = document.createElement('p');
+          desc.className = 'mb-4 text-sm text-slate-200 leading-relaxed';
+          const subtitle = isStart
+            ? 'Para iniciantes / autônomos: profissional liberal e pequenos negócios em validação.'
+            : isPro
+            ? 'Para pequenas e médias empresas que já têm base recorrente de leads e clientes.'
+            : isAgency
+            ? 'Para agências e operações maiores que atendem vários clientes ao mesmo tempo.'
+            : (p.description || '');
+          desc.textContent = subtitle;
+          card.appendChild(desc);
+
+          const price = document.createElement('p');
+          price.className = 'mb-4 text-2xl font-semibold text-indigo-300';
+          price.innerHTML = `R$ ${(p.price || 0).toFixed(2)}<span class="text-xs font-normal text-slate-400">/mês</span>`;
+          card.appendChild(price);
+
+          const list = document.createElement('ul');
+          list.className = 'mb-5 space-y-1.5 text-sm font-semibold text-indigo-200 list-disc list-inside';
+
+          let featuresHtml = '';
+          if (isStart) {
+            featuresHtml = `
+            <li>1 sessão WhatsApp conectada simultânea</li>
+            <li>Personalização de mensagens e Templetes prontos</li>
+            <li>Agendamento simples* </li>
+            `;
+          } else if (isPro) {
+            featuresHtml = `
+            <li>Até ${p.max_instances} instâncias simultâneas com balanceamento entre chips</li>
+            <li>Campanhas ilimitadas</li>
+            <li>Agendador avançado com recorrência e múltiplos horários</li>
+            <li>Múltiplos templates com variações de copy + IA </li>
+            <li>Blacklist / opt-out automático</li>
+            <li>Auto-pause ativado e configurável (limiar de erro e cooldown)</li>
+            `;
+          } else if (isAgency) {
+            featuresHtml = `
+            <li>Até ${p.max_instances} sessões simultâneas (ideal para vários clientes)</li>
+            <li>Regras avançadas de agendamento e janelas de envio ao longo do dia</li>
+            <li>Relatórios por instância para enxergar a saúde de cada chip</li>
+            <li>Prioridade em suporte e possibilidade de API/webhooks</li>
+            <li>Acesso ao Painel de Aquecimento de Chip</li>
+            <li>Dashboard de métricas por campanha (entregues, lidas, erros)</li>
+            `;
+          } else {
+            featuresHtml = `
+            <li><span class="font-medium">${p.max_instances}</span> instância(s) simultânea(s)</li>
+            <li><span class="font-medium">${p.max_messages_day}</span> mensagens por dia (distribuídas)</li>
+            <li>Limites e delays pensados para reduzir bloqueios</li>
+            `;
+          }
+
+          list.innerHTML = featuresHtml;
+          card.appendChild(list);
+
+          const btn = document.createElement('button');
+          btn.className = 'mt-auto w-full rounded-lg bg-indigo-500 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-400 shadow-md';
+          btn.textContent = 'Escolher este plano';
+          btn.addEventListener('click', () => selectPlan(p));
+          card.appendChild(btn);
+
+          plansGrid.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        showError('Não foi possível carregar os planos. Tente novamente mais tarde.');
+      }
+    }
+
+    loadPlans();
+  </script>
+</body>
+</html>
