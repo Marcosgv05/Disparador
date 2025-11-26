@@ -2,8 +2,9 @@ import campaignManager from './campaignManager.js';
 import messageSender from './messageSender.js';
 import messageRotator from './messageRotator.js';
 import { logger } from '../config/logger.js';
-import { delay } from '../utils/delay.js';
+import { delay, humanizedDelay, getDelayInfo } from '../utils/delay.js';
 import { settings } from '../config/settings.js';
+import autoPause from './autoPause.js';
 
 /**
  * Dispatcher - Executa campanhas de forma controlada
@@ -12,14 +13,16 @@ class Dispatcher {
   constructor() {
     this.isRunning = false;
     this.currentCampaign = null;
+    this.messageIndex = 0; // Contador para pausas periódicas
   }
 
   /**
    * Executa uma campanha
    * @param {string} campaignName 
    * @param {Object} options - Opções de delay customizadas
-   * @param {number} options.messageDelay - Delay entre mensagens em ms
-   * @param {number} options.numberDelay - Delay entre números em ms
+   * @param {number} options.messageDelay - Delay MÁXIMO entre mensagens em ms (será randomizado)
+   * @param {number} options.numberDelay - Delay MÁXIMO entre números em ms (será randomizado)
+   * @param {boolean} options.useHumanizedDelay - Se deve usar delay humanizado (padrão: true)
    */
   async runCampaign(campaignName, options = {}) {
     try {
@@ -34,10 +37,12 @@ class Dispatcher {
 
       this.isRunning = true;
       this.currentCampaign = campaignName;
+      this.messageIndex = 0;
 
-      // Define delays (usa customizados ou padrão)
-      const messageDelay = options.messageDelay || settings.messageDelay;
-      const numberDelay = options.numberDelay || settings.numberDelay;
+      // Define delays MÁXIMOS (usa customizados ou padrão)
+      const maxMessageDelay = options.messageDelay || settings.messageDelay;
+      const maxNumberDelay = options.numberDelay || settings.numberDelay;
+      const useHumanizedDelay = options.useHumanizedDelay !== false; // Padrão: true
 
       // Inicia a campanha
       campaignManager.startCampaign(campaignName);
@@ -45,11 +50,19 @@ class Dispatcher {
       // Carrega mensagens no rotator
       messageRotator.loadMessages(campaign.messages);
 
+      // Info sobre delays humanizados
+      const delayInfo = getDelayInfo(maxMessageDelay);
+
       logger.info(`\n🚀 Iniciando disparo da campanha "${campaignName}"`);
       logger.info(`📊 Total de números: ${campaign.numbers.length}`);
       logger.info(`📝 Total de mensagens: ${campaign.messages.length}`);
-      logger.info(`⏱️ Delay entre mensagens: ${messageDelay}ms`);
-      logger.info(`⏱️ Delay entre números: ${numberDelay}ms\n`);
+      if (useHumanizedDelay) {
+        logger.info(`⏱️ Delay humanizado: ${delayInfo.minSeconds}s - ${delayInfo.maxSeconds}s (média: ${delayInfo.averageSeconds}s)`);
+        logger.info(`🔄 Pausas longas a cada 10 mensagens para simular comportamento humano`);
+      } else {
+        logger.info(`⏱️ Delay fixo: ${maxMessageDelay}ms`);
+      }
+      logger.info('');
 
       // Loop de envio
       while (campaignManager.canContinue(campaignName)) {
@@ -97,15 +110,53 @@ class Dispatcher {
           });
         }
 
+        // Registra resultado no AutoPause para monitorar taxa de erros
+        if (result.sessionId) {
+          const pauseCheck = autoPause.recordResult(result.sessionId, result.success, result.error);
+          
+          if (pauseCheck.shouldPause) {
+            logger.warn(`🚨 ALERTA: Instância ${result.sessionId} pausada automaticamente!`);
+            logger.warn(`📛 Motivo: ${pauseCheck.reason}`);
+            logger.warn(`⏳ Aguardando cooldown de ${autoPause.getConfig().cooldownTime / 1000}s...`);
+            
+            // Aguarda cooldown antes de continuar
+            await delay(autoPause.getConfig().cooldownTime);
+            logger.info(`✅ Cooldown finalizado, retomando envios...`);
+          } else if (pauseCheck.stats) {
+            // Mostra health da instância se estiver baixo
+            if (pauseCheck.stats.health < 70) {
+              logger.warn(`⚠️ Saúde da instância ${result.sessionId}: ${pauseCheck.stats.health}% (${pauseCheck.stats.consecutiveErrors} erros consecutivos)`);
+            }
+          }
+        }
+
         // Atualiza progresso
         campaignManager.updateProgress(campaignName, result);
 
         // Log do resultado
         const stats = currentCampaign.stats;
-        logger.info(`Progresso: ${stats.sent + stats.failed}/${stats.total} | ✅ ${stats.sent} | ❌ ${stats.failed} | ⏳ ${stats.pending}\n`);
+        logger.info(`Progresso: ${stats.sent + stats.failed}/${stats.total} | ✅ ${stats.sent} | ❌ ${stats.failed} | ⏳ ${stats.pending}`);
 
-        // Delay antes do próximo envio (usa messageDelay customizado)
-        await delay(messageDelay);
+        // Incrementa contador de mensagens
+        this.messageIndex++;
+
+        // Delay antes do próximo envio (humanizado ou fixo)
+        if (useHumanizedDelay) {
+          const { delayTime, isLongPause } = await humanizedDelay(maxMessageDelay, {
+            messageIndex: this.messageIndex,
+            longPauseEvery: 10,
+            longPauseMultiplier: 2
+          });
+          
+          if (isLongPause) {
+            logger.info(`☕ Pausa longa: ${(delayTime / 1000).toFixed(1)}s (simulando comportamento humano)`);
+          } else {
+            logger.info(`⏱️ Aguardando ${(delayTime / 1000).toFixed(1)}s`);
+          }
+        } else {
+          await delay(maxMessageDelay);
+        }
+        logger.info('');
       }
 
       // Finaliza a campanha

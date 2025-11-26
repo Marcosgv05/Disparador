@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import dbManager from '../db/database.js';
 import { logger } from '../config/logger.js';
 

@@ -19,6 +19,7 @@ import dispatcher from './services/dispatcher.js';
 import scheduler from './services/scheduler.js';
 import instanceManager from './services/instanceManager.js';
 import campaignScheduler from './services/campaignScheduler.js';
+import autoPause from './services/autoPause.js';
 import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
 import QRCode from 'qrcode';
@@ -294,6 +295,101 @@ app.use('/api/templates', templatesRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// ======= ROTAS AUTO-PAUSE =======
+
+// Obtém configuração e status do auto-pause
+app.get('/api/auto-pause/status', requireAuth, (req, res) => {
+  try {
+    res.json({
+      config: autoPause.getConfig(),
+      instances: autoPause.getAllStats()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Configura auto-pause
+app.post('/api/auto-pause/configure', requireAuth, (req, res) => {
+  try {
+    const { windowSize, errorThreshold, consecutiveErrors, cooldownTime, enabled } = req.body;
+    
+    const config = {};
+    if (windowSize !== undefined) config.windowSize = parseInt(windowSize);
+    if (errorThreshold !== undefined) config.errorThreshold = parseFloat(errorThreshold);
+    if (consecutiveErrors !== undefined) config.consecutiveErrors = parseInt(consecutiveErrors);
+    if (cooldownTime !== undefined) config.cooldownTime = parseInt(cooldownTime) * 1000; // Converte para ms
+    if (enabled !== undefined) config.enabled = enabled;
+    
+    autoPause.configure(config);
+    
+    res.json({
+      success: true,
+      config: autoPause.getConfig()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Habilita/desabilita auto-pause
+app.post('/api/auto-pause/toggle', requireAuth, (req, res) => {
+  try {
+    const { enabled } = req.body;
+    autoPause.setEnabled(enabled);
+    
+    res.json({
+      success: true,
+      enabled: autoPause.getConfig().enabled
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Retoma manualmente uma instância pausada
+app.post('/api/auto-pause/resume/:instanceId', requireAuth, (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    autoPause.resumeInstance(instanceId, false);
+    
+    res.json({
+      success: true,
+      stats: autoPause.getInstanceStats(instanceId)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reseta estatísticas de uma instância
+app.post('/api/auto-pause/reset/:instanceId', requireAuth, (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    autoPause.resetInstance(instanceId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obtém estatísticas de uma instância específica
+app.get('/api/auto-pause/instance/:instanceId', requireAuth, (req, res) => {
+  try {
+    const { instanceId } = req.params;
+    const stats = autoPause.getInstanceStats(instanceId);
+    
+    if (!stats) {
+      return res.status(404).json({ error: 'Instância não encontrada' });
+    }
+    
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Inicializa banco de dados
@@ -308,6 +404,17 @@ await scheduler.start();
 
 // Inicia scheduler de campanhas agendadas (após banco inicializado)
 campaignScheduler.start(60000); // Verifica a cada 1 minuto
+
+// Configura notificações do AutoPause via Socket.IO
+autoPause.onPauseEvent((event) => {
+  io.emit('autoPauseEvent', event);
+  
+  if (event.type === 'pause') {
+    logger.warn(`🚨 Socket.IO: Instância ${event.instanceId} pausada - ${event.reason}`);
+  } else if (event.type === 'resume') {
+    logger.info(`✅ Socket.IO: Instância ${event.instanceId} retomada`);
+  }
+});
 
 // Restaura sessões persistidas após reinício do servidor
 const persistedInstances = instanceManager.listInstances();

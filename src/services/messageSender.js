@@ -2,7 +2,7 @@ import sessionManager from '../whatsapp/sessionManager.js';
 import messageRotator from './messageRotator.js';
 import { logger } from '../config/logger.js';
 import { formatPhoneNumber, isValidPhoneNumber } from '../utils/phoneFormatter.js';
-import { delay } from '../utils/delay.js';
+import { delay, humanizedDelay } from '../utils/delay.js';
 import { settings } from '../config/settings.js';
 
 class MessageSender {
@@ -111,9 +111,10 @@ class MessageSender {
         // Log de progresso
         logger.info(`Progresso: ${i + 1}/${phoneNumbers.length}`);
 
-        // Delay entre mensagens (exceto na última)
+        // Delay humanizado entre mensagens (exceto na última)
         if (i < phoneNumbers.length - 1) {
-          await delay(settings.messageDelay);
+          const { delayTime } = await humanizedDelay(settings.messageDelay, { messageIndex: i });
+          logger.info(`⏱️ Aguardando ${(delayTime / 1000).toFixed(1)}s`);
         }
       }
 
@@ -168,8 +169,10 @@ class MessageSender {
 
         logger.info(`Progresso: ${i + 1}/${phoneNumbers.length}`);
 
+        // Delay humanizado entre números
         if (i < phoneNumbers.length - 1) {
-          await delay(settings.numberDelay);
+          const { delayTime } = await humanizedDelay(settings.numberDelay, { messageIndex: i });
+          logger.info(`⏱️ Aguardando ${(delayTime / 1000).toFixed(1)}s`);
         }
       }
 
