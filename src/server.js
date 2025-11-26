@@ -34,6 +34,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Confia no proxy (necessário para rate-limiter funcionar corretamente no Render)
+app.set('trust proxy', 1);
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
