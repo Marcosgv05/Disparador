@@ -49,11 +49,32 @@ if (process.env.NODE_ENV === 'production') {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://www.gstatic.com", "https://apis.google.com", "https://cdn.tailwindcss.com"],
+        // Permite scripts das CDNs usadas (Firebase, Tailwind) e handlers inline do login.html
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "'unsafe-eval'",
+          "https://www.gstatic.com",
+          "https://apis.google.com",
+          "https://cdn.tailwindcss.com"
+        ],
+        // Importante: libera onsubmit/onclick inline (script-src-attr)
+        scriptSrcAttr: [
+          "'self'",
+          "'unsafe-inline'"
+        ],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tailwindcss.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "https:", "blob:"],
-        connectSrc: ["'self'", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "wss:", "ws:"],
+        // Inclui gstatic para evitar bloqueio de requests auxiliares do Firebase
+        connectSrc: [
+          "'self'",
+          "https://identitytoolkit.googleapis.com",
+          "https://securetoken.googleapis.com",
+          "https://www.gstatic.com",
+          "wss:",
+          "ws:"
+        ],
         frameSrc: ["'self'", "https://accounts.google.com"],
         workerSrc: ["'self'", "blob:"]
       }
