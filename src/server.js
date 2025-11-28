@@ -194,28 +194,41 @@ const authLimiter = rateLimit({
   message: { error: 'Muitas tentativas de login. Tente novamente em 1 hora.' }
 });
 
-// Middlewares
+// Middlewares - Configuração CORS
 const corsOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+// Adiciona automaticamente URLs do Railway/Render se disponíveis
+if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+  corsOrigins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+}
+if (process.env.RAILWAY_STATIC_URL) {
+  corsOrigins.push(process.env.RAILWAY_STATIC_URL);
+}
+if (process.env.RENDER_EXTERNAL_URL) {
+  corsOrigins.push(process.env.RENDER_EXTERNAL_URL);
+}
+
+logger.info(`🔒 CORS configurado para: ${corsOrigins.join(', ')}`);
 
 app.use(cors({
   origin: (origin, callback) => {
     // Permite requisições sem origin (mobile apps, Postman, servidor próprio, etc)
     if (!origin) return callback(null, true);
     
-    // Em produção, permite apenas origens configuradas e subdomínios confiáveis
+    // Permite origens configuradas
     if (corsOrigins.includes(origin)) {
       return callback(null, true);
     }
     
-    // Em produção, permite apenas o domínio específico do Render configurado em CORS_ORIGIN
-    // NÃO permite qualquer subdomínio .onrender.com por segurança
-    if (process.env.RENDER_EXTERNAL_URL && origin === process.env.RENDER_EXTERNAL_URL) {
+    // Em desenvolvimento, permite qualquer origem
+    if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
-    if (process.env.NODE_ENV !== 'production') {
+    // Em produção, permite origens .railway.app (mesmo domínio)
+    if (origin.endsWith('.up.railway.app')) {
       return callback(null, true);
     }
     
