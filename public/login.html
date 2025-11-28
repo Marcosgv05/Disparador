@@ -284,8 +284,7 @@
                 ? 'p-4 rounded-lg text-sm border flex items-center gap-3 bg-green-50 text-green-700 border-green-200 slide-in'
                 : 'p-4 rounded-lg text-sm border flex items-center gap-3 bg-red-50 text-red-700 border-red-200 slide-in';
             
-            const icon = type === 'success' ? '✅' : '⚠️';
-            alertBox.innerHTML = `<span class="text-lg">${icon}</span><span>${message}</span>`;
+            alertBox.innerHTML = `<span>${message}</span>`;
         };
 
         window.hideAlert = function() {

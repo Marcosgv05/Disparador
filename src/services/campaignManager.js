@@ -1,41 +1,119 @@
 import { logger } from '../config/logger.js';
 import fs from 'fs/promises';
 import path from 'path';
+import pg from 'pg';
+
+// Pool de conexões PostgreSQL (se disponível)
+let pgPool = null;
+const isProduction = !!process.env.DATABASE_URL;
+
+if (isProduction) {
+  pgPool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+}
 
 /**
  * Gerenciador de Campanhas de Disparo
+ * Usa PostgreSQL em produção e arquivos JSON em desenvolvimento
  */
 class CampaignManager {
   constructor() {
     this.campaigns = new Map();
     this.activeCampaign = null;
     this.campaignsFolder = path.join(process.cwd(), 'campaigns');
+    this.isProduction = isProduction;
   }
 
   /**
-   * Inicializa a pasta de campanhas
+   * Inicializa tabela de campanhas no PostgreSQL
+   */
+  async initPostgresTable() {
+    if (!this.isProduction) return;
+    
+    try {
+      await pgPool.query(`
+        CREATE TABLE IF NOT EXISTS campaigns (
+          name TEXT PRIMARY KEY,
+          display_name TEXT,
+          user_id INTEGER NOT NULL,
+          data JSONB NOT NULL,
+          status TEXT DEFAULT 'idle',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Índice para busca por usuário
+      await pgPool.query(`
+        CREATE INDEX IF NOT EXISTS idx_campaigns_user_id ON campaigns(user_id)
+      `);
+      
+      logger.info('✅ Tabela campaigns inicializada (PostgreSQL)');
+    } catch (error) {
+      logger.error(`Erro ao criar tabela campaigns: ${error.message}`);
+    }
+  }
+
+  /**
+   * Inicializa campanhas (PostgreSQL em produção, arquivos em desenvolvimento)
    */
   async initialize() {
     try {
-      await fs.mkdir(this.campaignsFolder, { recursive: true });
-
-      const files = await fs.readdir(this.campaignsFolder);
-      let loadedCount = 0;
-
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-
-        const campaignName = file.replace(/\.json$/i, '');
-        try {
-          await this.loadCampaign(campaignName);
-          loadedCount++;
-        } catch (error) {
-          logger.warn(`Não foi possível carregar campanha "${campaignName}": ${error.message}`);
+      // Inicializa tabela PostgreSQL se em produção
+      await this.initPostgresTable();
+      
+      if (this.isProduction) {
+        // Carrega campanhas do PostgreSQL
+        const result = await pgPool.query('SELECT name, data FROM campaigns');
+        let loadedCount = 0;
+        
+        for (const row of result.rows) {
+          try {
+            const campaign = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+            
+            // Converte strings de data
+            if (campaign.createdAt) campaign.createdAt = new Date(campaign.createdAt);
+            if (campaign.startedAt) campaign.startedAt = new Date(campaign.startedAt);
+            if (campaign.completedAt) campaign.completedAt = new Date(campaign.completedAt);
+            
+            // Compatibilidade
+            if (!campaign.instanceStats) campaign.instanceStats = {};
+            if (!campaign.linkedInstances) campaign.linkedInstances = [];
+            
+            this.campaigns.set(row.name, campaign);
+            loadedCount++;
+          } catch (error) {
+            logger.warn(`Erro ao carregar campanha "${row.name}": ${error.message}`);
+          }
         }
-      }
+        
+        if (loadedCount > 0) {
+          logger.info(`📂 ${loadedCount} campanha(s) carregadas do PostgreSQL`);
+        }
+      } else {
+        // Desenvolvimento: carrega de arquivos JSON
+        await fs.mkdir(this.campaignsFolder, { recursive: true });
 
-      if (loadedCount > 0) {
-        logger.info(`📂 ${loadedCount} campanha(s) carregadas da pasta ${this.campaignsFolder}`);
+        const files = await fs.readdir(this.campaignsFolder);
+        let loadedCount = 0;
+
+        for (const file of files) {
+          if (!file.endsWith('.json')) continue;
+
+          const campaignName = file.replace(/\.json$/i, '');
+          try {
+            await this.loadCampaign(campaignName);
+            loadedCount++;
+          } catch (error) {
+            logger.warn(`Não foi possível carregar campanha "${campaignName}": ${error.message}`);
+          }
+        }
+
+        if (loadedCount > 0) {
+          logger.info(`📂 ${loadedCount} campanha(s) carregadas da pasta ${this.campaignsFolder}`);
+        }
       }
     } catch (error) {
       logger.error('Erro ao inicializar campanhas:', error);
@@ -52,28 +130,41 @@ class CampaignManager {
       throw new Error('userId é obrigatório');
     }
 
-    // Verifica se já existe uma campanha com esse nome PARA ESTE USUÁRIO
-    const existingCampaign = this.campaigns.get(name);
-    if (existingCampaign && existingCampaign.userId === userId) {
-      throw new Error(`Campanha "${name}" já existe`);
+    const displayName = (name || '').trim();
+    if (!displayName) {
+      throw new Error('Nome da campanha é obrigatório');
     }
-    
-    // Se existe mas é de outro usuário, cria com nome único
-    let finalName = name;
-    if (existingCampaign) {
-      finalName = `${name}_${userId}`;
-      if (this.campaigns.has(finalName)) {
-        throw new Error(`Campanha "${name}" já existe`);
-      }
+
+    // Garante que o MESMO usuário não crie duas campanhas com o mesmo nome
+    const campaigns = Array.from(this.campaigns.values());
+    const existingForUser = campaigns.find(
+      c => c.userId === userId && (c.displayName || c.name) === displayName
+    );
+    if (existingForUser) {
+      throw new Error(`Campanha "${displayName}" já existe`);
+    }
+
+    // Gera um identificador interno único, independente de outros usuários
+    const baseSlug = displayName
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'campanha';
+
+    let finalName = `${baseSlug}-${userId}`;
+    let counter = 1;
+    while (this.campaigns.has(finalName)) {
+      finalName = `${baseSlug}-${userId}-${counter++}`;
     }
 
     const campaign = {
       name: finalName,
-      displayName: name, // Nome original para exibição
+      displayName, // Nome original para exibição
       userId,
       contacts: [], // Array de {name, phone, status, statusDetails}
       numbers: [], // Backward compatibility
       messages: [],
+      linkedInstances: [], // IDs das instâncias vinculadas a esta campanha
       status: 'idle', // idle, running, paused, stopped, completed
       createdAt: new Date(),
       startedAt: null,
@@ -420,13 +511,10 @@ class CampaignManager {
     campaign.results.push(result);
     campaign.currentIndex++;
 
-    if (result.success) {
-      campaign.stats.sent++;
-    } else {
-      campaign.stats.failed++;
-    }
+    // Nota: stats.sent e stats.failed são atualizados em updateContactStatus()
+    // para evitar contagem duplicada
 
-    campaign.stats.pending = campaign.numbers.length - campaign.currentIndex;
+    campaign.stats.pending = campaign.contacts.length - campaign.currentIndex;
 
     return campaign;
   }
@@ -462,6 +550,41 @@ class CampaignManager {
   }
 
   /**
+   * Atualiza as instâncias vinculadas a uma campanha
+   * @param {string} campaignName 
+   * @param {Array<string>} instanceIds - Array de IDs de instâncias
+   */
+  setLinkedInstances(campaignName, instanceIds) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    if (campaign.status === 'running') {
+      throw new Error('Não é possível alterar instâncias enquanto a campanha está rodando. Pause primeiro.');
+    }
+
+    campaign.linkedInstances = Array.isArray(instanceIds) ? instanceIds : [];
+    this.saveCampaign(campaignName);
+    
+    logger.info(`🔗 Campanha "${campaignName}" vinculada a ${campaign.linkedInstances.length} instância(s)`);
+    return campaign;
+  }
+
+  /**
+   * Obtém as instâncias vinculadas a uma campanha
+   * @param {string} campaignName 
+   */
+  getLinkedInstances(campaignName) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    return campaign.linkedInstances || [];
+  }
+
+  /**
    * Obtém o próximo número a ser processado
    * @param {string} campaignName 
    */
@@ -476,6 +599,24 @@ class CampaignManager {
     }
 
     return campaign.numbers[campaign.currentIndex];
+  }
+
+  /**
+   * Obtém o próximo contato a ser processado (com nome e telefone)
+   * @param {string} campaignName 
+   * @returns {Object|null} - { name, phone, status, ... } ou null se não houver mais
+   */
+  getNextContact(campaignName) {
+    const campaign = this.campaigns.get(campaignName);
+    if (!campaign) {
+      throw new Error(`Campanha "${campaignName}" não encontrada`);
+    }
+
+    if (campaign.currentIndex >= campaign.contacts.length) {
+      return null;
+    }
+
+    return campaign.contacts[campaign.currentIndex];
   }
 
   /**
@@ -566,7 +707,7 @@ class CampaignManager {
   }
 
   /**
-   * Salva a campanha em arquivo
+   * Salva a campanha (PostgreSQL em produção, arquivo em desenvolvimento)
    * @param {string} campaignName 
    */
   async saveCampaign(campaignName) {
@@ -575,23 +716,56 @@ class CampaignManager {
       throw new Error(`Campanha "${campaignName}" não encontrada`);
     }
 
-    const sanitizedName = campaignName.trim();
-    const filePath = path.join(this.campaignsFolder, `${sanitizedName}.json`);
-    await fs.writeFile(filePath, JSON.stringify(campaign, null, 2));
+    if (this.isProduction) {
+      // PostgreSQL: salva como JSONB
+      await pgPool.query(`
+        INSERT INTO campaigns (name, display_name, user_id, data, status, updated_at)
+        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+        ON CONFLICT (name) DO UPDATE SET
+          display_name = $2,
+          data = $4,
+          status = $5,
+          updated_at = CURRENT_TIMESTAMP
+      `, [
+        campaignName,
+        campaign.displayName || campaign.name,
+        campaign.userId,
+        JSON.stringify(campaign),
+        campaign.status
+      ]);
+    } else {
+      // Desenvolvimento: salva em arquivo JSON
+      const sanitizedName = campaignName.trim();
+      const filePath = path.join(this.campaignsFolder, `${sanitizedName}.json`);
+      await fs.writeFile(filePath, JSON.stringify(campaign, null, 2));
+    }
     
     logger.info(`💾 Campanha "${campaignName}" salva`);
   }
 
   /**
-   * Carrega uma campanha de arquivo
+   * Carrega uma campanha (PostgreSQL em produção, arquivo em desenvolvimento)
    * @param {string} campaignName 
    */
   async loadCampaign(campaignName) {
-    const filePath = path.join(this.campaignsFolder, `${campaignName}.json`);
-    
     try {
-      const data = await fs.readFile(filePath, 'utf-8');
-      const campaign = JSON.parse(data);
+      let campaign;
+      
+      if (this.isProduction) {
+        // PostgreSQL
+        const result = await pgPool.query('SELECT data FROM campaigns WHERE name = $1', [campaignName]);
+        if (result.rows.length === 0) {
+          throw new Error('Campanha não encontrada');
+        }
+        campaign = typeof result.rows[0].data === 'string' 
+          ? JSON.parse(result.rows[0].data) 
+          : result.rows[0].data;
+      } else {
+        // Desenvolvimento: carrega de arquivo JSON
+        const filePath = path.join(this.campaignsFolder, `${campaignName}.json`);
+        const data = await fs.readFile(filePath, 'utf-8');
+        campaign = JSON.parse(data);
+      }
       
       // Converte strings de data de volta para objetos Date
       if (campaign.createdAt) campaign.createdAt = new Date(campaign.createdAt);
@@ -601,6 +775,11 @@ class CampaignManager {
       // Inicializa instanceStats se não existir (compatibilidade com campanhas antigas)
       if (!campaign.instanceStats) {
         campaign.instanceStats = {};
+      }
+      
+      // Inicializa linkedInstances se não existir (compatibilidade com campanhas antigas)
+      if (!campaign.linkedInstances) {
+        campaign.linkedInstances = [];
       }
       
       this.campaigns.set(campaignName, campaign);
@@ -614,7 +793,7 @@ class CampaignManager {
   }
 
   /**
-   * Deleta uma campanha
+   * Deleta uma campanha (PostgreSQL em produção, arquivo em desenvolvimento)
    * @param {string} campaignName 
    */
   async deleteCampaign(campaignName) {
@@ -629,12 +808,17 @@ class CampaignManager {
 
     this.campaigns.delete(campaignName);
     
-    // Remove o arquivo se existir
-    try {
-      const filePath = path.join(this.campaignsFolder, `${campaignName}.json`);
-      await fs.unlink(filePath);
-    } catch (error) {
-      // Arquivo pode não existir
+    if (this.isProduction) {
+      // PostgreSQL
+      await pgPool.query('DELETE FROM campaigns WHERE name = $1', [campaignName]);
+    } else {
+      // Desenvolvimento: remove arquivo
+      try {
+        const filePath = path.join(this.campaignsFolder, `${campaignName}.json`);
+        await fs.unlink(filePath);
+      } catch (error) {
+        // Arquivo pode não existir
+      }
     }
 
     if (this.activeCampaign === campaignName) {

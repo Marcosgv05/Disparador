@@ -1,8 +1,26 @@
 // API Base URL
 const API_URL = window.location.origin;
 
-// Socket.IO connection
-const socket = io();
+// Socket.IO connection (autenticado com token do Firebase)
+const socket = io({
+    auth: {
+        // Mesmo token usado nas chamadas de API (requireAuth / requireAuth Socket.IO)
+        token: localStorage.getItem('firebaseToken') || ''
+    }
+});
+
+// Logs de debug do WebSocket
+socket.on('connect', () => {
+    console.log('✅ WebSocket conectado! Socket ID:', socket.id);
+});
+
+socket.on('connect_error', (err) => {
+    console.error('❌ Erro na conexão WebSocket:', err.message);
+});
+
+socket.on('disconnect', (reason) => {
+    console.warn('⚠️ WebSocket desconectado:', reason);
+});
 
 // Estado global
 let state = {
@@ -25,6 +43,184 @@ if (userData) {
     state.user = JSON.parse(userData);
 }
 
+// ================================
+// FUNÇÕES DA ABA CONTEÚDO
+// ================================
+
+// Insere variável no textarea de mensagem
+function insertVariable(variable) {
+    const textarea = document.getElementById('newMessageText');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.focus();
+    textarea.setSelectionRange(start + variable.length, start + variable.length);
+    
+    updateWhatsAppPreview();
+}
+
+// Atualiza preview do WhatsApp em tempo real
+function updateWhatsAppPreview() {
+    const textarea = document.getElementById('newMessageText');
+    const preview = document.getElementById('whatsappPreviewMessage');
+    if (!textarea || !preview) return;
+    
+    let message = textarea.value.trim();
+    
+    if (!message) {
+        preview.innerHTML = `
+            <p class="whatsapp-message-text" style="opacity: 0.5; font-style: italic;">Pré-visualização da mensagem</p>
+        `;
+        return;
+    }
+    
+    // Substitui variáveis por exemplos
+    message = message
+        .replace(/\{\{nome\}\}/g, 'João Silva')
+        .replace(/\{\{telefone\}\}/g, '+55 11 99999-9999')
+        .replace(/\{\{custom1\}\}/g, 'valor personalizado');
+    
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    preview.innerHTML = `
+        <p class="whatsapp-message-text">${escapeHtml(message)}</p>
+        <p class="whatsapp-message-time">${time} <span class="whatsapp-check">✓✓</span></p>
+    `;
+}
+
+// Escapa HTML para prevenir XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+// ================================
+// FUNÇÕES DA ABA DISPARO (Console)
+// ================================
+
+// Adiciona log no console de execução
+function addConsoleLog(message, type = 'success') {
+    const console = document.getElementById('dispatchConsole');
+    if (!console) return;
+    
+    const line = document.createElement('p');
+    line.className = `console-line console-${type}`;
+    
+    const time = new Date().toLocaleTimeString('pt-BR');
+    line.innerHTML = `<span style="color: #64748b; margin-right: 0.5rem;">$</span>[${time}] ${message}`;
+    
+    console.appendChild(line);
+    console.scrollTop = console.scrollHeight;
+}
+
+// Limpa o console
+function clearConsole() {
+    const console = document.getElementById('dispatchConsole');
+    if (!console) return;
+    
+    console.innerHTML = `
+        <p class="console-line console-muted">Inicializando sistema de disparos v2.4...</p>
+        <p class="console-line console-muted">Aguardando comando...</p>
+    `;
+}
+
+// Atualiza visibilidade dos controles de disparo
+function updateDispatchControls(status) {
+    const mainControl = document.getElementById('dispatchMainControl');
+    const runningControls = document.getElementById('dispatchRunningControls');
+    const pausedControls = document.getElementById('dispatchPausedControls');
+    const cursor = document.getElementById('consoleCursor');
+    
+    if (mainControl) mainControl.style.display = status === 'idle' ? 'block' : 'none';
+    if (runningControls) runningControls.style.display = status === 'running' ? 'block' : 'none';
+    if (pausedControls) pausedControls.style.display = status === 'paused' ? 'block' : 'none';
+    if (cursor) cursor.style.display = status === 'running' ? 'block' : 'none';
+}
+
+// Alterna abas internas da página de campanha (Visão Geral / Audiência / Conteúdo / Disparo)
+function setCampaignInnerTab(tabKey) {
+    const tabs = document.querySelectorAll('.campaign-inner-tab');
+    const panels = document.querySelectorAll('.campaign-tab-panel');
+
+    tabs.forEach(t => {
+        if (t.dataset.campaignTab === tabKey) {
+            t.classList.add('active');
+        } else {
+            t.classList.remove('active');
+        }
+    });
+
+    panels.forEach(p => {
+        if (p.dataset.campaignTabPanel === tabKey) {
+            p.style.display = '';
+        } else {
+            p.style.display = 'none';
+        }
+    });
+}
+
+// Volta para a aba de lista de campanhas
+function backToCampaignList() {
+    const panel = document.getElementById('dispatch-panel');
+    if (!panel) return;
+
+    const listTabName = 'tab-campaigns';
+    const listContent = panel.querySelector('#' + listTabName);
+
+    if (listContent) {
+        // Desativa qualquer conteúdo atualmente ativo
+        panel.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        // Ativa a lista de campanhas
+        listContent.classList.add('active');
+    }
+}
+
+function openNumbersFileDialog() {
+    const input = document.getElementById('numbersFile');
+    if (input) {
+        input.click();
+    }
+}
+
+function focusManualContactForm() {
+    openManualContactModal();
+}
+
+function openManualContactModal() {
+    const modal = document.getElementById('manualContactModal');
+    if (!modal) {
+        showToast('Área de contatos ainda não está disponível.', 'warning');
+        return;
+    }
+
+    const nameInput = document.getElementById('manualContactName');
+    const phoneInput = document.getElementById('manualContactPhone');
+    if (nameInput) nameInput.value = '';
+    if (phoneInput) phoneInput.value = '';
+
+    modal.classList.add('show');
+
+    // Foca o campo de nome após o modal abrir
+    setTimeout(() => {
+        if (nameInput) {
+            nameInput.focus();
+        }
+    }, 0);
+}
+
+function closeManualContactModal() {
+    const modal = document.getElementById('manualContactModal');
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
 // handleLogout é definido no index.html após verificação do Firebase
 
 // ==== UTILITIES ====
@@ -39,30 +235,37 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-async function deleteCampaign() {
-    const select = document.getElementById('selectedCampaign');
-    if (!select || !select.value) {
-        showToast('Selecione uma campanha para excluir', 'warning');
-        return;
+async function deleteCampaign(name) {
+    let internalName = name;
+
+    // Compatibilidade: se não vier nome, usa o select oculto
+    if (!internalName) {
+        const select = document.getElementById('selectedCampaign');
+        if (!select || !select.value) {
+            showToast('Selecione uma campanha para excluir', 'warning');
+            return;
+        }
+        internalName = select.value;
     }
 
-    const campaignName = select.value;
+    const campaign = state.campaigns.find(c => c.name === internalName);
+    const displayName = campaign?.displayName || internalName;
 
-    if (!confirm(`Tem certeza que deseja excluir a campanha "${campaignName}"? Esta ação não pode ser desfeita.`)) {
+    if (!confirm(`Tem certeza que deseja excluir a campanha "${displayName}"? Esta ação não pode ser desfeita.`)) {
         return;
     }
 
     try {
-        await apiCall(`/api/campaign/${encodeURIComponent(campaignName)}`, {
+        await apiCall(`/api/campaign/${encodeURIComponent(internalName)}`, {
             method: 'DELETE'
         });
 
-        showToast(`Campanha "${campaignName}" excluída`, 'success');
+        showToast(`Campanha "${displayName}" excluída`, 'success');
 
-        // Atualiza selects
+        // Atualiza lista de campanhas
         await loadCampaigns();
 
-        // Limpa seleção em todos os selects relacionados
+        // Limpa seleção apenas dos selects que apontarem para essa campanha
         const selects = [
             document.getElementById('selectedCampaign'),
             document.getElementById('dispatchCampaign'),
@@ -70,14 +273,27 @@ async function deleteCampaign() {
         ];
 
         selects.forEach(sel => {
-            if (sel) sel.value = '';
+            if (sel && sel.value === internalName) {
+                sel.value = '';
+            }
         });
 
-        state.currentCampaign = null;
-        document.getElementById('campaignDetails').style.display = 'none';
-        document.getElementById('dispatchProgress').style.display = 'none';
+        // Reseta estado da campanha atual
+        if (state.currentCampaign && state.currentCampaign.name === internalName) {
+            state.currentCampaign = null;
+        }
+
+        const detailsEl = document.getElementById('campaignDetails');
+        if (detailsEl) detailsEl.style.display = 'none';
+
+        const progressEl = document.getElementById('dispatchProgress');
+        if (progressEl) progressEl.style.display = 'none';
+
         renderMessages({ messages: [] });
-        document.getElementById('contactsTableBody').innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contato adicionado</td></tr>';
+        const contactsBody = document.getElementById('contactsTableBody');
+        if (contactsBody) {
+            contactsBody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum contato adicionado</td></tr>';
+        }
 
         updateDispatchStatusUI({ status: 'idle' });
 
@@ -157,16 +373,35 @@ document.querySelectorAll('.nav-item').forEach(item => {
         
         // Update section
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById(sectionId)?.classList.add('active');
+        const sectionEl = document.getElementById(sectionId);
+        sectionEl?.classList.add('active');
+
+        // Se houver uma aba alvo dentro da seção (ex.: Painel de Disparos), ativa essa aba
+        const targetTab = item.dataset.tab;
+        if (targetTab && sectionEl) {
+            const tabBtn = sectionEl.querySelector(`.tab-btn[data-tab="${targetTab}"]`);
+            if (tabBtn) {
+                tabBtn.click();
+            }
+        }
+
+        // Se houver alvo de scroll interno (ex.: área de analytics no dashboard), rola até ele
+        const scrollTarget = item.dataset.scroll;
+        if (scrollTarget) {
+            const targetEl = document.querySelector(scrollTarget);
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
     });
 });
 
-// Tabs
+// Tabs (painéis principais do painel de disparos)
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const tabName = btn.dataset.tab;
         const parent = btn.closest('.section');
-        
+
         // Update tabs
         parent.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -226,7 +461,7 @@ socket.on('session-connected', async (data) => {
                     phone: data.phone || 'Conectado'
                 })
             });
-            console.log('✅ Instância atualizada no backend com sucesso');
+            console.log('Instância atualizada no backend com sucesso');
         } catch (error) {
             console.error('❌ Erro ao atualizar instância:', error);
             showToast('Conexão estabelecida, mas erro ao salvar. Atualize a página.', 'warning');
@@ -237,10 +472,10 @@ socket.on('session-connected', async (data) => {
         instance.qrCode = null;
         console.log('🎨 Renderizando instâncias...');
         renderInstances();
-        showToast(`✅ Sessão ${data.sessionId} conectada com sucesso!`, 'success');
+        showToast(`Sessão ${data.sessionId} conectada com sucesso.`, 'success');
     } else {
-        console.warn('⚠️ Instância não encontrada para sessionId:', data.sessionId);
-        console.log('📋 Instâncias disponíveis:', state.instances.map(i => i.sessionId));
+        console.warn('Instância não encontrada para sessionId:', data.sessionId);
+        console.log('Instâncias disponíveis:', state.instances.map(i => i.sessionId));
     }
     loadSessions();
 });
@@ -280,14 +515,56 @@ async function removeSession(sessionId) {
 
 // ==== CAMPAIGNS ====
 
-async function createCampaign() {
-    const name = document.getElementById('campaignName').value;
-    
+// Abre modal bonito para criar campanha
+function openCreateCampaignModal() {
+    const modal = document.getElementById('confirmModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalBody');
+
+    title.textContent = 'Criar nova campanha';
+    body.innerHTML = `
+        <form id="createCampaignForm" style="display: flex; flex-direction: column; gap: 14px;">
+            <div>
+                <label>Nome da Campanha</label>
+                <input type="text" id="newCampaignName" class="form-control" placeholder="Ex: Black Friday VIP" required>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-light); margin: 0;">
+                O nome é usado apenas internamente para identificar esta campanha.
+            </p>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Criar</button>
+            </div>
+        </form>
+    `;
+    // Aplica estilo compacto para este modal específico
+    modal.classList.add('show', 'modal-small');
+    const footer = modal.querySelector('.modal-footer');
+    if (footer) footer.style.display = 'none';
+
+    const form = document.getElementById('createCampaignForm');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('newCampaignName').value.trim();
+        if (!name) {
+            showToast('Digite um nome para a campanha', 'warning');
+            return;
+        }
+        await createCampaign(name);
+        closeModal();
+    };
+}
+
+// Cria campanha a partir de um nome já validado
+async function createCampaign(name) {
     if (!name) {
-        showToast('Digite um nome para a campanha', 'warning');
+        // Se nenhum nome foi passado, abre o modal para o usuário informar
+        openCreateCampaignModal();
         return;
     }
     
+    const nameInput = document.getElementById('campaignName');
+
     try {
         const { campaign } = await apiCall('/api/campaign/create', {
             method: 'POST',
@@ -301,27 +578,23 @@ async function createCampaign() {
         const statusBox = document.getElementById('campaignCreationStatus');
         if (statusBox) {
             statusBox.innerHTML = `
-                <span class="status-icon">✅</span>
                 <div>
-                    <strong>Campanha criada!</strong>
-                    <p>"${campaign.name}" já está disponível no painel ao lado.</p>
+                    <strong>Campanha criada.</strong>
+                    <p>"${campaign.displayName || campaign.name}" já está disponível na lista.</p>
                 </div>
             `;
             statusBox.style.display = 'flex';
         }
-        
-        showToast(`Campanha "${campaign.name}" criada com sucesso!`, 'success');
-        document.getElementById('campaignName').value = '';
-        await loadCampaigns();
-        
-        // Seleciona automaticamente a nova campanha para gerenciamento
-        const select = document.getElementById('selectedCampaign');
-        if (select) {
-            select.value = campaign.name;
-            // Dispara evento change para garantir que o painel seja atualizado
-            select.dispatchEvent(new Event('change'));
-            await loadCampaignDetails();
+
+        showToast(`Campanha "${campaign.displayName || campaign.name}" criada com sucesso.`, 'success');
+
+        if (nameInput) {
+            nameInput.value = '';
         }
+        await loadCampaigns();
+
+        // Abre imediatamente a nova campanha na aba de detalhes
+        openCampaignManagement(campaign.name);
     } catch (error) {
         console.error(error);
         showToast(error.message || 'Erro ao criar campanha', 'error');
@@ -345,7 +618,9 @@ async function loadCampaigns() {
 }
 
 function updateDashboard(campaigns) {
-    document.getElementById('dashCampaigns').textContent = campaigns.length;
+    // Campanhas ativas: consideramos apenas as que estão em execução
+    const activeCampaigns = campaigns.filter(c => c.status === 'running');
+    document.getElementById('dashCampaigns').textContent = activeCampaigns.length;
     
     let totalSent = 0;
     let totalNumbers = 0;
@@ -358,37 +633,185 @@ function updateDashboard(campaigns) {
     document.getElementById('dashSent').textContent = totalSent;
     document.getElementById('dashNumbers').textContent = totalNumbers;
     
+    // Atualiza painel de campanhas recentes com base nas campanhas do usuário
+    renderRecentCampaignsFromState(campaigns);
+}
+
+// Renderiza lista de campanhas recentes no dashboard usando campanhas em memória
+function renderRecentCampaignsFromState(campaigns) {
     const recentContainer = document.getElementById('recentCampaigns');
-    if (campaigns.length === 0) {
-        recentContainer.innerHTML = '<p class="empty-state">Nenhuma campanha criada ainda</p>';
-    } else {
-        recentContainer.innerHTML = campaigns.slice(0, 5).map(c => `
-            <div class="campaign-item">
-                <div class="campaign-info">
-                    <h4>${c.name}</h4>
-                    <p>${c.numbers.length} números • ${c.messages.length} mensagens • ${c.stats.sent} enviadas</p>
-                </div>
-                <span class="campaign-status status-${c.status}">${c.status}</span>
-            </div>
-        `).join('');
+    if (!recentContainer) return;
+
+    if (!campaigns || campaigns.length === 0) {
+        recentContainer.innerHTML = '<p class="empty-state">Nenhuma campanha recente</p>';
+        return;
     }
+
+    // Ordena por data de criação (mais recente primeiro)
+    const sorted = [...campaigns].sort((a, b) => {
+        const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return db - da;
+    });
+
+    const statusConfig = {
+        running: { label: 'Executando', pillClass: 'dashboard-status-running' },
+        paused: { label: 'Pausada', pillClass: 'dashboard-status-paused' },
+        completed: { label: 'Concluída', pillClass: 'dashboard-status-completed' },
+        stopped: { label: 'Parada', pillClass: 'dashboard-status-idle' },
+        idle: { label: 'Inativa', pillClass: 'dashboard-status-idle' }
+    };
+
+    recentContainer.innerHTML = sorted.slice(0, 5).map(c => {
+        const name = c.displayName || c.name || 'Campanha';
+        const createdAt = c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '';
+        const statusKey = (c.status || 'idle').toLowerCase();
+        const cfg = statusConfig[statusKey] || statusConfig.idle;
+        return `
+            <div class="dashboard-recent-item">
+                <div class="dashboard-recent-main">
+                    <span class="dashboard-recent-title">${name}</span>
+                    <span class="dashboard-recent-meta">${createdAt}</span>
+                </div>
+                <span class="dashboard-status-pill ${cfg.pillClass}">${cfg.label}</span>
+            </div>
+        `;
+    }).join('');
 }
 
 function updateCampaignSelects(campaigns) {
     const selects = [
         document.getElementById('selectedCampaign'),
+        // dispatchCampaign pode não existir mais no HTML; mantemos aqui apenas por compatibilidade
         document.getElementById('dispatchCampaign')
     ];
     
     selects.forEach(select => {
+        if (!select) return; // ignora selects inexistentes para não quebrar o carregamento
+
         const current = select.value;
         select.innerHTML = '<option value="">-- Selecione --</option>' +
-            campaigns.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            campaigns.map(c => `<option value="${c.name}">${c.displayName || c.name}</option>`).join('');
         select.value = current;
+    });
+
+    // Atualiza lista lateral de campanhas, se existir
+    renderCampaignSidebar(campaigns);
+}
+
+// Lista lateral de campanhas no painel
+function renderCampaignSidebar(campaigns) {
+    const container = document.getElementById('campaignListSidebar');
+    if (!container) return;
+
+    if (!campaigns || campaigns.length === 0) {
+        container.innerHTML = '<p class="empty-state">Nenhuma campanha criada ainda</p>';
+        const details = document.getElementById('campaignDetails');
+        if (details) details.style.display = 'none';
+        return;
+    }
+
+    const statusConfig = {
+        running:   { label: 'Executando', pillClass: 'campaign-status-running' },
+        paused:    { label: 'Pausada',    pillClass: 'campaign-status-paused' },
+        completed: { label: 'Concluída',  pillClass: 'campaign-status-completed' },
+        stopped:   { label: 'Parada',     pillClass: 'campaign-status-stopped' },
+        idle:      { label: 'Aguardando', pillClass: 'campaign-status-idle' }
+    };
+
+    const rowsHtml = campaigns.map(c => {
+        const internalName = c.name || '';
+        const displayName = c.displayName || internalName || 'Campanha';
+        const createdAt = c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '-';
+        const total = c.stats?.total ?? 0;
+        const sent = c.stats?.sent ?? 0;
+        const progressPct = total > 0 ? Math.round((sent / total) * 100) : 0;
+
+        const statusKey = (c.status || 'idle').toLowerCase();
+        const cfg = statusConfig[statusKey] || statusConfig.idle;
+
+        return `
+            <div class="campaign-row" onclick="openCampaignManagement('${internalName}')">
+                <div class="campaign-cell campaign-cell-name">
+                    <div class="campaign-name">${displayName}</div>
+                    <div class="campaign-subtitle">${internalName}</div>
+                </div>
+                <div class="campaign-cell campaign-cell-status">
+                    <span class="campaign-status-pill ${cfg.pillClass}">${cfg.label}</span>
+                </div>
+                <div class="campaign-cell campaign-cell-progress">
+                    <div class="campaign-progress-text">${sent}/${total}</div>
+                    <div class="campaign-progress-bar">
+                        <div class="campaign-progress-bar-inner" style="width: ${progressPct}%;"></div>
+                    </div>
+                </div>
+                <div class="campaign-cell campaign-cell-date">
+                    ${createdAt}
+                </div>
+                <div class="campaign-cell campaign-cell-actions">
+                    <button class="btn btn-primary btn-sm campaign-manage-btn" onclick="event.stopPropagation(); openCampaignManagement('${internalName}')">
+                        Gerenciar
+                    </button>
+                    <button class="btn btn-danger btn-sm campaign-delete-btn" onclick="event.stopPropagation(); deleteCampaign('${internalName}')">
+                        Excluir
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="campaigns-table-header">
+            <div class="campaigns-table-title">Nome</div>
+            <div class="campaigns-table-title">Status</div>
+            <div class="campaigns-table-title">Progresso</div>
+            <div class="campaigns-table-title">Criado em</div>
+            <div class="campaigns-table-title">Ações</div>
+        </div>
+        <div class="campaigns-table-body">
+            ${rowsHtml}
+        </div>
+    `;
+}
+
+// Abre o gerenciamento da campanha a partir da tabela
+function openCampaignManagement(name) {
+    const select = document.getElementById('selectedCampaign');
+    if (select) {
+        select.value = name;
+    }
+
+    // Carrega detalhes e muda para aba de detalhes
+    loadCampaignDetails().then(() => {
+        const dispatchPanel = document.getElementById('dispatch-panel');
+        if (!dispatchPanel) return;
+
+        const tabName = 'tab-campaign-details';
+        const targetContent = dispatchPanel.querySelector('#' + tabName);
+        const targetBtn = dispatchPanel.querySelector('.tab-btn[data-tab="' + tabName + '"]');
+
+        if (targetBtn) {
+            targetBtn.classList.remove('tab-hidden');
+        }
+
+        if (targetContent) {
+            // Atualiza estados das abas dentro do painel de disparos
+            dispatchPanel.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            if (targetBtn) targetBtn.classList.add('active');
+
+            dispatchPanel.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            targetContent.classList.add('active');
+        }
     });
 }
 
-async function loadCampaignDetails() {
+// Compatibilidade com chamadas antigas
+function selectCampaignFromSidebar(name) {
+    openCampaignManagement(name);
+}
+
+async function loadCampaignDetails(options = {}) {
+    const { preserveTab = false } = options;
     const name = document.getElementById('selectedCampaign').value;
     
     if (!name) {
@@ -401,45 +824,101 @@ async function loadCampaignDetails() {
         state.currentCampaign = campaign;
         
         document.getElementById('campaignDetails').style.display = 'block';
+        // Só volta para a aba "Visão Geral" se não estiver preservando a aba atual
+        if (!preserveTab && typeof setCampaignInnerTab === 'function') {
+            setCampaignInnerTab('overview');
+        }
+
+        // Atualiza título/subtítulo da aba de detalhes com o nome da campanha
+        const detailsTitle = document.getElementById('campaignDetailsTitle');
+        const detailsSubtitle = document.getElementById('campaignDetailsSubtitle');
+        const statusPill = document.getElementById('campaignDetailsStatusPill');
+        const createdLabel = document.getElementById('campaignDetailsCreated');
+
+        const displayName = campaign.displayName || campaign.name || 'Campanha selecionada';
+        if (detailsTitle) {
+            detailsTitle.textContent = displayName;
+        }
+        if (detailsSubtitle) {
+            detailsSubtitle.textContent = 'Gerencie números, mensagens, status e contatos da campanha "' + displayName + '".';
+        }
+
+        // Meta (status + data de criação)
+        const statusKey = (campaign.status || 'idle').toLowerCase();
+        const statusConfig = {
+            running: { label: 'Em execução', pillClass: 'campaign-status-running' },
+            paused: { label: 'Pausada', pillClass: 'campaign-status-paused' },
+            completed: { label: 'Concluída', pillClass: 'campaign-status-completed' },
+            stopped: { label: 'Parada', pillClass: 'campaign-status-stopped' },
+            idle: { label: 'Pronta', pillClass: 'campaign-status-idle' }
+        };
+        const statusInfo = statusConfig[statusKey] || statusConfig.idle;
+
+        if (statusPill) {
+            statusPill.textContent = statusInfo.label;
+            statusPill.className = `campaign-status-pill ${statusInfo.pillClass}`;
+        }
+
+        if (createdLabel) {
+            if (campaign.createdAt) {
+                const createdDate = new Date(campaign.createdAt);
+                if (!Number.isNaN(createdDate.getTime())) {
+                    createdLabel.textContent = `Criada em ${createdDate.toLocaleDateString('pt-BR')}`;
+                } else {
+                    createdLabel.textContent = '';
+                }
+            } else {
+                createdLabel.textContent = '';
+            }
+        }
+
+        // Atualiza destaque da lista lateral
+        renderCampaignSidebar(state.campaigns);
         
-        // Stats
+        // Stats (cards principais no topo)
         const statsContainer = document.getElementById('campaignStats');
-        statsContainer.innerHTML = `
-            <div class="stat-item">
-                <h4>${campaign.stats.total}</h4>
-                <p>Total</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.sent}</h4>
-                <p>Enviadas</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.received || 0}</h4>
-                <p>Recebidas</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.read || 0}</h4>
-                <p>Lidas</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.replied || 0}</h4>
-                <p>Respondidas</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.failed}</h4>
-                <p>Falhas</p>
-            </div>
-            <div class="stat-item">
-                <h4>${campaign.stats.pending}</h4>
-                <p>Pendentes</p>
-            </div>
-        `;
+        if (statsContainer) {
+            const totalContacts = (campaign.stats && typeof campaign.stats.total === 'number')
+                ? campaign.stats.total
+                : (Array.isArray(campaign.contacts) ? campaign.contacts.length : 0);
+            const delivered = (campaign.stats && typeof campaign.stats.sent === 'number')
+                ? campaign.stats.sent
+                : 0;
+            const replies = (campaign.stats && typeof campaign.stats.replied === 'number')
+                ? campaign.stats.replied
+                : 0;
+            const failures = (campaign.stats && typeof campaign.stats.failed === 'number')
+                ? campaign.stats.failed
+                : 0;
+
+            statsContainer.innerHTML = `
+                <div class="stat-item">
+                    <h4>${totalContacts}</h4>
+                    <p>Total contatos</p>
+                </div>
+                <div class="stat-item">
+                    <h4>${delivered}</h4>
+                    <p>Entregues</p>
+                </div>
+                <div class="stat-item">
+                    <h4>${replies}</h4>
+                    <p>Respostas</p>
+                </div>
+                <div class="stat-item">
+                    <h4>${failures}</h4>
+                    <p>Falhas</p>
+                </div>
+            `;
+        }
         
         // Render Contacts Table
         renderContactsTable(campaign);
         
         // Render Messages List
         renderMessages(campaign);
+        
+        // Render Linked Instances
+        renderLinkedInstances();
         
     } catch (error) {
         console.error(error);
@@ -497,10 +976,60 @@ async function uploadNumbers() {
         showToast(`${data.validation.valid} números adicionados!`, 'success');
         
         document.getElementById('numbersFile').value = '';
-        loadCampaignDetails();
+        loadCampaignDetails({ preserveTab: true });
         
     } catch (error) {
         showToast(error.message, 'error');
+    }
+}
+
+async function addManualContact() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    const nameInput = document.getElementById('manualContactName');
+    const phoneInput = document.getElementById('manualContactPhone');
+
+    if (!campaignName) {
+        showToast('Selecione uma campanha na lista antes de adicionar contatos.', 'warning');
+        return;
+    }
+
+    if (!phoneInput) {
+        return;
+    }
+
+    const contactName = nameInput ? nameInput.value.trim() : '';
+    const rawPhone = phoneInput.value.trim();
+
+    if (!rawPhone) {
+        showToast('Informe o telefone do contato.', 'warning');
+        phoneInput.focus();
+        return;
+    }
+
+    const cleanedPhone = rawPhone.replace(/\D/g, '');
+    if (cleanedPhone.length < 10 || cleanedPhone.length > 15) {
+        showToast('Telefone inválido. Use DDD + número (10 a 15 dígitos).', 'warning');
+        phoneInput.focus();
+        return;
+    }
+
+    try {
+        await apiCall(`/api/campaign/${encodeURIComponent(campaignName)}/add-contact`, {
+            method: 'POST',
+            body: JSON.stringify({
+                contactName: contactName || null,
+                phone: cleanedPhone
+            })
+        });
+
+        showToast('Contato adicionado à campanha!', 'success');
+        if (nameInput) nameInput.value = '';
+        phoneInput.value = '';
+        closeManualContactModal();
+        loadCampaignDetails({ preserveTab: true });
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Erro ao adicionar contato', 'error');
     }
 }
 
@@ -509,7 +1038,7 @@ function showNumbersResult(data) {
     const title = document.getElementById('modalTitle');
     const body = document.getElementById('modalBody');
     
-    title.textContent = '📊 Números Carregados';
+    title.textContent = 'Números carregados';
     
     let html = `
         <div class="upload-result">
@@ -544,7 +1073,7 @@ function showNumbersResult(data) {
         `;
         
         data.validation.validNumbers.forEach(num => {
-            html += `<div class="result-item valid">✅ ${num}</div>`;
+            html += `<div class="result-item valid">${num}</div>`;
         });
         
         html += `</div>`;
@@ -561,7 +1090,7 @@ function showNumbersResult(data) {
         `;
         
         data.validation.invalidNumbers.forEach(num => {
-            html += `<div class="result-item invalid">❌ ${num}</div>`;
+            html += `<div class="result-item invalid">${num}</div>`;
         });
         
         html += `</div>`;
@@ -575,7 +1104,10 @@ function showNumbersResult(data) {
 
 function closeModal() {
     const modal = document.getElementById('confirmModal');
-    modal.classList.remove('show');
+    modal.classList.remove('show', 'modal-small');
+    modal.style.display = '';
+    const footer = modal.querySelector('.modal-footer');
+    if (footer) footer.style.display = '';
 }
 
 async function addMessage() {
@@ -601,7 +1133,7 @@ async function addMessage() {
         
         showToast('Mensagem adicionada!', 'success');
         textarea.value = '';
-        loadCampaignDetails();
+        loadCampaignDetails({ preserveTab: true });
         
     } catch (error) {
         console.error(error);
@@ -652,7 +1184,7 @@ async function addBulkMessages() {
         
         showToast(`✅ ${added} mensagens adicionadas! ${failed > 0 ? `(${failed} falharam)` : ''}`, 'success');
         textarea.value = '';
-        loadCampaignDetails();
+        loadCampaignDetails({ preserveTab: true });
         
     } catch (error) {
         console.error(error);
@@ -669,7 +1201,7 @@ async function removeMessage(campaignName, index) {
         });
         
         showToast('Mensagem removida', 'success');
-        loadCampaignDetails();
+        loadCampaignDetails({ preserveTab: true });
         
     } catch (error) {
         console.error(error);
@@ -690,7 +1222,7 @@ function renderMessages(campaign) {
             <div class="message-content">
                 <div class="message-text">${msg}</div>
                 <div class="message-actions">
-                    <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${idx})">❌ Remover</button>
+                    <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${idx})">Remover</button>
                 </div>
             </div>
         </div>
@@ -702,7 +1234,7 @@ function showMessagesResult(data) {
     const title = document.getElementById('modalTitle');
     const body = document.getElementById('modalBody');
     
-    title.textContent = '📝 Mensagens Carregadas';
+    title.textContent = 'Mensagens carregadas';
     
     let html = `
         <div class="upload-result">
@@ -714,7 +1246,7 @@ function showMessagesResult(data) {
             </div>
             
             <div class="alert alert-info">
-                <strong>✅ Sucesso!</strong> ${data.messagesCount} mensagens foram carregadas e serão alternadas durante o disparo.
+                <strong>Sucesso.</strong> ${data.messagesCount} mensagens foram carregadas e serão alternadas durante o disparo.
             </div>
     `;
     
@@ -758,13 +1290,13 @@ function renderContactsTable(campaign) {
     
     tbody.innerHTML = campaign.contacts.map((contact, idx) => {
         const statusIcons = {
-            'pending': '⏳',
-            'sending': '📤',
-            'sent': '✅',
-            'received': '📨',
-            'read': '👁️',
-            'replied': '💬',
-            'failed': '❌'
+            'pending': '',
+            'sending': '',
+            'sent': '',
+            'received': '',
+            'read': '',
+            'replied': '',
+            'failed': ''
         };
         
         const statusLabels = {
@@ -807,7 +1339,7 @@ function renderContactsTable(campaign) {
                     <button class="btn btn-danger btn-sm" 
                             onclick="removeContact('${campaign.name}', '${contact.phone}')"
                             ${!canRemove ? 'disabled' : ''}>
-                        🗑️ Remover
+                        Remover
                     </button>
                 </td>
             </tr>
@@ -824,7 +1356,7 @@ async function removeContact(campaignName, phoneNumber) {
         });
         
         showToast('Contato removido', 'success');
-        loadCampaignDetails();
+        loadCampaignDetails({ preserveTab: true });
         
     } catch (error) {
         console.error(error);
@@ -838,40 +1370,84 @@ function downloadTemplate(type) {
 // ==== DISPATCH ====
 
 async function startDispatch() {
-    const campaignName = document.getElementById('dispatchCampaign').value;
-    const messageDelay = parseInt(document.getElementById('messageDelay').value) || 3;
-    const numberDelay = parseInt(document.getElementById('numberDelay').value) || 5;
+    const select = document.getElementById('selectedCampaign');
+    const campaignName = select ? select.value : '';
+    const messageDelay = parseInt(document.getElementById('messageDelay').value, 10) || 15;
+    const enablePauseCheckbox = document.getElementById('enablePauseAfterMessages');
+    const pauseAfterInput = document.getElementById('pauseAfterMessages');
+    const pauseDurationInput = document.getElementById('pauseDuration');
+    const enableTypingInput = document.getElementById('enableTyping');
+
+    // Só considera os valores de pausa se a checkbox estiver marcada
+    const isPauseEnabled = enablePauseCheckbox && enablePauseCheckbox.checked;
+    const rawPauseAfter = isPauseEnabled && pauseAfterInput ? parseInt(pauseAfterInput.value, 10) : NaN;
+    const rawPauseDuration = isPauseEnabled && pauseDurationInput ? parseInt(pauseDurationInput.value, 10) : NaN;
+    const pauseAfterMessages = isNaN(rawPauseAfter) ? null : rawPauseAfter;
+    const pauseDurationMinutes = isNaN(rawPauseDuration) ? null : rawPauseDuration;
+    const enableTyping = !!(enableTypingInput && enableTypingInput.checked);
     
     if (!campaignName) {
-        showToast('Selecione uma campanha', 'warning');
+        showToast('Selecione uma campanha primeiro', 'warning');
+        addConsoleLog('Erro: Nenhuma campanha selecionada', 'error');
         return;
     }
     
-    // Validação dos delays
     if (messageDelay < 1 || messageDelay > 360) {
         showToast('Delay entre mensagens deve estar entre 1 e 360 segundos', 'warning');
         return;
     }
-    
-    if (numberDelay < 1 || numberDelay > 120) {
-        showToast('Delay entre números deve estar entre 1 e 120 segundos', 'warning');
+
+    if (pauseAfterMessages !== null && (pauseAfterMessages < 1 || pauseAfterMessages > 500)) {
+        showToast('"Pausa após X mensagens" deve estar entre 1 e 500', 'warning');
+        return;
+    }
+
+    if (pauseDurationMinutes !== null && (pauseDurationMinutes < 1 || pauseDurationMinutes > 60)) {
+        showToast('"Tempo de pausa (min)" deve estar entre 1 e 60', 'warning');
         return;
     }
     
-    if (!confirm(`Iniciar disparo da campanha?\n\n⏱️ Configurações:\n• Delay entre mensagens: ${messageDelay}s\n• Delay entre números: ${numberDelay}s`)) return;
-    
     try {
+        clearConsole();
+        addConsoleLog('Iniciando sistema de disparo...', 'success');
+        addConsoleLog(`Campanha: ${campaignName}`, 'success');
+        addConsoleLog(`Intervalo: ${messageDelay}s entre mensagens`, 'success');
+
+        if (pauseAfterMessages !== null && pauseDurationMinutes !== null) {
+            addConsoleLog(`Pausa configurada: a cada ${pauseAfterMessages} mensagens, aguardar ${pauseDurationMinutes} min`, 'success');
+        } else if (pauseAfterMessages !== null) {
+            addConsoleLog(`Pausa configurada: a cada ${pauseAfterMessages} mensagens`, 'success');
+        }
+
+        if (enableTyping) {
+            addConsoleLog('Status "digitando..." habilitado', 'success');
+        }
+
+        const payload = {
+            messageDelay: messageDelay * 1000,
+            enableTyping
+        };
+
+        if (pauseAfterMessages !== null) {
+            payload.pauseAfterMessages = pauseAfterMessages;
+        }
+
+        if (pauseDurationMinutes !== null) {
+            payload.pauseDuration = pauseDurationMinutes * 60 * 1000;
+        }
+
         await apiCall(`/api/dispatch/start/${campaignName}`, { 
             method: 'POST',
-            body: JSON.stringify({ 
-                messageDelay: messageDelay * 1000, // Converte para milissegundos
-                numberDelay: numberDelay * 1000
-            })
+            body: JSON.stringify(payload)
         });
+        
         showToast('Disparo iniciado!', 'success');
+        updateDispatchControls('running');
         document.getElementById('dispatchProgress').style.display = 'block';
+        addConsoleLog('Disparo iniciado com sucesso!', 'success');
     } catch (error) {
         console.error(error);
+        addConsoleLog(`Erro ao iniciar disparo: ${error.message}`, 'error');
     }
 }
 
@@ -879,8 +1455,11 @@ async function pauseDispatch() {
     try {
         await apiCall('/api/dispatch/pause', { method: 'POST' });
         showToast('Disparo pausado', 'warning');
+        updateDispatchControls('paused');
+        addConsoleLog('Disparo pausado pelo usuário', 'muted');
     } catch (error) {
         console.error(error);
+        addConsoleLog(`Erro ao pausar: ${error.message}`, 'error');
     }
 }
 
@@ -888,8 +1467,11 @@ async function resumeDispatch() {
     try {
         await apiCall('/api/dispatch/resume', { method: 'POST' });
         showToast('Disparo retomado', 'success');
+        updateDispatchControls('running');
+        addConsoleLog('Disparo retomado', 'success');
     } catch (error) {
         console.error(error);
+        addConsoleLog(`Erro ao retomar: ${error.message}`, 'error');
     }
 }
 
@@ -899,8 +1481,11 @@ async function stopDispatch() {
     try {
         await apiCall('/api/dispatch/stop', { method: 'POST' });
         showToast('Disparo parado', 'info');
+        updateDispatchControls('idle');
+        addConsoleLog('Disparo interrompido pelo usuário', 'muted');
     } catch (error) {
         console.error(error);
+        addConsoleLog(`Erro ao parar: ${error.message}`, 'error');
     }
 }
 
@@ -933,7 +1518,7 @@ socket.on('progress', (data) => {
         
         // Estatísticas por instância
         if (data.campaign.instanceStats && Object.keys(data.campaign.instanceStats).length > 0) {
-            statsHTML += '<div style="width: 100%; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;"><h4 style="margin-bottom: 15px;">📊 Estatísticas por Instância</h4><div class="instance-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
+            statsHTML += '<div style="width: 100%; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e0e0e0;"><h4 style="margin-bottom: 15px;">Estatísticas por instância</h4><div class="instance-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">';
             
             Object.entries(data.campaign.instanceStats).forEach(([sessionId, stats]) => {
                 const instanceNumber = sessionId.replace('instance-', '').replace(/^0+/, '');
@@ -953,11 +1538,11 @@ socket.on('progress', (data) => {
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
                             <div>
-                                <p style="margin: 0; font-size: 0.9em; color: #666;">✅ Enviadas</p>
+                                <p style="margin: 0; font-size: 0.9em; color: #666;">Enviadas</p>
                                 <p style="margin: 0; font-weight: bold; color: #10b981; font-size: 1.1em;">${stats.sent}</p>
                             </div>
                             <div>
-                                <p style="margin: 0; font-size: 0.9em; color: #666;">❌ Falhas</p>
+                                <p style="margin: 0; font-size: 0.9em; color: #666;">Falhas</p>
                                 <p style="margin: 0; font-weight: bold; color: #ef4444; font-size: 1.1em;">${stats.failed}</p>
                             </div>
                             <div>
@@ -978,11 +1563,15 @@ socket.on('progress', (data) => {
 
 socket.on('dispatch-complete', (data) => {
     showToast(`Campanha ${data.campaignName} concluída!`, 'success');
+    updateDispatchControls('idle');
+    addConsoleLog(`Campanha ${data.campaignName} finalizada com sucesso!`, 'success');
     loadCampaigns();
 });
 
 socket.on('dispatch-error', (data) => {
     showToast(`Erro na campanha: ${data.error}`, 'error');
+    updateDispatchControls('idle');
+    addConsoleLog(`Erro: ${data.error}`, 'error');
 });
 
 // Atualização de contatos em tempo real
@@ -996,6 +1585,13 @@ socket.on('contacts-updated', (data) => {
 
 // Atualização de status de contato individual
 socket.on('contact-status-updated', (data) => {
+    // Adiciona log no console de execução
+    if (data.status === 'sent') {
+        addConsoleLog(`Enviando para ${data.phone}... OK`, 'success');
+    } else if (data.status === 'failed') {
+        addConsoleLog(`Enviando para ${data.phone}... FALHA`, 'error');
+    }
+    
     if (state.currentCampaign && state.currentCampaign.name === data.campaignName) {
         const contact = state.currentCampaign.contacts.find(c => c.phone === data.phone);
         if (contact) {
@@ -1008,10 +1604,153 @@ socket.on('contact-status-updated', (data) => {
             if (data.error) contact.error = data.error;
             
             // Recarrega detalhes da campanha para atualizar estatísticas
-            loadCampaignDetails();
+            loadCampaignDetails({ preserveTab: true });
         }
     }
 });
+
+// ==== PAUSE OPTIONS TOGGLE ====
+
+function togglePauseOptions() {
+    const checkbox = document.getElementById('enablePauseAfterMessages');
+    const container = document.getElementById('pauseOptionsContainer');
+    
+    if (checkbox.checked) {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// ==== LINKED INSTANCES ====
+
+// Abre modal para gerenciar instâncias vinculadas
+function openLinkedInstancesModal() {
+    if (!state.currentCampaign) {
+        showToast('Selecione uma campanha primeiro', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('linkedInstancesModal');
+    const checkboxList = document.getElementById('instancesCheckboxList');
+    const noInstancesWarning = document.getElementById('noInstancesWarning');
+
+    // Obtém instâncias do usuário e instâncias vinculadas à campanha
+    const userInstances = state.instances || [];
+    const linkedInstances = state.currentCampaign.linkedInstances || [];
+
+    if (userInstances.length === 0) {
+        checkboxList.innerHTML = '';
+        noInstancesWarning.style.display = 'block';
+    } else {
+        noInstancesWarning.style.display = 'none';
+        
+        checkboxList.innerHTML = userInstances.map(inst => {
+            const isLinked = linkedInstances.includes(inst.id);
+            const statusClass = inst.status === 'connected' ? 'status-connected' : 'status-disconnected';
+            const statusText = inst.status === 'connected' ? 'Conectado' : 'Desconectado';
+            const phone = inst.phone || '--';
+            const number = inst.id.match(/instance-0*(\d+)/)?.[1] || inst.id;
+
+            return `
+                <label class="instance-checkbox-item ${isLinked ? 'selected' : ''}" for="link-${inst.id}">
+                    <input type="checkbox" 
+                           id="link-${inst.id}" 
+                           value="${inst.id}" 
+                           ${isLinked ? 'checked' : ''}
+                           ${inst.status !== 'connected' ? 'disabled' : ''}
+                           onchange="this.parentElement.classList.toggle('selected', this.checked)">
+                    <div class="instance-checkbox-info">
+                        <div class="instance-checkbox-header">
+                            <span class="instance-checkbox-number">${number}</span>
+                            <span class="instance-checkbox-name">${inst.name || 'Instância ' + number}</span>
+                        </div>
+                        <div class="instance-checkbox-details">
+                            <span class="instance-checkbox-phone">${phone}</span>
+                            <span class="instance-checkbox-status ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    }
+
+    modal.classList.add('show');
+}
+
+// Fecha modal de instâncias vinculadas
+function closeLinkedInstancesModal() {
+    const modal = document.getElementById('linkedInstancesModal');
+    modal.classList.remove('show');
+}
+
+// Salva instâncias vinculadas
+async function saveLinkedInstances() {
+    if (!state.currentCampaign) {
+        showToast('Nenhuma campanha selecionada', 'error');
+        return;
+    }
+
+    const checkboxList = document.getElementById('instancesCheckboxList');
+    const checkedBoxes = checkboxList.querySelectorAll('input[type="checkbox"]:checked');
+    const instanceIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+    try {
+        const campaignName = encodeURIComponent(state.currentCampaign.name);
+        const { linkedInstances, campaign } = await apiCall(`/api/campaign/${campaignName}/linked-instances`, {
+            method: 'POST',
+            body: JSON.stringify({ instanceIds })
+        });
+
+        state.currentCampaign.linkedInstances = linkedInstances;
+        
+        // Atualiza a visualização
+        renderLinkedInstances();
+        
+        closeLinkedInstancesModal();
+        showToast(`${linkedInstances.length} instância(s) vinculada(s)`, 'success');
+    } catch (error) {
+        console.error('Erro ao salvar instâncias vinculadas:', error);
+        showToast('Erro ao salvar instâncias vinculadas', 'error');
+    }
+}
+
+// Renderiza lista de instâncias vinculadas na tela de disparo
+function renderLinkedInstances() {
+    const container = document.getElementById('linkedInstancesList');
+    if (!container) return;
+
+    const linkedInstances = state.currentCampaign?.linkedInstances || [];
+    const userInstances = state.instances || [];
+
+    if (linkedInstances.length === 0) {
+        container.innerHTML = `
+            <div class="linked-instances-empty">
+                <p class="empty-state-sm">Nenhuma instância vinculada</p>
+                <p class="empty-state-hint">Todas as instâncias conectadas serão utilizadas.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Filtra apenas as instâncias vinculadas
+    const linkedData = userInstances.filter(i => linkedInstances.includes(i.id));
+
+    container.innerHTML = linkedData.map(inst => {
+        const statusClass = inst.status === 'connected' ? 'connected' : 'disconnected';
+        const statusIcon = inst.status === 'connected' ? '✓' : '!';
+        const phone = inst.phone || '--';
+        const number = inst.id.match(/instance-0*(\d+)/)?.[1] || inst.id;
+
+        return `
+            <div class="linked-instance-chip ${statusClass}">
+                <span class="linked-instance-icon">${statusIcon}</span>
+                <span class="linked-instance-name">${inst.name || 'Instância ' + number}</span>
+                <span class="linked-instance-phone">${phone}</span>
+            </div>
+        `;
+    }).join('');
+}
 
 // ==== INSTANCES ====
 
@@ -1092,9 +1831,9 @@ function renderInstances() {
     if (!state.instances || state.instances.length === 0) {
         grid.innerHTML = `
             <div class="empty-state">
-                <p>📱 Nenhuma instância encontrada</p>
+                <p> Nenhuma instância encontrada</p>
                 <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                    Clique em "+ Adicionar Instância" para começar
+                    Clique em "Adicionar Instância" para começar
                 </p>
             </div>
         `;
@@ -1105,54 +1844,84 @@ function renderInstances() {
         // Extrai apenas o número do ID (remove zeros à esquerda)
         const numberMatch = inst.id.match(/instance-0*(\d+)/);
         const number = numberMatch ? numberMatch[1] : inst.id.replace('instance-', '');
-        
+
         const statusInfo = {
-            'connected': { icon: '✓', text: 'Conectado', color: 'success' },
-            'connecting': { icon: '⟳', text: 'Aguardando conexão', color: 'warning' },
-            'disconnected': { icon: '○', text: 'Desconectado', color: 'default' }
+            connected:   { icon: '✓', text: 'Conectado',        color: 'success' },
+            connecting:  { icon: '⟳', text: 'Conectando...',     color: 'warning' },
+            disconnected:{ icon: '!', text: 'Desconectado',     color: 'danger' }
         };
         const status = statusInfo[inst.status] || statusInfo.disconnected;
-        
+
+        const phone = inst.phone || '--';
+        const lastActivity = inst.lastActivity || 'Nunca';
+        const name = inst.name || `Instância ${number}`;
+
+        let mainAction = '';
+        if (inst.status === 'connected') {
+            mainAction = `
+                <button class="btn btn-danger btn-block" onclick="disconnectInstance('${inst.id}')">
+                     Desconectar
+                </button>
+            `;
+        } else if (inst.status === 'connecting') {
+            mainAction = `
+                <button class="btn btn-warning btn-block" onclick="resetInstance('${inst.id}')">
+                     Conectando... (Resetar)
+                </button>
+            `;
+        } else {
+            mainAction = `
+                <button class="btn btn-primary btn-block" onclick="connectInstance('${inst.id}')">
+                     Gerar QR Code
+                </button>
+            `;
+        }
+
         return `
-        <div class="instance-card ${inst.status}" id="${inst.id}">
-            <div class="instance-number">${number}</div>
-            <div class="instance-title">${inst.name}</div>
-            <div class="instance-subtitle">Nome da ${inst.name}</div>
-            
+        <div class="instance-card ${inst.status || 'disconnected'}" id="${inst.id}">
+            <div class="instance-header-row">
+                <div class="instance-header-left">
+                    <div class="instance-number">${number}</div>
+                    <div>
+                        <div class="instance-title">${name}</div>
+                        <div class="instance-card-id">ID: ${inst.id}</div>
+                    </div>
+                </div>
+                <button class="instance-remove-btn" onclick="removeInstance('${inst.id}')" ${inst.status === 'connected' ? 'disabled' : ''} title="Remover instância">
+                    🗑️
+                </button>
+            </div>
+
+            <div class="instance-info-rows">
+                <div class="instance-info-row">
+                    <span class="instance-info-label">Status</span>
+                    <span class="instance-status-text status-${status.color}">${status.text}</span>
+                </div>
+                <div class="instance-info-row">
+                    <span class="instance-info-label">Número</span>
+                    <span class="instance-info-value">${phone}</span>
+                </div>
+                <div class="instance-info-row">
+                    <span class="instance-info-label">Última Atividade</span>
+                    <span class="instance-info-value">${lastActivity}</span>
+                </div>
+            </div>
+
             ${inst.qrCode ? `
                 <div class="instance-qr">
                     <img src="${inst.qrCode}" alt="QR Code">
                 </div>
             ` : ''}
-            
+
             <div class="instance-buttons">
-                ${inst.status === 'disconnected' || !inst.status ? `
-                    <button class="btn btn-success btn-block" onclick="connectInstance('${inst.id}')">
-                        📱 Gerar QR Code
-                    </button>
-                ` : ''}
-                ${inst.status === 'connected' ? `
-                    <button class="btn btn-success btn-block" disabled>
-                        📱 Gerar QR Code
-                    </button>
-                ` : ''}
-                ${inst.status === 'connecting' ? `
-                    <button class="btn btn-warning btn-block" onclick="resetInstance('${inst.id}')">
-                        🔄 Resetar & Gerar Novo QR
-                    </button>
-                ` : ''}
-                <button class="btn btn-danger btn-block" onclick="disconnectInstance('${inst.id}')" ${inst.status !== 'connected' ? 'disabled' : ''}>
-                    📵 Desconectar
-                </button>
-                <button class="btn btn-danger btn-block" onclick="removeInstance('${inst.id}')" ${inst.status === 'connected' ? 'disabled' : ''}>
-                    🗑️ Remover Instância
-                </button>
+                ${mainAction}
             </div>
-            
-            <div class="instance-status-box status-${status.color}">
-                <span class="status-icon">${status.icon}</span>
-                <span>Status da Conexão:</span>
-                <strong>${status.text}</strong>
+
+            <div class="instance-footer-status">
+                <div class="instance-status-box status-${status.color}">
+                    <span class="status-icon">${status.icon}</span>
+                    <span>${status.text}</span>
+                </div>
             </div>
         </div>
     `;
@@ -1163,7 +1932,8 @@ async function connectInstance(instanceId) {
     const instance = state.instances.find(i => i.id === instanceId);
     if (!instance) return;
     
-    const sessionId = instance.id;
+    // Gera um sessionId único para evitar conflitos entre usuários
+    const sessionId = `${instance.id}-${Date.now()}`;
     
     try {
         // Remove QR code antigo
@@ -1500,28 +2270,30 @@ async function loadSchedulesList() {
 }
 
 function updateSchedulePreview() {
-    const startTime = document.getElementById('startTime').value;
-    const pauseTime = document.getElementById('pauseTime').value;
-    const stopTime = document.getElementById('stopTime').value;
+    const startTime = document.getElementById('startTime')?.value;
+    const pauseTime = document.getElementById('pauseTime')?.value;
+    const stopTime = document.getElementById('stopTime')?.value;
     const preview = document.getElementById('schedulePreview');
-    
+
+    if (!preview) return;
+
     if (!startTime) {
         preview.innerHTML = '';
         return;
     }
-    
+
     let html = `
-        <h4>📋 Resumo do Agendamento</h4>
+        <h4>🕒 Resumo do Agendamento</h4>
         <div class="schedule-timeline">
             <div class="timeline-item">
-                <div class="timeline-icon start">🕐</div>
+                <div class="timeline-icon start">🕒</div>
                 <div class="timeline-content">
                     <h5>Início Automático</h5>
                     <p>Campanha inicia às ${startTime}</p>
                 </div>
             </div>
     `;
-    
+
     if (pauseTime) {
         html += `
             <div class="timeline-item">
@@ -1533,7 +2305,7 @@ function updateSchedulePreview() {
             </div>
         `;
     }
-    
+
     if (stopTime) {
         html += `
             <div class="timeline-item">
@@ -1545,8 +2317,8 @@ function updateSchedulePreview() {
             </div>
         `;
     }
-    
-    html += `</div>`;
+
+    html += '</div>';
     preview.innerHTML = html;
 }
 
@@ -1858,35 +2630,33 @@ async function loadAnalytics() {
         document.getElementById('analyticsRead').textContent = summary?.total_read || 0;
         document.getElementById('analyticsFailed').textContent = summary?.total_failed || 0;
         
-        // Renderiza gráfico simples
+        // Renderiza gráfico usando barras estilizadas
         const chartContainer = document.getElementById('analyticsChart');
-        if (dailyData && dailyData.length > 0) {
-            const maxValue = Math.max(...dailyData.map(d => d.messages_sent || 0), 1);
-            chartContainer.innerHTML = dailyData.slice(-30).map(d => {
-                const height = ((d.messages_sent || 0) / maxValue * 250) || 5;
-                return `
-                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
-                        <div style="width: 100%; max-width: 30px; height: ${height}px; background: linear-gradient(to top, #25D366, #128C7E); border-radius: 3px 3px 0 0;" title="${d.date}: ${d.messages_sent} enviadas"></div>
-                        <span style="font-size: 0.6em; color: #888; margin-top: 5px; transform: rotate(-45deg);">${d.date.slice(5)}</span>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            chartContainer.innerHTML = '<p style="color: #888; text-align: center; width: 100%;">Sem dados para exibir</p>';
+        if (chartContainer) {
+            if (dailyData && dailyData.length > 0) {
+                const limited = dailyData.slice(-14); // últimos 14 dias para caber melhor
+                const maxValue = Math.max(...limited.map(d => d.messages_sent || 0), 1);
+
+                const barsHtml = limited.map(d => {
+                    const value = d.messages_sent || 0;
+                    const heightPct = Math.max((value / maxValue) * 100, 5);
+                    const label = (d.date || '').slice(5); // MM-DD
+                    return `
+                        <div class="analytics-chart-bar" style="height: ${heightPct}%;" title="${d.date}: ${value} enviadas"></div>
+                    `;
+                }).join('');
+
+                const labelsHtml = `<div class="analytics-chart-xlabels">${limited.map(d => {
+                    const label = (d.date || '').slice(5);
+                    return `<span>${label}</span>`;
+                }).join('')}</div>`;
+
+                chartContainer.innerHTML = barsHtml + labelsHtml;
+            } else {
+                chartContainer.innerHTML = '<p class="analytics-chart-empty">Sem dados para exibir</p>';
+            }
         }
         
-        // Lista campanhas recentes
-        const campaignsList = document.getElementById('recentCampaignsList');
-        if (recentCampaigns && recentCampaigns.length > 0) {
-            campaignsList.innerHTML = recentCampaigns.map(c => `
-                <div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333;">
-                    <span>${c.name}</span>
-                    <span style="color: #888;">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
-                </div>
-            `).join('');
-        } else {
-            campaignsList.innerHTML = '<p style="color: #888;">Nenhuma campanha recente</p>';
-        }
     } catch (error) {
         console.error('Erro ao carregar analytics:', error);
     }
@@ -1903,7 +2673,7 @@ async function exportAnalytics() {
 
 // ==== INITIALIZATION ====
 
-document.addEventListener('DOMContentLoaded', () => {
+function initializeApp() {
     loadCampaigns();
     loadSessions();
     loadInstances();
@@ -1923,8 +2693,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scheduleSelect) {
             const current = scheduleSelect.value;
             scheduleSelect.innerHTML = '<option value="">-- Selecione --</option>' +
-                campaigns.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                campaigns.map(c => `<option value="${c.name}">${c.displayName || c.name}</option>`).join('');
             scheduleSelect.value = current;
         }
     };
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}

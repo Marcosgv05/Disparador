@@ -7,6 +7,7 @@ import { logger } from '../config/logger.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { useDatabaseAuthState, clearAuthState } from './authStateDB.js';
+import instanceManager from '../services/instanceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -338,6 +339,47 @@ class SessionManager {
         phone: session.sock.user?.id,
         isReady: session.isReady
       }));
+  }
+
+  /**
+   * Obtém uma sessão disponível para um usuário específico usando round-robin
+   * @param {number|string} userId
+   * @param {Array<string>} linkedInstanceIds - IDs das instâncias vinculadas (opcional)
+   */
+  getAvailableSessionForUser(userId, linkedInstanceIds = null) {
+    if (!userId) {
+      return this.getAvailableSession();
+    }
+
+    const userInstances = instanceManager.listInstances(userId) || [];
+    
+    // Se linkedInstanceIds for fornecido, filtra apenas essas instâncias
+    let filteredInstances = userInstances;
+    if (linkedInstanceIds && linkedInstanceIds.length > 0) {
+      filteredInstances = userInstances.filter(i => linkedInstanceIds.includes(i.id));
+    }
+    
+    const allowedSessionIds = filteredInstances.map(i => i.sessionId).filter(Boolean);
+
+    if (allowedSessionIds.length === 0) {
+      return null;
+    }
+
+    const activeSessions = Array.from(this.sessions.entries())
+      .filter(([id, session]) => session.isReady && allowedSessionIds.includes(id));
+
+    if (activeSessions.length === 0) {
+      return null;
+    }
+
+    activeSessions.sort((a, b) => a[1].lastUsed - b[1].lastUsed);
+    const [sessionId, session] = activeSessions[0];
+    session.lastUsed = Date.now();
+
+    return {
+      id: sessionId,
+      sock: session.sock
+    };
   }
 
   /**

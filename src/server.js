@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import multer from 'multer';
@@ -11,6 +12,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import pg from 'pg';
 import connectPgSimple from 'connect-pg-simple';
+import admin from 'firebase-admin';
 
 // Importa serviços
 import sessionManager from './whatsapp/sessionManager.js';
@@ -22,6 +24,7 @@ import campaignScheduler from './services/campaignScheduler.js';
 import autoPause from './services/autoPause.js';
 import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
+import { settings } from './config/settings.js';
 import QRCode from 'qrcode';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
@@ -29,6 +32,7 @@ import templatesRoutes from './routes/templates.js';
 import schedulerRoutes from './routes/scheduler.js';
 import analyticsRoutes from './routes/analytics.js';
 import { requireAuth, optionalAuth, validateCampaignOwnership } from './middleware/auth.js';
+import { sanitizeBody, validateCampaignNameParam, validateIdParam } from './middleware/validation.js';
 import { clearAuthState, listAuthSessions } from './whatsapp/authStateDB.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,11 +43,94 @@ const app = express();
 // Confia no proxy (necessário para rate-limiter funcionar corretamente no Render)
 app.set('trust proxy', 1);
 
+// Headers de segurança com Helmet
+if (process.env.NODE_ENV === 'production') {
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com", "https://apis.google.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "wss:", "ws:"],
+        frameSrc: ["'self'", "https://accounts.google.com"]
+      }
+    },
+    crossOriginEmbedderPolicy: false
+  }));
+} else {
+  // Em desenvolvimento, usa configuração mais permissiva
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false
+  }));
+}
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
+    origin: process.env.NODE_ENV === 'production'
+      ? (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean)
+      : '*',
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Middleware de autenticação para Socket.IO (usa Firebase Admin)
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) {
+      return next(new Error('Autenticação necessária para WebSocket'));
+    }
+
+    if (!admin.apps.length && process.env.NODE_ENV === 'production') {
+      return next(new Error('Servidor de autenticação não configurado'));
+    }
+
+    let decodedToken;
+    if (admin.apps.length > 0) {
+      decodedToken = await admin.auth().verifyIdToken(token);
+    } else {
+      // Ambiente de desenvolvimento sem Firebase Admin
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        decodedToken = {
+          uid: payload.user_id || payload.sub,
+          email: payload.email
+        };
+      } catch {
+        return next(new Error('Token inválido'));
+      }
+    }
+
+    // Busca o usuário no banco para usar o mesmo ID das rotas HTTP
+    let finalUserId = decodedToken.uid;
+    try {
+      const dbUser = await dbManager.getUserByEmail(decodedToken.email);
+      if (dbUser) {
+        finalUserId = dbUser.id;
+      }
+    } catch (e) {
+      // Se falhar, usa o UID do Firebase
+      logger.warn(`Socket.IO: erro ao buscar usuário no banco: ${e.message}`);
+    }
+
+    socket.user = {
+      id: finalUserId,
+      firebaseUid: decodedToken.uid,
+      email: decodedToken.email
+    };
+
+    // Cada usuário entra em uma sala própria (usando ID do banco)
+    socket.join(`user:${socket.user.id}`);
+    logger.info(`Socket.IO: usuário ${decodedToken.email} entrou na sala user:${socket.user.id}`);
+    next();
+  } catch (error) {
+    logger.error(`Erro de autenticação Socket.IO: ${error.message}`);
+    next(new Error('Falha na autenticação do WebSocket'));
   }
 });
 
@@ -77,6 +164,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // Máximo 5MB por arquivo
+    files: 1 // Apenas 1 arquivo por vez
+  },
   fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (ext === '.csv' || ext === '.xlsx' || ext === '.xls') {
@@ -113,25 +204,23 @@ app.use(cors({
     // Permite requisições sem origin (mobile apps, Postman, servidor próprio, etc)
     if (!origin) return callback(null, true);
     
-    // Em produção, permite o próprio domínio do Render e origens configuradas
+    // Em produção, permite apenas origens configuradas e subdomínios confiáveis
     if (corsOrigins.includes(origin)) {
       return callback(null, true);
     }
     
-    // Permite qualquer subdomínio do onrender.com
-    if (origin.endsWith('.onrender.com')) {
+    // Em produção, permite apenas o domínio específico do Render configurado em CORS_ORIGIN
+    // NÃO permite qualquer subdomínio .onrender.com por segurança
+    if (process.env.RENDER_EXTERNAL_URL && origin === process.env.RENDER_EXTERNAL_URL) {
       return callback(null, true);
     }
     
-    // Em desenvolvimento, permite tudo
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
-    // Log para debug
-    console.log(`CORS bloqueado para origin: ${origin}`);
-    // Em vez de erro, permite mas loga (para evitar quebrar a aplicação)
-    return callback(null, true);
+    logger.warn(`CORS bloqueado para origin não autorizado: ${origin}`);
+    return callback(new Error('Origin não permitido pelo CORS'));
   },
   credentials: true
 }));
@@ -143,10 +232,21 @@ if (process.env.NODE_ENV === 'production') {
   app.use('/api/auth/register', authLimiter);
 }
 
-app.use(express.json());
+// Limite de tamanho para body JSON (proteção contra payloads grandes)
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Sanitização de body (remove caracteres de controle maliciosos)
+app.use(sanitizeBody);
+
 app.use(cookieParser());
 
 // Configuração de sessão com suporte a PostgreSQL em produção
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  logger.error('SESSION_SECRET não configurado em produção. Defina uma chave forte nas variáveis de ambiente.');
+  throw new Error('SESSION_SECRET obrigatório em produção');
+}
+
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'whatsapp-dispatcher-session-secret',
   resave: false,
@@ -184,105 +284,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rota de teste (para debug)
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    cors: req.headers.origin || 'no-origin'
-  });
-});
-
-// Endpoint de emergência para criar admin (APENAS DESENVOLVIMENTO/PRIMEIRO DEPLOY)
-app.post('/api/emergency/create-admin', async (req, res) => {
-  try {
-    const { secret } = req.body;
-    
-    // Proteção básica
-    if (secret !== process.env.EMERGENCY_SECRET && secret !== 'nexus-emergency-2025') {
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
-    
-    // Importa User model dinamicamente
-    const User = (await import('./models/User.js')).default;
-    
-    // Verifica se admin já existe
-    const existing = await User.findByEmail('admin@whatsapp.com');
-    
-    if (existing) {
-      return res.json({ 
-        message: 'Admin já existe', 
-        email: 'admin@whatsapp.com',
-        tip: 'Use o endpoint /api/emergency/reset-admin para resetar a senha'
-      });
-    }
-    
-    // Cria admin
-    await User.create({
-      email: 'admin@whatsapp.com',
-      password: 'admin123',
-      name: 'Administrador',
-      role: 'admin'
-    });
-    
-    res.json({ 
-      success: true, 
-      message: 'Admin criado com sucesso!',
-      credentials: {
-        email: 'admin@whatsapp.com',
-        password: 'admin123'
-      }
-    });
-    
-  } catch (error) {
-    logger.error(`Erro ao criar admin: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Endpoint de emergência para resetar senha do admin
-app.post('/api/emergency/reset-admin', async (req, res) => {
-  try {
-    const { secret } = req.body;
-    
-    // Proteção básica
-    if (secret !== process.env.EMERGENCY_SECRET && secret !== 'nexus-emergency-2025') {
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
-    
-    const User = (await import('./models/User.js')).default;
-    
-    // Reseta senha
-    const success = await User.updatePassword('admin@whatsapp.com', 'admin123');
-    
-    if (success) {
-      res.json({ 
-        success: true, 
-        message: 'Senha do admin resetada!',
-        credentials: {
-          email: 'admin@whatsapp.com',
-          password: 'admin123'
-        }
-      });
-    } else {
-      res.status(404).json({ error: 'Admin não encontrado' });
-    }
-    
-  } catch (error) {
-    logger.error(`Erro ao resetar admin: ${error.message}`);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Health check para Render/monitoramento
+// Health check para Railway/Render/monitoramento
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    database: process.env.DATABASE_URL ? 'postgresql' : 'sqlite'
   });
 });
+
+// Endpoints de emergência foram removidos do servidor principal por segurança.
+// Use os scripts CLI em src/scripts (createAdmin/resetAdminPassword) para operações administrativas.
 
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
@@ -419,7 +433,9 @@ campaignScheduler.start(60000); // Verifica a cada 1 minuto
 
 // Configura notificações do AutoPause via Socket.IO
 autoPause.onPauseEvent((event) => {
-  io.emit('autoPauseEvent', event);
+  if (event.instanceId && event.userId) {
+    io.to(`user:${event.userId}`).emit('autoPauseEvent', event);
+  }
   
   if (event.type === 'pause') {
     logger.warn(`🚨 Socket.IO: Instância ${event.instanceId} pausada - ${event.reason}`);
@@ -463,7 +479,9 @@ if (instancesToRestore.length > 0) {
               status: 'connected',
               phone 
             });
-            io.emit('session-connected', { sessionId: currentInst.sessionId, phone });
+            if (currentInst.userId) {
+              io.to(`user:${currentInst.userId}`).emit('session-connected', { sessionId: currentInst.sessionId, phone });
+            }
             logger.info(`✅ Instância ${currentInst.id} atualizada para conectada na verificação final`);
           }
         }
@@ -476,7 +494,7 @@ if (instancesToRestore.length > 0) {
 
 // Registra callbacks para status de mensagens
 sessionManager.onMessageStatus((phone, status, details) => {
-  const { campaignName } = details;
+  const { campaignName, userId } = details;
   
   if (!campaignName) return;
   
@@ -484,17 +502,20 @@ sessionManager.onMessageStatus((phone, status, details) => {
   const contact = campaignManager.updateContactStatus(campaignName, phone, status, details);
   
   if (contact) {
-    // Emite atualização via WebSocket
-    io.emit('contact-status-updated', {
-      campaignName,
-      phone,
-      status,
-      details,
-      sentAt: contact.sentAt,
-      receivedAt: contact.receivedAt,
-      readAt: contact.readAt,
-      repliedAt: contact.repliedAt
-    });
+    // Emite atualização via WebSocket apenas para o dono da campanha
+    if (contact.userId || userId) {
+      const ownerId = contact.userId || userId;
+      io.to(`user:${ownerId}`).emit('contact-status-updated', {
+        campaignName,
+        phone,
+        status,
+        details,
+        sentAt: contact.sentAt,
+        receivedAt: contact.receivedAt,
+        readAt: contact.readAt,
+        repliedAt: contact.repliedAt
+      });
+    }
     
     logger.info(`📊 Status atualizado: ${phone} -> ${status}`);
   }
@@ -502,21 +523,27 @@ sessionManager.onMessageStatus((phone, status, details) => {
 
 // Registra callbacks para mudanças de conexão
 sessionManager.onConnectionUpdate(async (sessionId, event, data) => {
+  const instance = instanceManager.getInstanceBySession(sessionId);
+  const ownerId = instance?.userId;
+
   if (event === 'qr') {
     // Converte QR Code para base64 e emite
     const qrCodeData = await QRCode.toDataURL(data.qr);
-    io.emit('qr-code', { sessionId, qrCode: qrCodeData });
+    if (ownerId) {
+      io.to(`user:${ownerId}`).emit('qr-code', { sessionId, qrCode: qrCodeData });
+    }
     logger.info(`📱 QR Code emitido via WebSocket para ${sessionId}`);
   } else if (event === 'open') {
     // Conexão estabelecida
     logger.info(`🔔 Emitindo evento 'session-connected' via WebSocket para ${sessionId}`);
     logger.info(`📡 Dados: sessionId=${sessionId}, phone=${data.phone}`);
-    io.emit('session-connected', { sessionId, phone: data.phone });
+    if (ownerId) {
+      io.to(`user:${ownerId}`).emit('session-connected', { sessionId, phone: data.phone });
+    }
     logger.info(`✅ Sessão ${sessionId} conectada: ${data.phone}`);
     
     // Atualiza instância se estiver em restauração
     try {
-      const instance = instanceManager.getInstanceBySession(sessionId);
       if (instance) {
         logger.info(`🔍 Instância encontrada: ${instance.id}, status atual: ${instance.status}`);
         if (instance.status === 'connecting') {
@@ -536,12 +563,14 @@ sessionManager.onConnectionUpdate(async (sessionId, event, data) => {
     }
   } else if (event === 'close') {
     // Conexão fechada
-    if (!data.shouldReconnect) {
-      io.emit('session-error', { sessionId, error: 'Sessão desconectada. Faça login novamente.' });
+    if (!data.shouldReconnect && ownerId) {
+      io.to(`user:${ownerId}`).emit('session-error', { sessionId, error: 'Sessão desconectada. Faça login novamente.' });
       logger.info(`❌ Sessão ${sessionId} desconectada`);
     }
   } else if (event === 'restore-error') {
-    io.emit('session-error', { sessionId, error: data.error || 'Falha ao restaurar sessão persistida.' });
+    if (ownerId) {
+      io.to(`user:${ownerId}`).emit('session-error', { sessionId, error: data.error || 'Falha ao restaurar sessão persistida.' });
+    }
     logger.warn(`Erro ao restaurar sessão ${sessionId}: ${data.error}`);
   }
 });
@@ -555,9 +584,11 @@ io.on('connection', (socket) => {
   });
 });
 
-// Emite atualizações de progresso
+// Emite atualizações de progresso (escopo por usuário)
 function emitProgress(data) {
-  io.emit('progress', data);
+  if (data?.userId) {
+    io.to(`user:${data.userId}`).emit('progress', data);
+  }
 }
 
 // ====== ROTAS DE SESSÃO (Protegidas) ======
@@ -592,7 +623,10 @@ app.post('/api/session/create', requireAuth, async (req, res) => {
     
   } catch (error) {
     logger.error(`Erro ao criar sessão: ${error.message}`);
-    io.emit('session-error', { sessionId: req.body.sessionId, error: error.message });
+    // Emite erro apenas para o usuário que tentou criar a sessão
+    if (req.user?.id) {
+      io.to(`user:${req.user.id}`).emit('session-error', { sessionId: req.body.sessionId, error: error.message });
+    }
   }
 });
 
@@ -629,54 +663,6 @@ app.delete('/api/session/:sessionId', requireAuth, async (req, res) => {
     await sessionManager.removeSession(sessionId);
     res.json({ success: true, message: 'Sessão removida' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ====== ROTAS ADMINISTRATIVAS ======
-
-// Listar todas as sessões do banco (admin)
-app.get('/api/admin/sessions', requireAuth, async (req, res) => {
-  try {
-    const sessions = await listAuthSessions();
-    res.json({ sessions });
-  } catch (error) {
-    logger.error('Erro ao listar sessões:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Limpar todas as sessões do banco (admin)
-app.post('/api/admin/clear-sessions', requireAuth, async (req, res) => {
-  try {
-    logger.info(`🗑️ Usuário ${req.user.email} solicitou limpeza de todas as sessões`);
-    
-    // Listar sessões antes de limpar
-    const sessionsBefore = await listAuthSessions();
-    let totalKeys = 0;
-    sessionsBefore.forEach(s => totalKeys += parseInt(s.keys_count));
-    
-    // Limpar cada sessão
-    const cleared = [];
-    for (const session of sessionsBefore) {
-      const removed = await clearAuthState(session.session_id);
-      cleared.push({
-        sessionId: session.session_id,
-        keysRemoved: removed
-      });
-    }
-    
-    logger.info(`✅ ${sessionsBefore.length} sessões limpas, ${totalKeys} chaves removidas`);
-    
-    res.json({ 
-      success: true, 
-      message: `${sessionsBefore.length} sessão(ões) limpa(s) do banco`,
-      sessionsCleared: sessionsBefore.length,
-      totalKeysRemoved: totalKeys,
-      details: cleared
-    });
-  } catch (error) {
-    logger.error('Erro ao limpar sessões:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -788,6 +774,41 @@ app.post('/api/campaign/:name/add-number', requireAuth, validateCampaignOwnershi
   }
 });
 
+// Adicionar contato manual (nome + telefone)
+app.post('/api/campaign/:name/add-contact', requireAuth, validateCampaignOwnership(campaignManager), (req, res) => {
+  try {
+    const { name } = req.params;
+    const { contactName, phone } = req.body || {};
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Telefone é obrigatório' });
+    }
+
+    const cleaned = String(phone).replace(/\D/g, '');
+    if (cleaned.length < 10 || cleaned.length > 15) {
+      return res.status(400).json({ error: 'Telefone inválido' });
+    }
+
+    const contact = campaignManager.addContact(name, {
+      name: contactName || cleaned,
+      phone: cleaned
+    });
+    const campaign = campaignManager.getCampaign(name);
+
+    // Emite atualização via WebSocket apenas para o dono da campanha
+    if (req.user?.id && campaign) {
+      io.to(`user:${req.user.id}`).emit('contacts-updated', {
+        campaignName: name,
+        contacts: campaign.contacts
+      });
+    }
+
+    res.json({ success: true, contact, campaign });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload de planilha de números
 app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwnership(campaignManager), upload.single('file'), async (req, res) => {
   try {
@@ -846,8 +867,10 @@ app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwne
     // Remove arquivo temporário
     await fs.unlink(filePath);
     
-    // Emite atualização via WebSocket
-    io.emit('contacts-updated', { campaignName: name, contacts: campaign.contacts });
+    // Emite atualização via WebSocket apenas para o dono da campanha
+    if (req.user?.id) {
+      io.to(`user:${req.user.id}`).emit('contacts-updated', { campaignName: name, contacts: campaign.contacts });
+    }
     
     res.json({ 
       success: true, 
@@ -1003,8 +1026,69 @@ app.post('/api/campaign/:name/save', requireAuth, validateCampaignOwnership(camp
   }
 });
 
-// Carregar campanha
-app.post('/api/campaign/load', async (req, res) => {
+// Vincular instâncias à campanha
+app.post('/api/campaign/:name/linked-instances', requireAuth, async (req, res) => {
+  try {
+    const campaignName = decodeURIComponent(req.params.name);
+    const { instanceIds } = req.body;
+    
+    // Valida propriedade da campanha
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+    
+    if (!Array.isArray(instanceIds)) {
+      return res.status(400).json({ error: 'instanceIds deve ser um array' });
+    }
+    
+    // Valida que as instâncias pertencem ao usuário
+    const userInstances = instanceManager.listInstances(req.user.id);
+    const userInstanceIds = userInstances.map(i => i.id);
+    const validIds = instanceIds.filter(id => userInstanceIds.includes(id));
+    
+    const campaign = campaignManager.setLinkedInstances(campaignName, validIds);
+    
+    res.json({ 
+      success: true, 
+      linkedInstances: campaign.linkedInstances,
+      campaign 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter instâncias vinculadas à campanha
+app.get('/api/campaign/:name/linked-instances', requireAuth, async (req, res) => {
+  try {
+    const campaignName = decodeURIComponent(req.params.name);
+    
+    // Valida propriedade da campanha
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+    
+    const linkedInstances = campaignManager.getLinkedInstances(campaignName);
+    
+    // Retorna também os dados completos das instâncias vinculadas
+    const userInstances = instanceManager.listInstances(req.user.id);
+    const linkedInstancesData = userInstances.filter(i => linkedInstances.includes(i.id));
+    
+    res.json({ 
+      linkedInstances,
+      instances: linkedInstancesData
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Carregar campanha (PROTEGIDO - requer autenticação)
+app.post('/api/campaign/load', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
     
@@ -1012,23 +1096,17 @@ app.post('/api/campaign/load', async (req, res) => {
       return res.status(400).json({ error: 'Nome da campanha é obrigatório' });
     }
 
+    // Valida propriedade da campanha
+    campaignManager.validateOwnership(name, req.user.id);
+    
     const campaign = await campaignManager.loadCampaign(name);
     res.json({ success: true, campaign });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(403).json({ error: error.message });
   }
 });
 
-// Deletar campanha
-app.delete('/api/campaign/:name', async (req, res) => {
-  try {
-    const { name } = req.params;
-    await campaignManager.deleteCampaign(name);
-    res.json({ success: true, message: 'Campanha deletada' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// NOTA: Rota DELETE /api/campaign/:name já está definida e protegida no início do arquivo (linha ~97)
 
 // ====== ROTAS DE DISPARO (Protegidas) ======
 
@@ -1036,12 +1114,12 @@ app.delete('/api/campaign/:name', async (req, res) => {
 app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
   try {
     const { campaignName } = req.params;
-    const { messageDelay, numberDelay } = req.body || {};
+    const { messageDelay, numberDelay, pauseAfterMessages, pauseDuration, enableTyping } = req.body || {};
     
     // Valida propriedade
     campaignManager.validateOwnership(campaignName, req.user.id);
     
-    // Prepara opções de delay
+    // Prepara opções de delay e controle
     const options = {};
     if (messageDelay && messageDelay > 0) {
       options.messageDelay = messageDelay;
@@ -1049,24 +1127,48 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
     if (numberDelay && numberDelay > 0) {
       options.numberDelay = numberDelay;
     }
+    if (typeof pauseAfterMessages === 'number' && pauseAfterMessages > 0) {
+      options.pauseAfterMessages = pauseAfterMessages;
+    }
+    if (typeof pauseDuration === 'number' && pauseDuration > 0) {
+      options.pauseDuration = pauseDuration;
+    }
+    if (typeof enableTyping === 'boolean') {
+      options.enableTyping = enableTyping;
+    }
+
+    // Callback de progresso para alimentar o WebSocket "progress" por usuário
+    options.onProgress = ({ campaign }) => {
+      if (campaign && campaign.userId) {
+        emitProgress({ userId: campaign.userId, campaign });
+      }
+    };
     
-    logger.info(`Iniciando disparo com delays personalizados: messageDelay=${options.messageDelay || 'padrão'}ms, numberDelay=${options.numberDelay || 'padrão'}ms`);
+    logger.info(`Iniciando disparo com opções: messageDelay=${options.messageDelay || 'padrão'}ms, numberDelay=${options.numberDelay || 'padrão'}ms, pauseAfterMessages=${options.pauseAfterMessages || 'nenhum'}, pauseDuration=${options.pauseDuration || 'nenhum'}, enableTyping=${options.enableTyping ? 'on' : 'off'}`);
+    
+    // Guarda userId para emitir eventos apenas para o dono
+    const userId = req.user.id;
     
     // Inicia disparo em background
     dispatcher.runCampaign(campaignName, options)
       .then(() => {
-        io.emit('dispatch-complete', { campaignName });
+        // Emite apenas para o usuário dono da campanha
+        io.to(`user:${userId}`).emit('dispatch-complete', { campaignName });
       })
       .catch(error => {
-        io.emit('dispatch-error', { campaignName, error: error.message });
+        // Emite apenas para o usuário dono da campanha
+        io.to(`user:${userId}`).emit('dispatch-error', { campaignName, error: error.message });
       });
-
+ 
     res.json({ 
       success: true, 
       message: 'Disparo iniciado',
       delays: {
         messageDelay: options.messageDelay || settings.messageDelay,
-        numberDelay: options.numberDelay || settings.numberDelay
+        numberDelay: options.numberDelay || settings.numberDelay,
+        pauseAfterMessages: options.pauseAfterMessages || null,
+        pauseDuration: options.pauseDuration || null,
+        enableTyping: !!options.enableTyping
       }
     });
     
@@ -1109,6 +1211,9 @@ app.post('/api/dispatch/stop', requireAuth, (req, res) => {
 app.get('/api/dispatch/status', requireAuth, (req, res) => {
   try {
     const status = dispatcher.getStatus();
+    if (status.campaign && status.campaign.userId !== req.user.id && req.user.role !== 'admin') {
+      return res.json({ isRunning: false, campaign: null });
+    }
     res.json(status);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1123,6 +1228,13 @@ app.post('/api/schedule/:campaignName', requireAuth, (req, res) => {
     const { campaignName } = req.params;
     const schedule = req.body;
     
+    // Garante que a campanha pertence ao usuário
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+    
     // Valida horários
     if (!scheduler.constructor.validateTime(schedule.startTime)) {
       return res.status(400).json({ error: 'Horário de início inválido' });
@@ -1136,7 +1248,7 @@ app.post('/api/schedule/:campaignName', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Horário de parada inválido' });
     }
     
-    const scheduleData = scheduler.setSchedule(campaignName, schedule);
+    const scheduleData = scheduler.setSchedule(campaignName, schedule, req.user.id);
     res.json({ success: true, schedule: scheduleData });
     
   } catch (error) {
@@ -1148,6 +1260,14 @@ app.post('/api/schedule/:campaignName', requireAuth, (req, res) => {
 app.get('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
+
+    // Garante que a campanha pertence ao usuário
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+
     const schedule = scheduler.getSchedule(campaignName);
     
     if (!schedule) {
@@ -1165,7 +1285,7 @@ app.get('/api/schedule/:campaignName', requireAuth, (req, res) => {
 // Listar todos os agendamentos do usuário
 app.get('/api/schedule', requireAuth, (req, res) => {
   try {
-    const schedules = scheduler.listSchedules();
+    const schedules = scheduler.listSchedules(req.user.id);
     res.json({ schedules });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1176,6 +1296,14 @@ app.get('/api/schedule', requireAuth, (req, res) => {
 app.delete('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
+
+    // Garante que a campanha pertence ao usuário
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+
     scheduler.removeSchedule(campaignName);
     res.json({ success: true, message: 'Agendamento removido' });
   } catch (error) {
@@ -1188,16 +1316,20 @@ app.patch('/api/schedule/:campaignName/toggle', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     const { enabled } = req.body;
-    
+
+    // Garante que a campanha pertence ao usuário
+    try {
+      campaignManager.validateOwnership(campaignName, req.user.id);
+    } catch (e) {
+      return res.status(403).json({ error: e.message });
+    }
+
     scheduler.toggleSchedule(campaignName, enabled);
-    res.json({ success: true, enabled });
-    
+    res.json({ success: true, message: `Agendamento ${enabled ? 'habilitado' : 'desabilitado'}` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-// ====== TEMPLATE DE PLANILHA ======
 
 // Download template de números
 app.get('/api/template/numbers', (req, res) => {
@@ -1237,10 +1369,18 @@ app.use((err, req, res, next) => {
   logger.error(err.stack);
   
   if (req.path.startsWith('/api/')) {
-    res.status(500).json({ 
-      error: 'Erro interno do servidor',
-      message: err.message 
-    });
+    // Em produção, não expõe detalhes do erro
+    const errorResponse = {
+      error: 'Erro interno do servidor'
+    };
+    
+    // Apenas em desenvolvimento, inclui detalhes do erro
+    if (process.env.NODE_ENV !== 'production') {
+      errorResponse.message = err.message;
+      errorResponse.stack = err.stack;
+    }
+    
+    res.status(500).json(errorResponse);
   } else {
     res.status(500).send('Erro interno do servidor');
   }
@@ -1260,12 +1400,12 @@ sessionManager.onMessageStatus((phone, status, details) => {
     
     campaignManager.updateContactStatus(campaignName, phone, status, statusDetails);
     
-    // Emite atualização via WebSocket
+    // Emite atualização via WebSocket apenas para o dono da campanha
     const campaign = campaignManager.getCampaign(campaignName);
     if (campaign) {
       const contact = campaign.contacts.find(c => c.phone === phone);
-      if (contact) {
-        io.emit('contact-status-updated', {
+      if (contact && campaign.userId) {
+        io.to(`user:${campaign.userId}`).emit('contact-status-updated', {
           campaignName,
           phone,
           status: contact.status,

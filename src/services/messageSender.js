@@ -20,8 +20,11 @@ class MessageSender {
    * @param {string} message - Mensagem a ser enviada
    * @param {string} sessionId - ID da sessão (opcional, usa round-robin se não fornecido)
    * @param {string} campaignName - Nome da campanha (para rastreamento)
+   * @param {number} userId - ID do usuário
+   * @param {Object} options - Opções adicionais
+   * @param {Array<string>} options.linkedInstances - IDs das instâncias vinculadas
    */
-  async sendMessage(phoneNumber, message, sessionId = null, campaignName = null) {
+  async sendMessage(phoneNumber, message, sessionId = null, campaignName = null, userId = null, options = {}) {
     try {
       // Valida o número
       if (!isValidPhoneNumber(phoneNumber)) {
@@ -41,12 +44,27 @@ class MessageSender {
           throw new Error(`Sessão ${sessionId} não encontrada ou não está pronta`);
         }
       } else {
-        const availableSession = sessionManager.getAvailableSession();
+        // Usa instâncias vinculadas se disponível
+        const linkedInstances = options.linkedInstances || null;
+        const availableSession = userId 
+          ? sessionManager.getAvailableSessionForUser(userId, linkedInstances)
+          : sessionManager.getAvailableSession();
         if (!availableSession) {
           throw new Error('Nenhuma sessão disponível');
         }
         session = availableSession.sock;
         usedSessionId = availableSession.id;
+      }
+
+      const enableTyping = !!options.enableTyping;
+
+      // Opcional: envia status "digitando..." real antes da mensagem
+      if (enableTyping && typeof session.sendPresenceUpdate === 'function') {
+        try {
+          await session.sendPresenceUpdate('composing', formattedNumber);
+        } catch (error) {
+          logger.warn(`Erro ao enviar status "digitando" para ${phoneNumber}:`, error.message);
+        }
       }
 
       // Envia a mensagem e captura o messageId
@@ -60,6 +78,15 @@ class MessageSender {
       }
       
       logger.info(`✅ Mensagem enviada para ${phoneNumber} via ${usedSessionId}`);
+
+      // Após o envio, atualiza presença para "pausado" se o recurso estiver disponível
+      if (enableTyping && typeof session.sendPresenceUpdate === 'function') {
+        try {
+          await session.sendPresenceUpdate('paused', formattedNumber);
+        } catch (error) {
+          logger.warn(`Erro ao limpar status "digitando" para ${phoneNumber}:`, error.message);
+        }
+      }
       this.sendingStats.sent++;
       
       return { success: true, phone: phoneNumber, messageId, sessionId: usedSessionId };

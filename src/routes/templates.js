@@ -27,6 +27,9 @@ router.get('/:id', requireAuth, async (req, res) => {
   try {
     const template = await dbManager.getTemplateById(req.params.id);
     if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+    if (template.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Sem permissão para acessar este template' });
+    }
     res.json({ success: true, template });
   } catch (error) {
     logger.error(`Erro ao buscar template: ${error.message}`);
@@ -112,6 +115,9 @@ router.post('/:id/use', requireAuth, async (req, res) => {
   try {
     const template = await dbManager.getTemplateById(req.params.id);
     if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+    if (template.user_id !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Sem permissão para usar este template' });
+    }
     
     const { variables } = req.body;
     let content = template.content;

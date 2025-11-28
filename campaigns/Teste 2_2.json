@@ -1,12 +1,12 @@
 {
-  "name": "Teste",
-  "displayName": "Teste",
-  "userId": 1,
+  "name": "Teste 2_2",
+  "displayName": "Teste 2",
+  "userId": 2,
   "contacts": [],
   "numbers": [],
   "messages": [],
   "status": "idle",
-  "createdAt": "2025-11-26T23:54:46.226Z",
+  "createdAt": "2025-11-27T15:46:37.932Z",
   "startedAt": null,
   "completedAt": null,
   "stats": {
@@ -20,8 +20,5 @@
   },
   "instanceStats": {},
   "currentIndex": 0,
-  "results": [],
-  "linkedInstances": [
-    "instance-01"
-  ]
+  "results": []
 }

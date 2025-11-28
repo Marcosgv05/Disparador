@@ -290,6 +290,62 @@ class DatabaseManager {
     const now = new Date().toISOString();
     plans.forEach(p => stmt.run(p.name, p.description, p.max_instances, p.max_messages_day, p.price, now));
   }
+  
+  async initPostgresDefaultSettings(client) {
+    const defaults = [
+      { key: 'message_delay', value: '3000', description: 'Delay entre mensagens (ms)' },
+      { key: 'number_delay', value: '5000', description: 'Delay entre números (ms)' },
+      { key: 'max_messages_per_day_global', value: '10000', description: 'Limite global de mensagens/dia' },
+      { key: 'maintenance_mode', value: 'false', description: 'Modo manutenção ativo' },
+      { key: 'maintenance_message', value: 'Sistema em manutenção. Voltamos em breve!', description: 'Mensagem de manutenção' }
+    ];
+    const now = new Date().toISOString();
+    for (const s of defaults) {
+      await client.query(
+        `INSERT INTO system_settings (key, value, description, updated_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (key) DO NOTHING`,
+        [s.key, s.value, s.description, now]
+      );
+    }
+  }
+  
+  async initPostgresDefaultPlans(client) {
+    const countResult = await client.query('SELECT COUNT(*) AS count FROM plans');
+    const count = parseInt(countResult.rows[0]?.count || '0', 10);
+    if (count > 0) return;
+    
+    const plans = [
+      {
+        name: 'Start',
+        description: 'Para iniciar com segurança e volumes baixos (ideal para autônomos e pequenos negócios)',
+        max_instances: 1,
+        max_messages_day: 300,
+        price: 97.0
+      },
+      {
+        name: 'Pro',
+        description: 'Para pequenos e médios negócios com operação diária constante',
+        max_instances: 3,
+        max_messages_day: 1500,
+        price: 197.0
+      },
+      {
+        name: 'Agency',
+        description: 'Para agências e operações maiores com múltiplos chips e clientes',
+        max_instances: 10,
+        max_messages_day: 8000,
+        price: 497.0
+      }
+    ];
+    const now = new Date().toISOString();
+    for (const p of plans) {
+      await client.query(
+        'INSERT INTO plans (name, description, max_instances, max_messages_day, price, is_active, created_at) VALUES ($1, $2, $3, $4, $5, true, $6)',
+        [p.name, p.description, p.max_instances, p.max_messages_day, p.price, now]
+      );
+    }
+  }
 
   /**
    * Cria tabelas no PostgreSQL
@@ -479,6 +535,8 @@ class DatabaseManager {
         END $$;
       `);
       
+      await this.initPostgresDefaultSettings(client);
+      await this.initPostgresDefaultPlans(client);
       console.log('✅ Tabelas PostgreSQL criadas');
     } finally {
       client.release();

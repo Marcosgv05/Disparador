@@ -43,6 +43,10 @@ class Dispatcher {
       const maxMessageDelay = options.messageDelay || settings.messageDelay;
       const maxNumberDelay = options.numberDelay || settings.numberDelay;
       const useHumanizedDelay = options.useHumanizedDelay !== false; // Padrão: true
+      const pauseAfterMessages = options.pauseAfterMessages || null;
+      const pauseDurationMs = options.pauseDuration || null;
+      const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+      const enableTyping = !!options.enableTyping;
 
       // Inicia a campanha
       campaignManager.startCampaign(campaignName);
@@ -80,18 +84,36 @@ class Dispatcher {
           break;
         }
 
-        // Obtém o próximo número
-        const phoneNumber = campaignManager.getNextNumber(campaignName);
-        if (!phoneNumber) {
+        // Obtém o próximo contato
+        const contact = campaignManager.getNextContact(campaignName);
+        if (!contact) {
           break;
         }
+        const phoneNumber = contact.phone;
 
-        // Obtém a próxima mensagem
-        const message = messageRotator.getNextMessage();
+        // Monta variáveis para personalização da mensagem
+        const variables = {
+          nome: contact.name || '',
+          telefone: contact.phone || '',
+          phone: contact.phone || ''
+        };
+
+        // Obtém a próxima mensagem com variáveis substituídas
+        const message = messageRotator.getNextCustomMessage(variables);
 
         // Envia a mensagem
         logger.info(`📤 Enviando para ${phoneNumber}...`);
-        const result = await messageSender.sendMessage(phoneNumber, message, null, campaignName);
+        const result = await messageSender.sendMessage(
+          phoneNumber,
+          message,
+          null,
+          campaignName,
+          campaign.userId,
+          { 
+            enableTyping,
+            linkedInstances: campaign.linkedInstances || []
+          }
+        );
 
         // Atualiza status do contato
         if (result.success) {
@@ -131,14 +153,30 @@ class Dispatcher {
         }
 
         // Atualiza progresso
-        campaignManager.updateProgress(campaignName, result);
+        const updatedCampaign = campaignManager.updateProgress(campaignName, result);
+
+        // Notifica callback de progresso (usado para WebSocket "progress")
+        if (onProgress) {
+          try {
+            onProgress({ campaign: updatedCampaign });
+          } catch (error) {
+            logger.warn(`Erro ao executar callback de progresso: ${error.message}`);
+          }
+        }
 
         // Log do resultado
-        const stats = currentCampaign.stats;
+        const stats = updatedCampaign.stats;
         logger.info(`Progresso: ${stats.sent + stats.failed}/${stats.total} | ✅ ${stats.sent} | ❌ ${stats.failed} | ⏳ ${stats.pending}`);
 
         // Incrementa contador de mensagens
         this.messageIndex++;
+
+        // Pausa configurada pelo usuário (quando atinge múltiplos de pauseAfterMessages)
+        if (pauseAfterMessages && pauseDurationMs && this.messageIndex % pauseAfterMessages === 0) {
+          logger.info(`⏸️ Pausa configurada pelo usuário após ${this.messageIndex} mensagens. Aguardando ${(pauseDurationMs / 1000).toFixed(1)}s...`);
+          await delay(pauseDurationMs);
+          logger.info('▶️ Fim da pausa configurada, retomando envios...');
+        }
 
         // Delay antes do próximo envio (humanizado ou fixo)
         if (useHumanizedDelay) {

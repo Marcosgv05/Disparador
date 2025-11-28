@@ -44,6 +44,7 @@ class MessageRotator {
 
   /**
    * Substitui variáveis na mensagem
+   * Suporta tanto {variavel} quanto {{variavel}}
    * @param {string} message - Mensagem com variáveis
    * @param {Object} variables - Objeto com as variáveis
    * @returns {string}
@@ -52,8 +53,13 @@ class MessageRotator {
     let processedMessage = message;
 
     for (const [key, value] of Object.entries(variables)) {
-      const regex = new RegExp(`\\{${key}\\}`, 'g');
-      processedMessage = processedMessage.replace(regex, value);
+      // Suporta {{variavel}} (chaves duplas)
+      const regexDouble = new RegExp(`\\{\\{${key}\\}\\}`, 'gi');
+      processedMessage = processedMessage.replace(regexDouble, value || '');
+      
+      // Suporta {variavel} (chaves simples)
+      const regexSingle = new RegExp(`\\{${key}\\}`, 'gi');
+      processedMessage = processedMessage.replace(regexSingle, value || '');
     }
 
     return processedMessage;

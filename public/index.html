@@ -30,10 +30,6 @@
                     <span class="status-dot status-offline"></span>
                     <span>Desconectado</span>
                 </div>
-                <div class="user-info" id="userInfo" style="margin-left: 20px; display: flex; align-items: center; gap: 10px;">
-                    <span id="userName" style="font-weight: 500;"></span>
-                    <button class="btn btn-secondary btn-sm" onclick="handleLogout()" style="padding: 6px 12px;">Sair</button>
-                </div>
             </div>
         </header>
 
@@ -41,119 +37,172 @@
         <main class="main-content">
             <!-- Sidebar -->
             <aside class="sidebar">
-                <nav class="nav">
-                    <a href="#" class="nav-item active" data-section="dashboard">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
-                        </svg>
-                        Dashboard
-                    </a>
-                    <a href="#" class="nav-item" data-section="whatsapp">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                        Conectar WhatsApp
-                    </a>
-                    <a href="#" class="nav-item" data-section="dispatch-panel">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                        Painel de Disparos
-                    </a>
-                    <a href="/admin.html" class="nav-item" id="adminLink" style="display: none;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                        </svg>
-                        Administração
-                    </a>
-                </nav>
+                <div class="sidebar-inner">
+                    <div class="sidebar-top">
+                        <div class="nav-section">
+                            <span class="nav-section-title">PLATAFORMA</span>
+                            <nav class="nav">
+                                <a href="#" class="nav-item active" data-section="dashboard">
+                                    <span class="nav-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm10 4h8v4h-8v-4z"/>
+                                        </svg>
+                                    </span>
+                                    <span class="nav-item-label">Dashboard</span>
+                                </a>
+                                <a href="#" class="nav-item" data-section="whatsapp">
+                                    <span class="nav-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M6.62 10.79a15.91 15.91 0 006.59 6.59l1.4-1.4a1 1 0 011.01-.24 11.05 11.05 0 003.46.55 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h2.71a1 1 0 011 1 11.05 11.05 0 00.55 3.46 1 1 0 01-.24 1.01l-1.4 1.32z"/>
+                                        </svg>
+                                    </span>
+                                    <span class="nav-item-label">Conexões</span>
+                                </a>
+                                <a href="#" class="nav-item" data-section="dispatch-panel" data-tab="tab-campaigns">
+                                    <span class="nav-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                        </svg>
+                                    </span>
+                                    <span class="nav-item-label">Campanhas</span>
+                                </a>
+                                
+                                <a href="/admin.html" class="nav-item nav-item-admin" id="adminLink" style="display: none;">
+                                    <span class="nav-item-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l6 2.67V11c0 3.87-2.69 7.19-6 8-3.31-.81-6-4.13-6-8V7.67L12 5z"/>
+                                        </svg>
+                                    </span>
+                                    <span class="nav-item-label">Administração</span>
+                                </a>
+                            </nav>
+                        </div>
+                    </div>
+                    <div class="sidebar-footer">
+                        <div class="sidebar-user">
+                            <div class="sidebar-user-avatar" id="sidebarUserAvatar">U</div>
+                            <div class="sidebar-user-info">
+                                <div class="sidebar-user-name" id="userName"></div>
+                                <div class="sidebar-user-plan" id="userPlan"></div>
+                            </div>
+                        </div>
+                        <button class="sidebar-logout-btn" onclick="handleLogout()">
+                            <span class="sidebar-logout-icon">↪</span>
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                </div>
             </aside>
 
             <!-- Content Area -->
             <div class="content">
                 <!-- Dashboard Section -->
                 <section id="dashboard" class="section active">
-                    <h2>Dashboard</h2>
-                    <div class="cards">
-                        <div class="card">
-                            <div class="card-icon" style="background: #25D366;">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    <div class="dashboard-header">
+                        <div>
+                            <h2>Dashboard</h2>
+                            <p class="dashboard-subtitle">Visão geral das suas campanhas de WhatsApp</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <select id="analyticsPeriod" class="form-control dashboard-period" onchange="loadAnalytics()">
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="30" selected>Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                            </select>
+                            <button class="btn btn-secondary dashboard-export" onclick="exportAnalytics()">Exportar Relatório</button>
+                        </div>
+                    </div>
+
+                    <!-- Top Stats -->
+                    <div class="dashboard-kpis">
+                        <div class="kpi-card">
+                            <div class="kpi-icon kpi-icon-primary">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3 3h18v4H3V3zm0 6h12v4H3V9zm0 6h6v4H3v-4z" />
                                 </svg>
                             </div>
-                            <div class="card-content">
-                                <h3 id="dashCampaigns">0</h3>
-                                <p>Campanhas</p>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Campanhas Ativas</p>
+                                <p class="kpi-value" id="dashCampaigns">0</p>
                             </div>
                         </div>
-                        <div class="card">
-                            <div class="card-icon" style="background: #128C7E;">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                    <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon kpi-icon-success">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3 4h18v2H3V4zm0 7h12v2H3v-2zm0 7h6v2H3v-2z" />
                                 </svg>
                             </div>
-                            <div class="card-content">
-                                <h3 id="dashSent">0</h3>
-                                <p>Enviadas</p>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Mensagens Enviadas</p>
+                                <p class="kpi-value" id="dashSent">0</p>
                             </div>
                         </div>
-                        <div class="card">
-                            <div class="card-icon" style="background: #075E54;">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon kpi-icon-indigo">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13z"/>
                                 </svg>
                             </div>
-                            <div class="card-content">
-                                <h3 id="dashNumbers">0</h3>
-                                <p>Números</p>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Números na Base</p>
+                                <p class="kpi-value" id="dashNumbers">0</p>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card">
+                            <div class="kpi-icon kpi-icon-danger">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2L1 21h22L12 2zm0 4.77L19.53 19H4.47L12 6.77zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/>
+                                </svg>
+                            </div>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Falhas (último período)</p>
+                                <p class="kpi-value" id="analyticsFailed">0</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="campaigns-list">
-                        <h3>Campanhas Recentes</h3>
-                        <div id="recentCampaigns" class="campaign-items">
-                            <p class="empty-state">Nenhuma campanha criada ainda</p>
+                    <!-- Middle Row: Chart + Recent Campaigns -->
+                    <div class="dashboard-main">
+                        <div class="dashboard-card dashboard-chart">
+                            <div class="dashboard-card-header">
+                                <div>
+                                    <h3>Volume de Mensagens</h3>
+                                    <p class="dashboard-card-subtitle">Total enviado por dia no período selecionado</p>
+                                </div>
+                            </div>
+                            <div class="dashboard-chart-metrics">
+                                <div class="chart-metric">
+                                    <span class="chart-metric-label">Enviadas</span>
+                                    <span class="chart-metric-value" id="analyticsSent">0</span>
+                                </div>
+                                <div class="chart-metric">
+                                    <span class="chart-metric-label">Entregues</span>
+                                    <span class="chart-metric-value" id="analyticsDelivered">0</span>
+                                </div>
+                                <div class="chart-metric">
+                                    <span class="chart-metric-label">Lidas</span>
+                                    <span class="chart-metric-value" id="analyticsRead">0</span>
+                                </div>
+                            </div>
+                            <div id="analyticsSection" class="dashboard-chart-body">
+                                <div id="analyticsChart" class="analytics-chart">
+                                    <p class="analytics-chart-empty">Carregando...</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- Analytics integrado ao Dashboard -->
-                    <div class="analytics-section" style="margin-top: 30px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3>📊 Relatórios de Mensagens</h3>
-                            <div>
-                                <select id="analyticsPeriod" class="form-control" style="width: 150px; display: inline-block;" onchange="loadAnalytics()">
-                                    <option value="7">Últimos 7 dias</option>
-                                    <option value="30" selected>Últimos 30 dias</option>
-                                    <option value="90">Últimos 90 dias</option>
-                                </select>
-                                <button class="btn btn-secondary" onclick="exportAnalytics()" style="margin-left: 5px;">📥 CSV</button>
+                        <div class="dashboard-card dashboard-recent">
+                            <div class="dashboard-card-header">
+                                <div>
+                                    <h3>Campanhas Recentes</h3>
+                                    <p class="dashboard-card-subtitle">Últimas campanhas criadas e seus status</p>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="cards" style="margin-bottom: 20px;">
-                            <div class="card" style="text-align: center;">
-                                <h3 id="analyticsSent" style="font-size: 1.8em; color: #25D366; margin: 0;">0</h3>
-                                <p style="margin: 5px 0 0 0;">Enviadas</p>
-                            </div>
-                            <div class="card" style="text-align: center;">
-                                <h3 id="analyticsDelivered" style="font-size: 1.8em; color: #4CAF50; margin: 0;">0</h3>
-                                <p style="margin: 5px 0 0 0;">Entregues</p>
-                            </div>
-                            <div class="card" style="text-align: center;">
-                                <h3 id="analyticsRead" style="font-size: 1.8em; color: #2196F3; margin: 0;">0</h3>
-                                <p style="margin: 5px 0 0 0;">Lidas</p>
-                            </div>
-                            <div class="card" style="text-align: center;">
-                                <h3 id="analyticsFailed" style="font-size: 1.8em; color: #f44336; margin: 0;">0</h3>
-                                <p style="margin: 5px 0 0 0;">Falhas</p>
-                            </div>
-                        </div>
-                        
-                        <div class="card" style="padding: 20px;">
-                            <h4 style="margin-top: 0;">📈 Evolução Diária</h4>
-                            <div id="analyticsChart" style="height: 200px; display: flex; align-items: flex-end; gap: 3px; padding-top: 10px;">
-                                <p style="color: #888; text-align: center; width: 100%;">Carregando...</p>
+                            <div id="recentCampaigns" class="dashboard-recent-list">
+                                <p class="empty-state">Nenhuma campanha criada ainda</p>
                             </div>
                         </div>
                     </div>
@@ -170,7 +219,7 @@
                                 <p>Conecte múltiplos chips/números para disparos simultâneos</p>
                             </div>
                             <button class="btn btn-primary" onclick="addInstanceSlot()">
-                                ➕ Adicionar Instância
+                                 Adicionar Instância
                             </button>
                         </div>
 
@@ -187,260 +236,358 @@
 
                 <!-- Painel de Disparos Section -->
                 <section id="dispatch-panel" class="section">
-                    <h2>Painel de Disparos</h2>
-                    
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="tab-campaigns">
-                            📊 Campanhas
-                        </button>
-                        <button class="tab-btn" data-tab="tab-dispatch">
-                            🚀 Executar Disparo
-                        </button>
-                        <button class="tab-btn" data-tab="tab-schedule">
-                            ⏰ Agendamento
-                        </button>
-                    </div>
 
-                    <!-- Tab Campanhas -->
+                    <!-- Tab Campanhas (lista) -->
                     <div id="tab-campaigns" class="tab-content active">
-                        <h3>Gerenciar Campanhas</h3>
-
-                    <div class="campaign-grid">
-                        <div class="campaign-card">
-                            <h3>Nova Campanha</h3>
-                            <p class="card-subtitle">Defina o nome e gere instantaneamente a campanha. Ela já aparece na lista ao lado.</p>
-
-                            <div class="form-group">
-                                <label>Nome da Campanha</label>
-                                <input type="text" id="campaignName" placeholder="Ex: promocao-natal" class="input">
+                        <div class="campaigns-top-header">
+                            <div>
+                                <h3>Gerenciar Campanhas</h3>
                             </div>
-
-                            <button class="btn btn-primary btn-block" onclick="createCampaign()">Criar Campanha</button>
-
-                            <div id="campaignCreationStatus" class="creation-status" style="display: none;"></div>
+                            <button class="btn btn-primary campaigns-top-create" onclick="createCampaign()">
+                                + Criar Campanha
+                            </button>
                         </div>
 
-                        <div class="campaign-card full">
-                            <div class="campaign-manage-header">
-                                <div>
-                                    <h3>Gerenciamento de Campanhas</h3>
-                                    <p class="card-subtitle">Selecione uma campanha para acompanhar números, mensagens e status.</p>
-                                </div>
-                                <div class="form-group compact">
-                                    <label>Campanha</label>
-                                    <div class="campaign-select-actions">
-                                        <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()">
-                                            <option value="">-- Selecione --</option>
-                                        </select>
-                                        <button class="btn btn-danger" id="deleteCampaignButton" onclick="deleteCampaign()">
-                                            🗑️ Excluir
-                                        </button>
+                        <div class="campaign-grid">
+                            <div class="campaign-card full">
+                                <div class="campaign-manage-header">
+                                    <div>
+                                        <h3>Gerenciamento de Campanhas</h3>
+                                        <p class="card-subtitle">Selecione uma campanha na lista para gerenciar.</p>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div id="campaignDetails" style="display: none;">
-                                <div class="campaign-actions">
-                                    <div class="inline-actions">
-                                        <div>
-                                            <h4>Adicionar Números</h4>
-                                            <div class="upload-area">
-                                                <label class="upload-label">
-                                                    <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
-                                                    <div class="upload-icon">📁</div>
-                                                    <p>Clique ou arraste uma planilha de números</p>
-                                                    <small>Formatos: CSV, XLSX</small>
-                                                </label>
-                                            </div>
-                                            <button class="btn btn-secondary" onclick="downloadTemplate('numbers')">
-                                                Baixar Template de Números
-                                            </button>
-                                        </div>
-
-                                        <div>
-                                            <h4>Gerenciar Mensagens</h4>
-                                            
-                                            <!-- Templates de Mensagens -->
-                                            <div class="templates-section" style="background: #1a1a2e; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                                    <h5 style="margin: 0;">📝 Templates Salvos</h5>
-                                                    <button class="btn btn-small btn-secondary" onclick="showTemplateModal()">+ Novo Template</button>
-                                                </div>
-                                                <div id="templatesQuickList" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                                    <!-- Templates serão carregados aqui -->
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Adicionar uma mensagem -->
-                                            <div class="message-input-container">
-                                                <textarea id="newMessageText" class="input message-textarea" placeholder="Digite uma mensagem aqui... Use {{nome}} para variáveis" rows="3"></textarea>
-                                                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                                                    <button class="btn btn-primary" onclick="addMessage()">➕ Adicionar Mensagem</button>
-                                                    <button class="btn btn-secondary" onclick="saveAsTemplate()">💾 Salvar como Template</button>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Adicionar múltiplas mensagens -->
-                                            <div class="message-input-container" style="margin-top: 15px;">
-                                                <label style="font-weight: 600; margin-bottom: 5px; display: block;">
-                                                    📝 Adicionar Várias Mensagens (uma por linha)
-                                                </label>
-                                                <textarea id="bulkMessagesText" class="input message-textarea" placeholder="Cole várias mensagens aqui, uma por linha...&#10;&#10;Exemplo:&#10;Olá {nome}! Tudo bem?&#10;Temos uma promoção especial!&#10;Aproveite enquanto dura!" rows="6"></textarea>
-                                                <button class="btn btn-success" onclick="addBulkMessages()">➕ Adicionar Todas as Mensagens</button>
-                                            </div>
-                                            
-                                            <div id="messagesList" class="messages-list"></div>
+                                    <div class="form-group compact">
+                                        <div class="campaign-select-actions">
+                                            <!-- Select mantido apenas para lógica interna, mas oculto da interface -->
+                                            <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()" style="display: none;">
+                                                <option value="">-- Selecione --</option>
+                                            </select>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <hr>
-
-                                    <h4>Status da Campanha</h4>
-                                    <div id="campaignStats" class="stats-grid"></div>
-
-                                    <h4>Contatos da Campanha</h4>
-                                    <div class="contacts-table-container">
-                                        <table class="contacts-table" id="contactsTable">
-                                            <thead>
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Nome</th>
-                                                    <th>Telefone</th>
-                                                    <th>Status</th>
-                                                    <th>Detalhes</th>
-                                                    <th>Ações</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="contactsTableBody">
-                                                <tr>
-                                                    <td colspan="6" class="empty-state">Nenhum contato adicionado</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <!-- Lista de campanhas -->
+                                <div id="campaignListSidebar" class="campaigns-sidebar" aria-label="Lista de campanhas">
+                                    <!-- Campanhas serão renderizadas dinamicamente -->
                                 </div>
                             </div>
                         </div>
-                    </div>
                     </div> <!-- Fim Tab Campanhas -->
 
-                    <!-- Tab Disparo -->
-                    <div id="tab-dispatch" class="tab-content">
-                        <h3>Executar Disparo</h3>
-                    
-                    <div class="form-group">
-                        <label>Campanha para Disparar</label>
-                        <select id="dispatchCampaign" class="input">
-                            <option value="">-- Selecione --</option>
-                        </select>
-                    </div>
-
-                    <!-- Configurações de Delay -->
-                    <div class="dispatch-config-card">
-                        <div class="dispatch-config-header">
-                            <span class="dispatch-config-icon">⏱️</span>
-                            <h4>Configurações de Tempo</h4>
-                        </div>
-
-                        <div class="dispatch-config-grid">
-                            <div class="form-group dispatch-config-group">
-                                <label class="dispatch-config-label">
-                                    ⏳ Delay maximo entre mensagens (segundos)
-                                    <span class="dispatch-config-helper">
-                                        - Os envios serão disparados em intervalos de tempo aleatórios
-                                    </span>
-                                </label>
-                                <input 
-                                    type="number" 
-                                    id="messageDelay" 
-                                    class="input" 
-                                    value="3" 
-                                    min="1" 
-                                    max="360"
-                                    placeholder="Ex: 3"
-                                >
-                                <small class="dispatch-config-note">
-                                    💡 Recomendado: 3-5 segundos | Máximo: 360s (6 minutos)
-                                </small>
+                    <!-- Tab Detalhes da Campanha -->
+                    <div id="tab-campaign-details" class="tab-content">
+                        <div class="campaign-detail-header">
+                            <div class="campaign-detail-header-main">
+                                <button class="campaign-back-btn" type="button" onclick="backToCampaignList()">
+                                    ←
+                                </button>
+                                <div>
+                                    <h3 id="campaignDetailsTitle">Campanha selecionada</h3>
+                                    <div class="campaign-details-meta">
+                                        <span id="campaignDetailsStatusPill" class="campaign-status-pill campaign-status-idle">Status</span>
+                                        <span id="campaignDetailsCreated" class="campaign-details-created"></span>
+                                    </div>
+                                </div>
                             </div>
-
-                            <div class="form-group dispatch-config-group">
-                                <label class="dispatch-config-label">
-                                    🔄 Delay entre instâncias (segundos)
-                                    <span class="dispatch-config-helper">
-                                        - Tempo adicional ao trocar de instância
-                                    </span>
-                                </label>
-                                <input 
-                                    type="number" 
-                                    id="numberDelay" 
-                                    class="input" 
-                                    value="5" 
-                                    min="1" 
-                                    max="120"
-                                    placeholder="Ex: 5"
-                                >
-                                <small class="dispatch-config-note">
-                                    💡 Recomendado: 5-10 segundos
-                                </small>
+                            <div class="campaign-inner-tabs">
+                                <button class="campaign-inner-tab active" data-campaign-tab="overview" onclick="setCampaignInnerTab('overview')">Visão Geral</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="audience" onclick="setCampaignInnerTab('audience')">Contatos</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="content" onclick="setCampaignInnerTab('content')">Mensagens</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="dispatch" onclick="setCampaignInnerTab('dispatch')">Disparo</button>
                             </div>
                         </div>
 
-                        <div class="dispatch-config-warning">
-                            <span class="dispatch-config-warning-icon">⚠️</span>
-                            <small>
-                                <strong>Importante:</strong> Delays muito curtos podem causar bloqueio pelo WhatsApp.
-                                Use valores maiores para envios em larga escala.
-                            </small>
+                        <div class="campaign-grid">
+                            <div class="campaign-card full">
+                                <div id="campaignDetails" style="display: none;">
+                                    <!-- Aba interna: Visão Geral -->
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="overview">
+                                        <div class="campaign-detail-overview">
+                                            <div class="campaign-detail-header-cards">
+                                                <div id="campaignStats" class="stats-grid"></div>
+                                            </div>
+                                            <div class="campaign-activity-card">
+                                                <div class="campaign-activity-header">
+                                                    <h4>Atividade recente</h4>
+                                                    <p class="campaign-activity-subtitle">Gráfico de envios por hora aparecerá aqui.</p>
+                                                </div>
+                                                <div id="campaignActivityChart" class="campaign-activity-body">
+                                                    <p class="campaign-activity-placeholder">Ainda não há atividade registrada para esta campanha.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Aba interna: Contatos -->
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="audience" style="display: none;">
+                                        <div class="campaign-add-numbers">
+                                            <div class="audience-header">
+                                                <h4>Gerenciar Contatos</h4>
+                                                <div class="audience-actions">
+                                                    <button class="btn btn-secondary btn-sm" type="button" onclick="openNumbersFileDialog()">
+                                                        Importar Planilha
+                                                    </button>
+                                                    <button class="btn btn-primary btn-sm" type="button" onclick="focusManualContactForm()">
+                                                        Adicionar Manual
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Input de arquivo oculto, usado por Importar/Carregar -->
+                                            <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
+
+                                            <div class="audience-empty">
+                                                <div class="audience-empty-icon">
+                                                    <svg class="audience-empty-icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.33 0-6 1.34-6 3v1a1 1 0 001 1h10a1 1 0 001-1v-1c0-1.66-2.67-3-6-3z" fill="currentColor" />
+                                                    </svg>
+                                                </div>
+                                                <p class="audience-empty-title">Sua lista de contatos está vazia</p>
+                                                <p class="audience-empty-subtitle">Importe um arquivo CSV ou Excel para começar.</p>
+                                                <button class="btn btn-primary" type="button" onclick="openNumbersFileDialog()">
+                                                    Carregar Lista de Contatos
+                                                </button>
+                                                <p class="audience-empty-subtitle" style="font-size: 12px; margin-top: 6px;">
+                                                    Os números devem estar no formato código do país + DDD, sem o 9. Ex: 558581632929
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div class="campaign-contacts-section">
+                                            <div class="campaign-contacts-header">
+                                                <h4>Contatos da Campanha</h4>
+                                            </div>
+                                            <div class="contacts-table-container">
+                                                <table class="contacts-table" id="contactsTable">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>#</th>
+                                                            <th>Nome</th>
+                                                            <th>Telefone</th>
+                                                            <th>Status</th>
+                                                            <th>Detalhes</th>
+                                                            <th>Ações</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="contactsTableBody">
+                                                        <tr>
+                                                            <td colspan="6" class="empty-state">Nenhum contato adicionado</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Aba interna: Conteúdo (Mensagens) -->
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="content" style="display: none;">
+                                        <div class="content-tab-layout">
+                                            <!-- Coluna Esquerda: Editor -->
+                                            <div class="content-editor-col">
+                                                <div class="content-card">
+                                                    <h4>Editor de Mensagem</h4>
+                                                    
+                                                    <!-- Badges de variáveis -->
+                                                    <div class="variable-badges">
+                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{nome}}')">{{nome}}</button>
+                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{telefone}}')">{{telefone}}</button>
+                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{custom1}}')">{{custom1}}</button>
+                                                        <span class="variable-hint">Clique para inserir variável</span>
+                                                    </div>
+
+                                                    <!-- Textarea da mensagem -->
+                                                    <textarea id="newMessageText" class="input message-textarea-large" placeholder="Digite sua mensagem aqui..." rows="8" oninput="updateWhatsAppPreview()"></textarea>
+                                                    
+                                                    <div class="editor-actions">
+                                                        <button class="btn btn-primary" onclick="addMessage()">Salvar Mensagem</button>
+                                                    </div>
+                                                </div>
+                                                <!-- Lista de mensagens salvas -->
+                                                <div class="content-card">
+                                                    <h4>Mensagens Salvas</h4>
+                                                    <div id="messagesList" class="messages-list"></div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Coluna Direita: Preview WhatsApp -->
+                                            <div class="content-preview-col">
+                                                <div class="whatsapp-preview-container">
+                                                    <div class="whatsapp-phone">
+                                                        <!-- Notch -->
+                                                        <div class="whatsapp-notch"></div>
+                                                        
+                                                        <!-- Header WhatsApp -->
+                                                        <div class="whatsapp-header">
+                                                            <div class="whatsapp-avatar"></div>
+                                                            <div class="whatsapp-header-info">
+                                                                <p class="whatsapp-header-name">Seu Cliente</p>
+                                                                <p class="whatsapp-header-status">online</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Chat Area -->
+                                                        <div class="whatsapp-chat">
+                                                            <div class="whatsapp-chat-pattern"></div>
+                                                            <div id="whatsappPreviewMessage" class="whatsapp-message">
+                                                                <p class="whatsapp-message-text">Pré-visualização da mensagem</p>
+                                                                <p class="whatsapp-message-time">10:42 <span class="whatsapp-check">✓✓</span></p>
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Footer WhatsApp -->
+                                                        <div class="whatsapp-footer">
+                                                            <div class="whatsapp-footer-icon"></div>
+                                                            <div class="whatsapp-footer-input"></div>
+                                                            <div class="whatsapp-footer-send">
+                                                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                                                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Aba interna: Disparo -->
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="dispatch" style="display: none;">
+                                        <div class="dispatch-tab-layout">
+                                            <!-- Coluna Esquerda: Configurações -->
+                                            <div class="dispatch-config-col">
+                                                <!-- Seção de Instâncias Vinculadas -->
+                                                <div class="content-card linked-instances-card">
+                                                    <div class="linked-instances-header">
+                                                        <h4>Instâncias Vinculadas</h4>
+                                                        <button class="btn btn-sm btn-secondary" onclick="openLinkedInstancesModal()">
+                                                            Gerenciar
+                                                        </button>
+                                                    </div>
+                                                    <p class="linked-instances-hint">Selecione quais números de WhatsApp serão usados para enviar mensagens desta campanha.</p>
+                                                    <div id="linkedInstancesList" class="linked-instances-list">
+                                                        <p class="empty-state-sm">Nenhuma instância vinculada. Clique em "Gerenciar" para vincular.</p>
+                                                    </div>
+                                                </div>
+
+                                                <div class="content-card">
+                                                    <h4>Configurações de Envio</h4>
+                                                    <div class="dispatch-settings-form">
+                                                        <div class="form-group">
+                                                            <label>Intervalo máximo entre mensagens (seg)</label>
+                                                            <input type="number" id="messageDelay" class="input" value="15" min="1" max="360">
+                                                            <span class="form-hint">Os envios serão feitos em intervalos aleatórios entre 30% e 100% deste valor para simular comportamento humano.</span>
+                                                        </div>
+                                                        <div class="dispatch-checkbox">
+                                                            <label>
+                                                                <input type="checkbox" id="enablePauseAfterMessages" onchange="togglePauseOptions()">
+                                                                <span>Adicionar pausa após número de mensagens</span>
+                                                            </label>
+                                                        </div>
+                                                        <div id="pauseOptionsContainer" class="pause-options-container" style="display: none;">
+                                                            <div class="form-group">
+                                                                <label>Pausa após X mensagens</label>
+                                                                <input type="number" id="pauseAfterMessages" class="input" value="50" min="1" max="500">
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label>Tempo de pausa (min)</label>
+                                                                <input type="number" id="pauseDuration" class="input" value="5" min="1" max="60">
+                                                            </div>
+                                                        </div>
+                                                        <div class="dispatch-checkbox">
+                                                            <label>
+                                                                <input type="checkbox" id="enableTyping" checked>
+                                                                <span>Habilitar "Digitando..."</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="dispatch-control-card">
+                                                    <h4>Controle da Campanha</h4>
+                                                    <p class="dispatch-control-hint">Certifique-se que o WhatsApp está conectado antes de iniciar.</p>
+                                                    
+                                                    <div id="dispatchMainControl">
+                                                        <button class="btn btn-primary btn-dispatch-main" onclick="startDispatch()">
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M8 5v14l11-7z"/>
+                                                            </svg>
+                                                            Iniciar Disparos
+                                                        </button>
+                                                    </div>
+
+                                                    <div id="dispatchRunningControls" style="display: none;">
+                                                        <button class="btn btn-danger btn-dispatch-main" onclick="pauseDispatch()">
+                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                                                            </svg>
+                                                            Pausar Envio
+                                                        </button>
+                                                    </div>
+
+                                                    <div id="dispatchPausedControls" style="display: none;">
+                                                        <div class="dispatch-paused-btns">
+                                                            <button class="btn btn-primary" onclick="resumeDispatch()">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M8 5v14l11-7z"/>
+                                                                </svg>
+                                                                Retomar
+                                                            </button>
+                                                            <button class="btn btn-danger" onclick="stopDispatch()">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M6 6h12v12H6z"/>
+                                                                </svg>
+                                                                Parar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Coluna Direita: Console de Logs -->
+                                            <div class="dispatch-console-col">
+                                                <div class="console-window">
+                                                    <div class="console-header">
+                                                        <div class="console-header-left">
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M20 19V7H4v12h16m0-16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h16m-7 14v-2h5v2h-5m-3.13-4.41L8.41 11.13l1.42-1.41 1.46 1.46 3.18-3.18 1.41 1.41-4.61 4.59z"/>
+                                                            </svg>
+                                                            <span>Console de Execução</span>
+                                                        </div>
+                                                        <div class="console-header-dots">
+                                                            <div class="console-dot console-dot-red"></div>
+                                                            <div class="console-dot console-dot-yellow"></div>
+                                                            <div class="console-dot console-dot-green"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="console-body" id="dispatchConsole">
+                                                        <p class="console-line console-muted">Inicializando sistema de disparos v2.4...</p>
+                                                        <p class="console-line console-muted">Aguardando comando...</p>
+                                                    </div>
+                                                    <div class="console-cursor" id="consoleCursor" style="display: none;"></div>
+                                                </div>
+
+                                                <!-- Progresso -->
+                                                <div id="dispatchProgress" class="dispatch-progress-card" style="display: none;">
+                                                    <h4>Progresso do Disparo</h4>
+                                                    <div class="dispatch-progress-bar">
+                                                        <div id="progressBar" class="dispatch-progress-fill"></div>
+                                                    </div>
+                                                    <div id="progressStats" class="dispatch-progress-stats"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </div> <!-- Fim Tab Detalhes da Campanha -->
 
-                    <div class="dispatch-controls">
-                        <button class="btn btn-success" onclick="startDispatch()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Iniciar Disparo
-                        </button>
-                        
-                        <button class="btn btn-warning" onclick="pauseDispatch()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                            </svg>
-                            Pausar
-                        </button>
-                        
-                        <button class="btn btn-info" onclick="resumeDispatch()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M8 5v14l11-7z"/>
-                            </svg>
-                            Retomar
-                        </button>
-                        
-                        <button class="btn btn-danger" onclick="stopDispatch()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M6 6h12v12H6z"/>
-                            </svg>
-                            Parar
-                        </button>
-                    </div>
-
-                    <div id="dispatchProgress" class="progress-container" style="display: none;">
-                        <h3>Progresso do Disparo</h3>
-                        <div class="progress-bar">
-                            <div id="progressBar" class="progress-fill"></div>
-                        </div>
-                        <div id="progressStats" class="progress-stats"></div>
-                    </div>
-                    </div> <!-- Fim Tab Disparo -->
-
-                    <!-- Tab Agendamento -->
+                    <!-- Tab Agendamento (legacy - mantido para compatibilidade) -->
                     <div id="tab-schedule" class="tab-content">
                         <h3>Agendamento Automático</h3>
                     
                     <div class="schedule-info">
                         <div class="alert alert-info">
-                            <strong>⏰ Agendamento Automático</strong><br>
+                            <strong> Agendamento Automático</strong><br>
                             Configure horários para iniciar, pausar e parar campanhas automaticamente. Perfeito para envios em horário comercial.
                         </div>
                     </div>
@@ -464,13 +611,13 @@
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>🕐 Horário de Início</label>
+                                    <label> Horário de Início</label>
                                     <input type="time" id="startTime" class="input">
                                     <small>Campanha inicia automaticamente neste horário</small>
                                 </div>
 
                                 <div class="form-group">
-                                    <label>⏸️ Horário de Pausa</label>
+                                    <label> Horário de Pausa</label>
                                     <input type="time" id="pauseTime" class="input">
                                     <small>Pausa temporária (ex: horário de almoço)</small>
                                 </div>
@@ -478,7 +625,7 @@
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>⏹️ Horário de Parada (Opcional)</label>
+                                    <label> Horário de Parada (Opcional)</label>
                                     <input type="time" id="stopTime" class="input">
                                     <small>Para completamente (fim do expediente)</small>
                                 </div>
@@ -492,7 +639,7 @@
                             </div>
 
                             <div class="form-group">
-                                <label>📅 Dias da Semana</label>
+                                <label> Dias da Semana</label>
                                 <div class="days-selector">
                                     <label class="day-checkbox">
                                         <input type="checkbox" value="0" class="day-input">
@@ -554,7 +701,7 @@
                     <!-- Campanhas Agendadas (integrado) -->
                     <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3>📅 Campanhas Agendadas</h3>
+                            <h3> Campanhas Agendadas</h3>
                             <div>
                                 <select id="schedulerStatus" class="form-control" style="width: 130px; display: inline-block;" onchange="loadScheduledCampaigns()">
                                     <option value="">Todos</option>
@@ -601,6 +748,59 @@
         </div>
     </div>
 
+    <!-- Modal de Adição Manual de Contato -->
+    <div id="manualContactModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Adicionar Contato Manualmente</h2>
+                <button class="modal-close" onclick="closeManualContactModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="manual-contacts-card">
+                    <h4>Adicionar Contato Manualmente</h4>
+                    <p class="manual-contacts-subtitle">Cadastre contatos individuais sem precisar de planilha.</p>
+                    <div class="manual-contacts-form">
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="manualContactName" class="input" placeholder="Ex: João da Silva">
+                        </div>
+                        <div class="form-group">
+                            <label>Telefone (com DDD)</label>
+                            <input type="text" id="manualContactPhone" class="input" placeholder="Ex: 11999999999">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeManualContactModal()">Cancelar</button>
+                <button class="btn btn-primary" type="button" onclick="addManualContact()">Adicionar Contato</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Instâncias Vinculadas -->
+    <div id="linkedInstancesModal" class="modal modal-medium">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Gerenciar Instâncias Vinculadas</h2>
+                <button class="modal-close" onclick="closeLinkedInstancesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Selecione quais instâncias de WhatsApp serão usadas para disparar mensagens desta campanha. Se nenhuma estiver selecionada, todas as instâncias conectadas serão utilizadas.</p>
+                <div id="instancesCheckboxList" class="instances-checkbox-list">
+                    <!-- Checkboxes serão renderizados dinamicamente -->
+                </div>
+                <div id="noInstancesWarning" class="alert alert-warning" style="display: none;">
+                    <strong>Atenção:</strong> Você ainda não possui instâncias conectadas. Vá para a seção "Conexões" para configurar suas instâncias de WhatsApp.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeLinkedInstancesModal()">Cancelar</button>
+                <button class="btn btn-primary" type="button" onclick="saveLinkedInstances()">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     
@@ -611,7 +811,7 @@
         // Verifica autenticação antes de carregar app
         try {
             const user = await checkAuthState();
-            console.log('✅ Usuário autenticado:', user.email);
+            console.log(' Usuário autenticado:', user.email);
             
             // Define função global de logout
             window.handleLogout = async function() {
@@ -620,10 +820,18 @@
                 }
             };
             
-            // Atualiza nome do usuário
-            document.getElementById('userName').textContent = user.displayName || user.email;
+            // Atualiza informações do usuário na barra lateral
+            const displayName = user.displayName || user.email;
+            const nameElement = document.getElementById('userName');
+            if (nameElement) {
+                nameElement.textContent = displayName;
+            }
+            const avatarElement = document.getElementById('sidebarUserAvatar');
+            if (avatarElement && displayName) {
+                avatarElement.textContent = (displayName[0] || 'U').toUpperCase();
+            }
             
-            // Verifica se é admin para mostrar link de administração
+            // Verifica se é admin para mostrar link de administração e dados do plano
             try {
                 const token = await getCurrentToken();
                 const response = await fetch('/api/auth/me', {
@@ -635,6 +843,12 @@
                 }
                 // Salva maxInstances para uso no app
                 window.userMaxInstances = data.user?.maxInstances || 3;
+                
+                const planElement = document.getElementById('userPlan');
+                if (planElement) {
+                    const maxInst = data.user?.maxInstances || 3;
+                    planElement.textContent = `Plano: até ${maxInst} instâncias`;
+                }
             } catch (e) {
                 console.log('Não foi possível verificar role do usuário');
             }

@@ -44,9 +44,10 @@ class Scheduler {
    * @param {string} campaignName 
    * @param {Object} schedule 
    */
-  setSchedule(campaignName, schedule) {
+  setSchedule(campaignName, schedule, userId = null) {
     const scheduleData = {
       campaignName,
+      userId: schedule.userId || userId || null,
       enabled: schedule.enabled !== false,
       startTime: schedule.startTime, // HH:MM
       pauseTime: schedule.pauseTime, // HH:MM
@@ -92,8 +93,10 @@ class Scheduler {
   /**
    * Lista todos os agendamentos
    */
-  listSchedules() {
-    return Array.from(this.schedules.values());
+  listSchedules(userId = null) {
+    const all = Array.from(this.schedules.values());
+    if (!userId) return all;
+    return all.filter(s => s.userId === userId);
   }
 
   /**
