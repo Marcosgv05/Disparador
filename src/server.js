@@ -49,12 +49,13 @@ if (process.env.NODE_ENV === 'production') {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com", "https://apis.google.com"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://www.gstatic.com", "https://apis.google.com", "https://cdn.tailwindcss.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.tailwindcss.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
         connectSrc: ["'self'", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "wss:", "ws:"],
-        frameSrc: ["'self'", "https://accounts.google.com"]
+        frameSrc: ["'self'", "https://accounts.google.com"],
+        workerSrc: ["'self'", "blob:"]
       }
     },
     crossOriginEmbedderPolicy: false
@@ -68,11 +69,30 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const httpServer = createServer(app);
+
+// Configura origens permitidas para Socket.IO
+const getSocketOrigins = () => {
+  if (process.env.NODE_ENV !== 'production') return '*';
+  
+  const origins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
+  
+  // Adiciona automaticamente URLs do Railway/Render
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  }
+  if (process.env.RAILWAY_STATIC_URL) {
+    origins.push(process.env.RAILWAY_STATIC_URL);
+  }
+  if (process.env.RENDER_EXTERNAL_URL) {
+    origins.push(process.env.RENDER_EXTERNAL_URL);
+  }
+  
+  return origins.length > 0 ? origins : '*';
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.NODE_ENV === 'production'
-      ? (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean)
-      : '*',
+    origin: getSocketOrigins(),
     methods: ['GET', 'POST'],
     credentials: true
   }
