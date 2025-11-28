@@ -32,6 +32,37 @@ let state = {
     user: null
 };
 
+// Atualiza o status de conexão no cabeçalho (canto superior direito)
+function updateHeaderConnectionStatus() {
+    const statusEl = document.getElementById('sessionStatus');
+    if (!statusEl) return;
+
+    const dot = statusEl.querySelector('.status-dot');
+    const text = statusEl.querySelector('span:last-child');
+
+    const hasConnectedInstance =
+        (state.instances && state.instances.some(i => i.status === 'connected')) ||
+        (state.sessions && state.sessions.length > 0);
+
+    if (hasConnectedInstance) {
+        if (dot) {
+            dot.classList.remove('status-offline');
+            dot.classList.add('status-online');
+        }
+        if (text) {
+            text.textContent = 'Conectado';
+        }
+    } else {
+        if (dot) {
+            dot.classList.remove('status-online');
+            dot.classList.add('status-offline');
+        }
+        if (text) {
+            text.textContent = 'Desconectado';
+        }
+    }
+}
+
 // ==== AUTENTICAÇÃO ====
 
 // Autenticação agora é gerenciada pelo Firebase
@@ -472,6 +503,7 @@ socket.on('session-connected', async (data) => {
         instance.qrCode = null;
         console.log('🎨 Renderizando instâncias...');
         renderInstances();
+        updateHeaderConnectionStatus();
         showToast(`Sessão ${data.sessionId} conectada com sucesso.`, 'success');
     } else {
         console.warn('Instância não encontrada para sessionId:', data.sessionId);
@@ -496,6 +528,7 @@ async function loadSessions() {
                 </div>
             `).join('');
         }
+        updateHeaderConnectionStatus();
     } catch (error) {
         console.error(error);
     }
@@ -507,7 +540,8 @@ async function removeSession(sessionId) {
     try {
         await apiCall(`/api/session/${sessionId}`, { method: 'DELETE' });
         showToast('Sessão removida', 'success');
-        loadSessions();
+        await loadSessions();
+        updateHeaderConnectionStatus();
     } catch (error) {
         console.error(error);
     }
@@ -592,9 +626,6 @@ async function createCampaign(name) {
             nameInput.value = '';
         }
         await loadCampaigns();
-
-        // Abre imediatamente a nova campanha na aba de detalhes
-        openCampaignManagement(campaign.name);
     } catch (error) {
         console.error(error);
         showToast(error.message || 'Erro ao criar campanha', 'error');
@@ -1769,10 +1800,12 @@ async function loadInstances() {
         }
         
         renderInstances();
+        updateHeaderConnectionStatus();
     } catch (error) {
         console.error('Erro ao carregar instâncias:', error);
         state.instances = []; // Garante array vazio em caso de erro
         renderInstances();
+        updateHeaderConnectionStatus();
     }
 }
 

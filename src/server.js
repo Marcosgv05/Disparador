@@ -281,9 +281,10 @@ app.use(cors({
 
 // Aplica rate limiting em produção
 if (process.env.NODE_ENV === 'production') {
-  app.use(limiter);
+  // Limita apenas endpoints sensíveis de autenticação / administração
   app.use('/api/auth/login', authLimiter);
   app.use('/api/auth/register', authLimiter);
+  app.use('/api/admin', limiter);
 }
 
 // Limite de tamanho para body JSON (proteção contra payloads grandes)

@@ -145,7 +145,8 @@
 
           const price = document.createElement('p');
           price.className = 'mb-4 text-2xl font-semibold text-indigo-300';
-          price.innerHTML = `R$ ${(p.price || 0).toFixed(2)}<span class="text-xs font-normal text-slate-400">/mês</span>`;
+          const priceNumber = Number(p.price ?? 0) || 0;
+          price.innerHTML = `R$ ${priceNumber.toFixed(2)}<span class="text-xs font-normal text-slate-400">/mês</span>`;
           card.appendChild(price);
 
           const list = document.createElement('ul');

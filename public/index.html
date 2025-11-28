@@ -468,7 +468,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="content-card">
+                                                <div class="content-card dispatch-settings-card">
                                                     <h4>Configurações de Envio</h4>
                                                     <div class="dispatch-settings-form">
                                                         <div class="form-group">
@@ -499,6 +499,30 @@
                                                             </label>
                                                         </div>
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Coluna Direita: Console de Logs + Controle -->
+                                            <div class="dispatch-console-col">
+                                                <div class="console-window">
+                                                    <div class="console-header">
+                                                        <div class="console-header-left">
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M20 19V7H4v12h16m0-16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h16m-7 14v-2h5v2h-5m-3.13-4.41L8.41 11.13l1.42-1.41 1.46 1.46 3.18-3.18 1.41 1.41-4.61 4.59z"/>
+                                                            </svg>
+                                                            <span>Console de Execução</span>
+                                                        </div>
+                                                        <div class="console-header-dots">
+                                                            <div class="console-dot console-dot-red"></div>
+                                                            <div class="console-dot console-dot-yellow"></div>
+                                                            <div class="console-dot console-dot-green"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="console-body" id="dispatchConsole">
+                                                        <p class="console-line console-muted">Inicializando sistema de disparos v2.4...</p>
+                                                        <p class="console-line console-muted">Aguardando comando...</p>
+                                                    </div>
+                                                    <div class="console-cursor" id="consoleCursor" style="display: none;"></div>
                                                 </div>
 
                                                 <div class="dispatch-control-card">
@@ -539,30 +563,6 @@
                                                             </button>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </div>
-
-                                            <!-- Coluna Direita: Console de Logs -->
-                                            <div class="dispatch-console-col">
-                                                <div class="console-window">
-                                                    <div class="console-header">
-                                                        <div class="console-header-left">
-                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                                                <path d="M20 19V7H4v12h16m0-16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h16m-7 14v-2h5v2h-5m-3.13-4.41L8.41 11.13l1.42-1.41 1.46 1.46 3.18-3.18 1.41 1.41-4.61 4.59z"/>
-                                                            </svg>
-                                                            <span>Console de Execução</span>
-                                                        </div>
-                                                        <div class="console-header-dots">
-                                                            <div class="console-dot console-dot-red"></div>
-                                                            <div class="console-dot console-dot-yellow"></div>
-                                                            <div class="console-dot console-dot-green"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="console-body" id="dispatchConsole">
-                                                        <p class="console-line console-muted">Inicializando sistema de disparos v2.4...</p>
-                                                        <p class="console-line console-muted">Aguardando comando...</p>
-                                                    </div>
-                                                    <div class="console-cursor" id="consoleCursor" style="display: none;"></div>
                                                 </div>
 
                                                 <!-- Progresso -->

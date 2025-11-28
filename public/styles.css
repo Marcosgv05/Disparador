@@ -299,6 +299,12 @@ body {
     min-height: calc(100vh - 180px);
 }
 
+/* Aba Conexões (Instâncias WhatsApp) com altura mínima e respiro no final */
+#whatsapp {
+    padding-bottom: 8rem;
+    min-height: calc(100vh - 180px);
+}
+
 .section h2 {
     font-size: 2rem;
     margin-bottom: 0.5rem;
@@ -2680,6 +2686,14 @@ input:checked + .slider:before {
     font-weight: 600;
     margin-bottom: 1rem;
     color: var(--text);
+}
+
+/* Card específico de Configurações de Envio (aba Disparo) */
+.dispatch-settings-card {
+    min-height: 230px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 /* Badges de variáveis */
