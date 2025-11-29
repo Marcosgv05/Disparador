@@ -500,6 +500,26 @@ body {
     color: rgba(148, 163, 184, 0.9);
 }
 
+/* Gráfico de Linhas */
+.analytics-line-chart {
+    width: 100%;
+    height: 180px;
+    margin-bottom: 1.5rem;
+}
+
+.analytics-line-chart .chart-line {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.analytics-line-chart .chart-point {
+    transition: r 0.2s;
+}
+
+.analytics-line-chart .chart-point:hover {
+    r: 2;
+}
+
 .dashboard-recent-list {
     margin-top: 1rem;
     display: flex;
@@ -1663,12 +1683,12 @@ hr {
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     animation: fadeIn 0.3s;
+    justify-content: center;
+    align-items: center;
 }
 
 .modal.show {
     display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
 .modal-content {
@@ -1698,6 +1718,64 @@ hr {
 
 .modal.modal-small .modal-body {
     padding: 1rem 1.5rem 1.5rem 1.5rem;
+}
+
+/* Estilos para modais customizados (input/confirm) */
+#customInputModal,
+#customConfirmModal {
+    justify-content: center;
+    align-items: center;
+}
+
+#customInputModal .modal-content,
+#customConfirmModal .modal-content {
+    max-width: 380px;
+    width: 90%;
+    margin: 0 auto;
+}
+
+#customInputModal .modal-header,
+#customConfirmModal .modal-header {
+    padding: 1rem 1.25rem;
+}
+
+#customInputModal .modal-header h2,
+#customConfirmModal .modal-header h2 {
+    font-size: 1.1rem;
+}
+
+#customInputModal .modal-body,
+#customConfirmModal .modal-body {
+    padding: 1rem 1.25rem;
+}
+
+#customInputModal .modal-footer,
+#customConfirmModal .modal-footer {
+    padding: 0.75rem 1.25rem 1rem;
+}
+
+.custom-modal-message {
+    color: var(--text);
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.custom-modal-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
+#customConfirmModal .modal-body {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+}
+
+#customConfirmModal .custom-modal-message {
+    margin-bottom: 0;
+    text-align: center;
+    font-size: 1rem;
 }
 
 @keyframes fadeIn {
@@ -1926,11 +2004,36 @@ hr {
     background: radial-gradient(circle at 30% 0, rgba(148, 163, 184, 0.9), rgba(75, 85, 99, 0.45));
 }
 
+.instance-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 .instance-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text);
-    margin-bottom: 0.1rem;
+}
+
+.instance-edit-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--text-light);
+    opacity: 0.6;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.instance-edit-btn:hover {
+    opacity: 1;
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
 }
 
 .instance-subtitle {
@@ -2998,6 +3101,192 @@ input:checked + .slider:before {
 
 .dispatch-paused-btns .btn {
     flex: 1;
+}
+
+/* ==== AGENDAMENTO DE DISPAROS ==== */
+.dispatch-schedule-card {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.schedule-header h4 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.schedule-header h4 svg {
+    color: var(--primary);
+}
+
+.schedule-hint {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(51, 65, 85, 0.8);
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--primary);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+/* Schedule Options */
+.schedule-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(51, 65, 85, 0.3);
+    margin-top: 0.5rem;
+}
+
+.schedule-time-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.schedule-time-group {
+    flex: 1;
+}
+
+.schedule-time-group label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.input-time {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.schedule-days {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.schedule-days > label {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.schedule-days-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.schedule-day {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(30, 41, 59, 0.8);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.schedule-day:hover {
+    background: rgba(51, 65, 85, 0.8);
+}
+
+.schedule-day input {
+    width: 14px;
+    height: 14px;
+}
+
+.schedule-day:has(input:checked) {
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.schedule-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.schedule-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #64748b;
+}
+
+.schedule-status.active .schedule-status-dot {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.schedule-status.waiting .schedule-status-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+
+.schedule-status-text {
+    color: var(--text-light);
 }
 
 /* Console de Logs */

@@ -500,6 +500,66 @@
                                                         </div>
                                                     </div>
                                                 </div>
+
+                                                <!-- Card de Agendamento -->
+                                                <div class="content-card dispatch-schedule-card">
+                                                    <div class="schedule-header">
+                                                        <h4>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+                                                            </svg>
+                                                            Agendamento de Disparos
+                                                        </h4>
+                                                        <label class="toggle-switch">
+                                                            <input type="checkbox" id="enableSchedule" onchange="toggleScheduleOptions()">
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    <p class="schedule-hint">Configure horários para iniciar e parar os disparos automaticamente.</p>
+                                                    
+                                                    <div id="scheduleOptionsContainer" class="schedule-options" style="display: none;">
+                                                        <div class="schedule-time-row">
+                                                            <div class="schedule-time-group">
+                                                                <label>Iniciar às</label>
+                                                                <input type="time" id="scheduleStartTime" class="input input-time" value="08:00">
+                                                            </div>
+                                                            <div class="schedule-time-group">
+                                                                <label>Parar às</label>
+                                                                <input type="time" id="scheduleEndTime" class="input input-time" value="18:00">
+                                                            </div>
+                                                        </div>
+                                                        <div class="schedule-days">
+                                                            <label>Dias da semana:</label>
+                                                            <div class="schedule-days-grid">
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay0"> Dom
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay1" checked> Seg
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay2" checked> Ter
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay3" checked> Qua
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay4" checked> Qui
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay5" checked> Sex
+                                                                </label>
+                                                                <label class="schedule-day">
+                                                                    <input type="checkbox" id="scheduleDay6"> Sáb
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div id="scheduleStatus" class="schedule-status">
+                                                            <span class="schedule-status-dot"></span>
+                                                            <span class="schedule-status-text">Agendamento inativo</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <!-- Coluna Direita: Console de Logs + Controle -->
@@ -801,6 +861,41 @@
         </div>
     </div>
 
+    <!-- Modal de Input Customizado -->
+    <div id="customInputModal" class="modal modal-small" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="customInputTitle">Título</h2>
+                <button class="modal-close" onclick="closeCustomInputModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="customInputMessage" class="custom-modal-message"></p>
+                <input type="text" id="customInputField" class="input custom-modal-input" placeholder="">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCustomInputModal()">Cancelar</button>
+                <button class="btn btn-primary" id="customInputConfirmBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação Customizado -->
+    <div id="customConfirmModal" class="modal modal-small" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="customConfirmTitle">Confirmar</h2>
+                <button class="modal-close" onclick="closeCustomConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="customConfirmMessage" class="custom-modal-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCustomConfirmModal()">Cancelar</button>
+                <button class="btn btn-danger" id="customConfirmBtn">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     
@@ -815,7 +910,8 @@
             
             // Define função global de logout
             window.handleLogout = async function() {
-                if (confirm('Deseja realmente sair?')) {
+                const confirmed = await window.showConfirmModal('Sair', 'Deseja realmente sair do sistema?', 'Sair', 'btn-danger');
+                if (confirmed) {
                     await logout();
                 }
             };

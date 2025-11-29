@@ -32,6 +32,134 @@ let state = {
     user: null
 };
 
+// ==== MODAIS CUSTOMIZADOS ====
+
+// Resolve do modal de input atual
+let inputModalResolve = null;
+let confirmModalResolve = null;
+
+/**
+ * Exibe um modal de input customizado (substitui prompt())
+ * @param {string} title - Título do modal
+ * @param {string} message - Mensagem/descrição
+ * @param {string} defaultValue - Valor padrão do input
+ * @param {string} placeholder - Placeholder do input
+ * @returns {Promise<string|null>} - Valor digitado ou null se cancelado
+ */
+function showInputModal(title, message = '', defaultValue = '', placeholder = '') {
+    return new Promise((resolve) => {
+        inputModalResolve = resolve;
+        
+        const modal = document.getElementById('customInputModal');
+        const titleEl = document.getElementById('customInputTitle');
+        const messageEl = document.getElementById('customInputMessage');
+        const inputEl = document.getElementById('customInputField');
+        const confirmBtn = document.getElementById('customInputConfirmBtn');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        messageEl.style.display = message ? 'block' : 'none';
+        inputEl.value = defaultValue;
+        inputEl.placeholder = placeholder;
+        
+        modal.style.display = 'flex';
+        setTimeout(() => inputEl.focus(), 100);
+        
+        // Handler para confirmar
+        const handleConfirm = () => {
+            const value = inputEl.value.trim();
+            closeCustomInputModal();
+            if (inputModalResolve) {
+                inputModalResolve(value || null);
+                inputModalResolve = null;
+            }
+        };
+        
+        // Handler para Enter
+        const handleKeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                handleConfirm();
+            } else if (e.key === 'Escape') {
+                closeCustomInputModal();
+            }
+        };
+        
+        // Remove listeners antigos e adiciona novos
+        confirmBtn.onclick = handleConfirm;
+        inputEl.onkeydown = handleKeydown;
+    });
+}
+
+function closeCustomInputModal() {
+    const modal = document.getElementById('customInputModal');
+    modal.style.display = 'none';
+    
+    if (inputModalResolve) {
+        inputModalResolve(null);
+        inputModalResolve = null;
+    }
+}
+
+/**
+ * Exibe um modal de confirmação customizado (substitui confirm())
+ * @param {string} title - Título do modal
+ * @param {string} message - Mensagem de confirmação
+ * @param {string} confirmText - Texto do botão de confirmar
+ * @param {string} confirmClass - Classe CSS do botão (btn-danger, btn-primary, etc)
+ * @returns {Promise<boolean>} - true se confirmado, false se cancelado
+ */
+function showConfirmModal(title, message, confirmText = 'Confirmar', confirmClass = 'btn-danger') {
+    return new Promise((resolve) => {
+        confirmModalResolve = resolve;
+        
+        const modal = document.getElementById('customConfirmModal');
+        const titleEl = document.getElementById('customConfirmTitle');
+        const messageEl = document.getElementById('customConfirmMessage');
+        const confirmBtn = document.getElementById('customConfirmBtn');
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmBtn.textContent = confirmText;
+        confirmBtn.className = `btn ${confirmClass}`;
+        
+        modal.style.display = 'flex';
+        
+        // Handler para confirmar
+        confirmBtn.onclick = () => {
+            closeCustomConfirmModal();
+            if (confirmModalResolve) {
+                confirmModalResolve(true);
+                confirmModalResolve = null;
+            }
+        };
+        
+        // Handler para Escape
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                closeCustomConfirmModal();
+            }
+        };
+        document.addEventListener('keydown', handleKeydown, { once: true });
+    });
+}
+
+function closeCustomConfirmModal() {
+    const modal = document.getElementById('customConfirmModal');
+    modal.style.display = 'none';
+    
+    if (confirmModalResolve) {
+        confirmModalResolve(false);
+        confirmModalResolve = null;
+    }
+}
+
+// Expõe funções de modal no escopo global para uso em módulos ES6
+window.showInputModal = showInputModal;
+window.showConfirmModal = showConfirmModal;
+window.closeCustomInputModal = closeCustomInputModal;
+window.closeCustomConfirmModal = closeCustomConfirmModal;
+
 // Atualiza o status de conexão no cabeçalho (canto superior direito)
 function updateHeaderConnectionStatus() {
     const statusEl = document.getElementById('sessionStatus');
@@ -282,9 +410,8 @@ async function deleteCampaign(name) {
     const campaign = state.campaigns.find(c => c.name === internalName);
     const displayName = campaign?.displayName || internalName;
 
-    if (!confirm(`Tem certeza que deseja excluir a campanha "${displayName}"? Esta ação não pode ser desfeita.`)) {
-        return;
-    }
+    const confirmed = await showConfirmModal('Excluir Campanha', `Tem certeza que deseja excluir a campanha "${displayName}"? Esta ação não pode ser desfeita.`, 'Excluir', 'btn-danger');
+    if (!confirmed) return;
 
     try {
         await apiCall(`/api/campaign/${encodeURIComponent(internalName)}`, {
@@ -535,7 +662,8 @@ async function loadSessions() {
 }
 
 async function removeSession(sessionId) {
-    if (!confirm('Deseja realmente remover esta sessão?')) return;
+    const confirmed = await showConfirmModal('Remover Sessão', 'Deseja realmente remover esta sessão?', 'Remover', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         await apiCall(`/api/session/${sessionId}`, { method: 'DELETE' });
@@ -951,6 +1079,9 @@ async function loadCampaignDetails(options = {}) {
         // Render Linked Instances
         renderLinkedInstances();
         
+        // Carrega configuração de agendamento da campanha
+        loadScheduleConfig();
+        
     } catch (error) {
         console.error(error);
     }
@@ -1224,7 +1355,8 @@ async function addBulkMessages() {
 }
 
 async function removeMessage(campaignName, index) {
-    if (!confirm('Remover esta mensagem?')) return;
+    const confirmed = await showConfirmModal('Remover Mensagem', 'Tem certeza que deseja remover esta mensagem?', 'Remover', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         await apiCall(`/api/campaign/${campaignName}/message/${index}`, {
@@ -1379,7 +1511,8 @@ function renderContactsTable(campaign) {
 }
 
 async function removeContact(campaignName, phoneNumber) {
-    if (!confirm(`Remover contato ${phoneNumber}?`)) return;
+    const confirmed = await showConfirmModal('Remover Contato', `Tem certeza que deseja remover o contato ${phoneNumber}?`, 'Remover', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         await apiCall(`/api/campaign/${campaignName}/number/${encodeURIComponent(phoneNumber)}`, {
@@ -1507,7 +1640,8 @@ async function resumeDispatch() {
 }
 
 async function stopDispatch() {
-    if (!confirm('Parar disparo completamente?')) return;
+    const confirmed = await showConfirmModal('Parar Disparo', 'Tem certeza que deseja parar o disparo completamente? O progresso será perdido.', 'Parar', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         await apiCall('/api/dispatch/stop', { method: 'POST' });
@@ -1916,7 +2050,14 @@ function renderInstances() {
                 <div class="instance-header-left">
                     <div class="instance-number">${number}</div>
                     <div>
-                        <div class="instance-title">${name}</div>
+                        <div class="instance-title-row">
+                            <span class="instance-title">${name}</span>
+                            <button class="instance-edit-btn" onclick="editInstanceName('${inst.id}')" title="Editar nome">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="instance-card-id">ID: ${inst.id}</div>
                     </div>
                 </div>
@@ -2048,7 +2189,8 @@ async function disconnectInstance(instanceId) {
     const instance = state.instances.find(i => i.id === instanceId);
     if (!instance || !instance.sessionId) return;
     
-    if (!confirm('Desconectar esta instância?')) return;
+    const confirmed = await showConfirmModal('Desconectar Instância', 'Tem certeza que deseja desconectar esta instância?', 'Desconectar', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         // Remove sessão WhatsApp
@@ -2089,9 +2231,8 @@ async function removeInstance(instanceId) {
         return;
     }
     
-    if (!confirm(`Tem certeza que deseja remover a ${instance.name}?\n\nEsta ação não pode ser desfeita.`)) {
-        return;
-    }
+    const confirmed = await showConfirmModal('Remover Instância', `Tem certeza que deseja remover ${instance.name || 'esta instância'}? Esta ação não pode ser desfeita.`, 'Remover', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         // Remove sessão se existir
@@ -2114,6 +2255,30 @@ async function removeInstance(instanceId) {
     } catch (error) {
         console.error('Erro ao remover instância:', error);
         showToast('Erro ao remover instância: ' + error.message, 'error');
+    }
+}
+
+async function editInstanceName(instanceId) {
+    const instance = state.instances.find(i => i.id === instanceId);
+    if (!instance) return;
+    
+    const currentName = instance.name || `Instância ${instanceId.replace('instance-', '').replace(/^0+/, '')}`;
+    const newName = await showInputModal('Renomear Instância', 'Digite o novo nome para a instância:', currentName);
+    
+    if (!newName || newName === currentName) return;
+    
+    try {
+        await apiCall(`/api/instances/${instanceId}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name: newName })
+        });
+        
+        instance.name = newName;
+        renderInstances();
+        showToast('Nome da instância atualizado!', 'success');
+    } catch (error) {
+        console.error('Erro ao atualizar nome:', error);
+        showToast('Erro ao atualizar nome: ' + error.message, 'error');
     }
 }
 
@@ -2237,7 +2402,8 @@ async function removeSchedule() {
     const campaignName = document.getElementById('scheduleCampaign').value;
     if (!campaignName) return;
     
-    if (!confirm('Remover agendamento desta campanha?')) return;
+    const confirmed = await showConfirmModal('Remover Agendamento', 'Tem certeza que deseja remover o agendamento desta campanha?', 'Remover', 'btn-danger');
+    if (!confirmed) return;
     
     try {
         await apiCall(`/api/schedule/${campaignName}`, { method: 'DELETE' });
@@ -2437,7 +2603,7 @@ async function saveAsTemplate() {
         return;
     }
     
-    const name = prompt('Nome do template:');
+    const name = await showInputModal('Salvar como Template', 'Digite um nome para o template:', '', 'Nome do template');
     if (!name) return;
     
     try {
@@ -2511,7 +2677,8 @@ async function editTemplate(id) {
 }
 
 async function deleteTemplate(id) {
-    if (!confirm('Excluir este template?')) return;
+    const confirmed = await showConfirmModal('Excluir Template', 'Tem certeza que deseja excluir este template?', 'Excluir', 'btn-danger');
+    if (!confirmed) return;
     try {
         await apiCall(`/api/templates/${id}`, { method: 'DELETE' });
         loadTemplates();
@@ -2629,7 +2796,8 @@ async function editScheduledCampaign(id) {
 }
 
 async function deleteScheduledCampaign(id) {
-    if (!confirm('Cancelar este agendamento?')) return;
+    const confirmed = await showConfirmModal('Cancelar Agendamento', 'Tem certeza que deseja cancelar este agendamento?', 'Cancelar', 'btn-danger');
+    if (!confirmed) return;
     try {
         await apiCall(`/api/scheduler/${id}`, { method: 'DELETE' });
         loadScheduledCampaigns();
@@ -2640,7 +2808,8 @@ async function deleteScheduledCampaign(id) {
 }
 
 async function executeScheduledCampaign(id) {
-    if (!confirm('Executar esta campanha agora?')) return;
+    const confirmed = await showConfirmModal('Executar Campanha', 'Deseja executar esta campanha agora?', 'Executar', 'btn-primary');
+    if (!confirmed) return;
     try {
         await apiCall(`/api/scheduler/${id}/execute`, { method: 'POST' });
         loadScheduledCampaigns();
@@ -2663,28 +2832,56 @@ async function loadAnalytics() {
         document.getElementById('analyticsRead').textContent = summary?.total_read || 0;
         document.getElementById('analyticsFailed').textContent = summary?.total_failed || 0;
         
-        // Renderiza gráfico usando barras estilizadas
+        // Renderiza gráfico de linhas
         const chartContainer = document.getElementById('analyticsChart');
         if (chartContainer) {
             if (dailyData && dailyData.length > 0) {
-                const limited = dailyData.slice(-14); // últimos 14 dias para caber melhor
+                const limited = dailyData.slice(-14);
                 const maxValue = Math.max(...limited.map(d => d.messages_sent || 0), 1);
-
-                const barsHtml = limited.map(d => {
-                    const value = d.messages_sent || 0;
-                    const heightPct = Math.max((value / maxValue) * 100, 5);
-                    const label = (d.date || '').slice(5); // MM-DD
-                    return `
-                        <div class="analytics-chart-bar" style="height: ${heightPct}%;" title="${d.date}: ${value} enviadas"></div>
-                    `;
-                }).join('');
-
-                const labelsHtml = `<div class="analytics-chart-xlabels">${limited.map(d => {
-                    const label = (d.date || '').slice(5);
-                    return `<span>${label}</span>`;
+                
+                // Dimensões do gráfico
+                const width = 100;
+                const height = 100;
+                const padding = 5;
+                const chartWidth = width - padding * 2;
+                const chartHeight = height - padding * 2;
+                
+                // Gera pontos do gráfico
+                const points = limited.map((d, i) => {
+                    const x = padding + (i / (limited.length - 1 || 1)) * chartWidth;
+                    const y = padding + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
+                    return { x, y, value: d.messages_sent || 0, date: d.date };
+                });
+                
+                // Cria path da linha
+                const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                
+                // Cria área preenchida (gradiente)
+                const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
+                
+                const svgHtml = `
+                    <svg class="analytics-line-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color: rgba(99, 102, 241, 0.4)"/>
+                                <stop offset="100%" style="stop-color: rgba(99, 102, 241, 0)"/>
+                            </linearGradient>
+                        </defs>
+                        <path class="chart-area" d="${areaD}" fill="url(#areaGradient)"/>
+                        <path class="chart-line" d="${pathD}" fill="none" stroke="#6366f1" stroke-width="0.5"/>
+                        ${points.map(p => `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="1" fill="#6366f1"/>`).join('')}
+                    </svg>
+                `;
+                
+                const labelsHtml = `<div class="analytics-chart-xlabels">${limited.map((d, i) => {
+                    // Mostra apenas alguns labels para não ficar lotado
+                    if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % 3 === 0) {
+                        return `<span>${(d.date || '').slice(5)}</span>`;
+                    }
+                    return '<span></span>';
                 }).join('')}</div>`;
-
-                chartContainer.innerHTML = barsHtml + labelsHtml;
+                
+                chartContainer.innerHTML = svgHtml + labelsHtml;
             } else {
                 chartContainer.innerHTML = '<p class="analytics-chart-empty">Sem dados para exibir</p>';
             }
@@ -2703,6 +2900,206 @@ async function exportAnalytics() {
         showToast('Erro ao exportar', 'error');
     }
 }
+
+// ==== DISPATCH SCHEDULING ====
+
+// Estado do agendamento
+let scheduleInterval = null;
+let scheduleConfig = {
+    enabled: false,
+    startTime: '08:00',
+    endTime: '18:00',
+    days: [1, 2, 3, 4, 5] // Seg a Sex por padrão
+};
+
+function toggleScheduleOptions() {
+    const checkbox = document.getElementById('enableSchedule');
+    const container = document.getElementById('scheduleOptionsContainer');
+    
+    if (checkbox && container) {
+        container.style.display = checkbox.checked ? 'block' : 'none';
+        scheduleConfig.enabled = checkbox.checked;
+        
+        if (checkbox.checked) {
+            startScheduleMonitor();
+        } else {
+            stopScheduleMonitor();
+            updateScheduleStatus('inactive');
+        }
+        
+        saveScheduleConfig();
+    }
+}
+
+function getScheduleConfig() {
+    const startTime = document.getElementById('scheduleStartTime')?.value || '08:00';
+    const endTime = document.getElementById('scheduleEndTime')?.value || '18:00';
+    const days = [];
+    
+    for (let i = 0; i < 7; i++) {
+        const checkbox = document.getElementById(`scheduleDay${i}`);
+        if (checkbox && checkbox.checked) {
+            days.push(i);
+        }
+    }
+    
+    return { startTime, endTime, days };
+}
+
+function saveScheduleConfig() {
+    const config = getScheduleConfig();
+    config.enabled = document.getElementById('enableSchedule')?.checked || false;
+    scheduleConfig = config;
+    
+    // Salvar no localStorage para persistência local
+    const campaignName = document.getElementById('selectedCampaign')?.value;
+    if (campaignName) {
+        localStorage.setItem(`schedule_${campaignName}`, JSON.stringify(config));
+    }
+}
+
+function loadScheduleConfig() {
+    const campaignName = document.getElementById('selectedCampaign')?.value;
+    if (!campaignName) return;
+    
+    const saved = localStorage.getItem(`schedule_${campaignName}`);
+    if (saved) {
+        try {
+            const config = JSON.parse(saved);
+            scheduleConfig = config;
+            
+            // Aplicar ao form
+            const enableCheckbox = document.getElementById('enableSchedule');
+            const startInput = document.getElementById('scheduleStartTime');
+            const endInput = document.getElementById('scheduleEndTime');
+            const container = document.getElementById('scheduleOptionsContainer');
+            
+            if (enableCheckbox) enableCheckbox.checked = config.enabled;
+            if (startInput) startInput.value = config.startTime || '08:00';
+            if (endInput) endInput.value = config.endTime || '18:00';
+            if (container) container.style.display = config.enabled ? 'block' : 'none';
+            
+            for (let i = 0; i < 7; i++) {
+                const dayCheckbox = document.getElementById(`scheduleDay${i}`);
+                if (dayCheckbox) {
+                    dayCheckbox.checked = config.days?.includes(i) || false;
+                }
+            }
+            
+            if (config.enabled) {
+                startScheduleMonitor();
+            }
+        } catch (e) {
+            console.error('Erro ao carregar config de agendamento:', e);
+        }
+    }
+}
+
+function isWithinSchedule() {
+    const config = getScheduleConfig();
+    const now = new Date();
+    const currentDay = now.getDay();
+    
+    // Verifica se é um dia permitido
+    if (!config.days.includes(currentDay)) {
+        return false;
+    }
+    
+    // Verifica horário
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const [startH, startM] = config.startTime.split(':').map(Number);
+    const [endH, endM] = config.endTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    
+    return currentTime >= startMinutes && currentTime < endMinutes;
+}
+
+function updateScheduleStatus(status, message) {
+    const statusEl = document.getElementById('scheduleStatus');
+    if (!statusEl) return;
+    
+    statusEl.className = 'schedule-status';
+    const dot = statusEl.querySelector('.schedule-status-dot');
+    const text = statusEl.querySelector('.schedule-status-text');
+    
+    if (status === 'active') {
+        statusEl.classList.add('active');
+        if (text) text.textContent = message || 'Disparos ativos - dentro do horário';
+    } else if (status === 'waiting') {
+        statusEl.classList.add('waiting');
+        if (text) text.textContent = message || 'Aguardando horário de início';
+    } else {
+        if (text) text.textContent = message || 'Agendamento inativo';
+    }
+}
+
+function startScheduleMonitor() {
+    if (scheduleInterval) {
+        clearInterval(scheduleInterval);
+    }
+    
+    const checkSchedule = () => {
+        if (!scheduleConfig.enabled) return;
+        
+        const withinSchedule = isWithinSchedule();
+        const config = getScheduleConfig();
+        
+        if (withinSchedule) {
+            updateScheduleStatus('active', `Ativo: ${config.startTime} - ${config.endTime}`);
+            
+            // Auto-iniciar disparo se não estiver rodando
+            if (state.currentCampaign && !state.dispatchRunning) {
+                addConsoleLog('⏰ Agendamento: iniciando disparos automaticamente', 'success');
+                startDispatch();
+            }
+        } else {
+            const now = new Date();
+            const [startH, startM] = config.startTime.split(':').map(Number);
+            const nextStart = new Date(now);
+            nextStart.setHours(startH, startM, 0, 0);
+            
+            if (nextStart <= now) {
+                nextStart.setDate(nextStart.getDate() + 1);
+            }
+            
+            const diffMs = nextStart - now;
+            const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffM = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            
+            updateScheduleStatus('waiting', `Próximo início em ${diffH}h ${diffM}m`);
+            
+            // Auto-pausar se estiver rodando fora do horário
+            if (state.dispatchRunning) {
+                addConsoleLog('⏰ Agendamento: pausando disparos (fora do horário)', 'warning');
+                pauseDispatch();
+            }
+        }
+    };
+    
+    // Verificar imediatamente e a cada minuto
+    checkSchedule();
+    scheduleInterval = setInterval(checkSchedule, 60000);
+}
+
+function stopScheduleMonitor() {
+    if (scheduleInterval) {
+        clearInterval(scheduleInterval);
+        scheduleInterval = null;
+    }
+}
+
+// Salvar config quando mudar horários ou dias
+document.addEventListener('change', (e) => {
+    if (e.target.id?.startsWith('scheduleDay') || 
+        e.target.id === 'scheduleStartTime' || 
+        e.target.id === 'scheduleEndTime') {
+        saveScheduleConfig();
+        if (scheduleConfig.enabled) {
+            startScheduleMonitor();
+        }
+    }
+});
 
 // ==== INITIALIZATION ====
 

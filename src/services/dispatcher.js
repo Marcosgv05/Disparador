@@ -5,6 +5,7 @@ import { logger } from '../config/logger.js';
 import { delay, humanizedDelay, getDelayInfo } from '../utils/delay.js';
 import { settings } from '../config/settings.js';
 import autoPause from './autoPause.js';
+import dbManager from '../db/database.js';
 
 /**
  * Dispatcher - Executa campanhas de forma controlada
@@ -126,10 +127,37 @@ class Dispatcher {
           if (result.sessionId) {
             campaignManager.trackInstanceStat(campaignName, result.sessionId, 'sent');
           }
+          
+          // Registra métrica no banco de dados para analytics
+          try {
+            await dbManager.recordMessageMetric({
+              user_id: campaign.userId,
+              campaign_id: campaignName,
+              instance_id: result.sessionId,
+              phone: phoneNumber,
+              status: 'sent'
+            });
+          } catch (e) {
+            logger.warn(`Erro ao registrar métrica: ${e.message}`);
+          }
         } else {
           campaignManager.updateContactStatus(campaignName, phoneNumber, 'failed', {
             error: result.error
           });
+          
+          // Registra falha no banco de dados para analytics
+          try {
+            await dbManager.recordMessageMetric({
+              user_id: campaign.userId,
+              campaign_id: campaignName,
+              instance_id: result.sessionId,
+              phone: phoneNumber,
+              status: 'failed',
+              error_message: result.error
+            });
+          } catch (e) {
+            logger.warn(`Erro ao registrar métrica de falha: ${e.message}`);
+          }
         }
 
         // Registra resultado no AutoPause para monitorar taxa de erros
