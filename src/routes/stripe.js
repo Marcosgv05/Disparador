@@ -134,14 +134,18 @@ router.get('/subscription-status', requireAuth, async (req, res) => {
   try {
     const user = req.user;
     
-    // Data de corte: contas criadas antes dessa data têm acesso livre (legacy)
-    const LEGACY_CUTOFF_DATE = new Date('2025-11-30T00:00:00Z');
+    // Data de corte: contas criadas DEPOIS dessa data precisam de assinatura
+    // Contas criadas antes (ou sem data) têm acesso livre (legacy)
+    const LEGACY_CUTOFF_DATE = new Date('2025-12-01T00:00:00Z');
     const userCreatedAt = user.created_at ? new Date(user.created_at) : null;
     
     // Log para debug
     logger.info(`[Subscription Check] User: ${user.email}, created_at: ${user.created_at}, parsed: ${userCreatedAt}, cutoff: ${LEGACY_CUTOFF_DATE}`);
     
-    // Se a conta foi criada antes da data de corte OU não tem data (conta antiga), é legada
+    // Conta é legada se:
+    // 1. Não tem data de criação (conta muito antiga)
+    // 2. Foi criada antes de 1 de dezembro de 2025
+    // 3. Conta criada no mesmo dia que a migração (30/11) - considera legada também
     const isLegacyAccount = !userCreatedAt || userCreatedAt < LEGACY_CUTOFF_DATE;
     
     if (isLegacyAccount) {
