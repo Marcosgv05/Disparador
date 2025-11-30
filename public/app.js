@@ -68,10 +68,11 @@ function showInputModal(title, message = '', defaultValue = '', placeholder = ''
         // Handler para confirmar
         const handleConfirm = () => {
             const value = inputEl.value.trim();
-            closeCustomInputModal();
+            modal.style.display = 'none';
             if (inputModalResolve) {
-                inputModalResolve(value || null);
+                const resolver = inputModalResolve;
                 inputModalResolve = null;
+                resolver(value || null);
             }
         };
         
@@ -96,8 +97,9 @@ function closeCustomInputModal() {
     modal.style.display = 'none';
     
     if (inputModalResolve) {
-        inputModalResolve(null);
+        const resolver = inputModalResolve;
         inputModalResolve = null;
+        resolver(null);
     }
 }
 
@@ -127,10 +129,11 @@ function showConfirmModal(title, message, confirmText = 'Confirmar', confirmClas
         
         // Handler para confirmar
         confirmBtn.onclick = () => {
-            closeCustomConfirmModal();
+            modal.style.display = 'none';
             if (confirmModalResolve) {
-                confirmModalResolve(true);
+                const resolver = confirmModalResolve;
                 confirmModalResolve = null;
+                resolver(true);
             }
         };
         
@@ -149,8 +152,9 @@ function closeCustomConfirmModal() {
     modal.style.display = 'none';
     
     if (confirmModalResolve) {
-        confirmModalResolve(false);
+        const resolver = confirmModalResolve;
         confirmModalResolve = null;
+        resolver(false);
     }
 }
 

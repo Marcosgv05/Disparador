@@ -63,8 +63,6 @@
           <li>Envio em massa de mensagens pelo painel web, com filas e delays humanizados.</li>
           <li>Auto-pause inteligente para reduzir bloqueios quando a taxa de erros aumenta.</li>
           <li>Agendamento de campanhas e repetição automática conforme sua estratégia.</li>
-          <li>Templates salvos de mensagens para reutilizar textos aprovados.</li>
-          <li>Blacklist de números problemáticos para evitar disparos desnecessários.</li>
           <li>Métricas básicas de envios para acompanhar resultados das campanhas.</li>
         </ul>
         <p class="mt-3 text-xs text-slate-500">
@@ -74,7 +72,37 @@
     </main>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+    // Configuração do Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAz-jb0r3OEz_UFBprjBOxyzL9m2Ggx7FI",
+      authDomain: "nexus-9b811.firebaseapp.com",
+      projectId: "nexus-9b811",
+      storageBucket: "nexus-9b811.firebasestorage.app",
+      messagingSenderId: "673695588059",
+      appId: "1:673695588059:web:62c42b8fc3c7a6c1b9e77e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    
+    let currentUser = null;
+    let userToken = null;
+
+    // Verifica se usuário está logado
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      if (user) {
+        userToken = await user.getIdToken();
+        // Atualiza texto do botão no header
+        const loginLink = document.querySelector('nav a[href="/login.html"]');
+        if (loginLink) loginLink.textContent = 'Minha Conta';
+      }
+    });
+
     const plansGrid = document.getElementById('plansGrid');
     const plansError = document.getElementById('plansError');
 
@@ -83,7 +111,7 @@
       plansError.classList.remove('hidden');
     }
 
-    function selectPlan(plan) {
+    async function selectPlan(plan) {
       const selected = {
         id: plan.id,
         name: plan.name,
@@ -93,8 +121,42 @@
         maxMessagesDay: plan.max_messages_day
       };
       localStorage.setItem('vextSelectedPlan', JSON.stringify(selected));
-      window.location.href = '/login.html?mode=register';
+      
+      // Se usuário está logado, vai direto para o checkout do Stripe
+      if (currentUser && userToken) {
+        try {
+          const response = await fetch('/api/stripe/create-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`
+            },
+            body: JSON.stringify({
+              planName: plan.name,
+              planId: plan.id
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success && data.url) {
+            // Redireciona para o checkout do Stripe
+            window.location.href = data.url;
+          } else {
+            showError(data.error || 'Erro ao criar sessão de pagamento');
+          }
+        } catch (error) {
+          console.error('Erro:', error);
+          showError('Erro ao processar pagamento. Tente novamente.');
+        }
+      } else {
+        // Se não está logado, vai para registro primeiro
+        window.location.href = '/login.html?mode=register';
+      }
     }
+    
+    // Expõe a função globalmente para os botões
+    window.selectPlan = selectPlan;
 
     async function loadPlans() {
       try {
@@ -165,7 +227,6 @@
             <li>Campanhas ilimitadas</li>
             <li>Agendador avançado com recorrência e múltiplos horários</li>
             <li>Múltiplos templates com variações de copy + IA </li>
-            <li>Blacklist / opt-out automático</li>
             <li>Auto-pause ativado e configurável (limiar de erro e cooldown)</li>
             `;
           } else if (isAgency) {

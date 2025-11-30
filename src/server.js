@@ -31,6 +31,7 @@ import adminRoutes from './routes/admin.js';
 import templatesRoutes from './routes/templates.js';
 import schedulerRoutes from './routes/scheduler.js';
 import analyticsRoutes from './routes/analytics.js';
+import stripeRoutes from './routes/stripe.js';
 import { requireAuth, optionalAuth, validateCampaignOwnership } from './middleware/auth.js';
 import { sanitizeBody, validateCampaignNameParam, validateIdParam } from './middleware/validation.js';
 import { clearAuthState, listAuthSessions } from './whatsapp/authStateDB.js';
@@ -288,7 +289,14 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Limite de tamanho para body JSON (proteção contra payloads grandes)
-app.use(express.json({ limit: '1mb' }));
+// Exclui a rota do webhook do Stripe do body parser JSON
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next();
+  } else {
+    express.json({ limit: '1mb' })(req, res, next);
+  }
+});
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Sanitização de body (remove caracteres de controle maliciosos)
@@ -363,6 +371,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/scheduler', schedulerRoutes);
 app.use('/api/analytics', analyticsRoutes);
+
+// Rotas do Stripe (pagamentos)
+app.use('/api/stripe', stripeRoutes);
 
 // Endpoint público de planos (para página de pricing)
 app.get('/api/plans', async (req, res) => {

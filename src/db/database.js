@@ -73,9 +73,23 @@ class DatabaseManager {
         is_active INTEGER DEFAULT 1,
         plan_id INTEGER,
         plan_expires_at TEXT,
+        stripe_customer_id TEXT,
+        stripe_subscription_id TEXT,
+        subscription_status TEXT DEFAULT 'none',
         created_at TEXT NOT NULL
       )
     `);
+    
+    // Adiciona colunas do Stripe se não existirem (migração)
+    try {
+      this.db.exec(`ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`);
+    } catch (e) { /* coluna já existe */ }
+    try {
+      this.db.exec(`ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`);
+    } catch (e) { /* coluna já existe */ }
+    try {
+      this.db.exec(`ALTER TABLE users ADD COLUMN subscription_status TEXT DEFAULT 'none'`);
+    } catch (e) { /* coluna já existe */ }
     
     // Tabela de planos
     this.db.exec(`
@@ -367,8 +381,24 @@ class DatabaseManager {
           plan_id INTEGER,
           plan_expires_at TIMESTAMP,
           firebase_uid VARCHAR(255),
-          created_at TIMESTAMP NOT NULL
+          stripe_customer_id VARCHAR(255),
+          stripe_subscription_id VARCHAR(255),
+          subscription_status VARCHAR(50) DEFAULT 'none',
+          created_at TIMESTAMP NOT NULL,
+          updated_at TIMESTAMP
         )
+      `);
+      
+      // Adiciona colunas do Stripe se não existirem (migração)
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'none';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
+        EXCEPTION WHEN duplicate_column THEN NULL;
+        END $$;
       `);
       
       // Tabela de planos
@@ -1600,6 +1630,102 @@ class DatabaseManager {
       ).all(userId);
       
       return { summary: stats, dailyData, recentCampaigns };
+    }
+  }
+
+  // ==================== STRIPE INTEGRATION ====================
+
+  async updateUserStripeCustomer(userId, stripeCustomerId) {
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(
+          'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
+          [stripeCustomerId, userId]
+        );
+      } finally { client.release(); }
+    } else {
+      this.db.prepare('UPDATE users SET stripe_customer_id = ? WHERE id = ?').run(stripeCustomerId, userId);
+    }
+  }
+
+  async getUserByStripeCustomer(stripeCustomerId) {
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT * FROM users WHERE stripe_customer_id = $1',
+          [stripeCustomerId]
+        );
+        return result.rows[0] || null;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('SELECT * FROM users WHERE stripe_customer_id = ?').get(stripeCustomerId);
+    }
+  }
+
+  async getPlanByName(planName) {
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        const result = await client.query(
+          'SELECT * FROM plans WHERE LOWER(name) = LOWER($1)',
+          [planName]
+        );
+        return result.rows[0] || null;
+      } finally { client.release(); }
+    } else {
+      return this.db.prepare('SELECT * FROM plans WHERE LOWER(name) = LOWER(?)').get(planName);
+    }
+  }
+
+  async updateUserPlan(userId, planId, subscriptionData = {}) {
+    const { stripe_subscription_id, subscription_status } = subscriptionData;
+    
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(`
+          UPDATE users SET 
+            plan_id = $1,
+            stripe_subscription_id = COALESCE($2, stripe_subscription_id),
+            subscription_status = COALESCE($3, subscription_status),
+            updated_at = NOW()
+          WHERE id = $4
+        `, [planId, stripe_subscription_id, subscription_status, userId]);
+      } finally { client.release(); }
+    } else {
+      this.db.prepare(`
+        UPDATE users SET 
+          plan_id = ?,
+          stripe_subscription_id = COALESCE(?, stripe_subscription_id),
+          subscription_status = COALESCE(?, subscription_status),
+          updated_at = datetime('now')
+        WHERE id = ?
+      `).run(planId, stripe_subscription_id, subscription_status, userId);
+    }
+  }
+
+  async updateSubscriptionStatus(stripeCustomerId, subscriptionId, status) {
+    if (this.isPostgres) {
+      const client = await this.pool.connect();
+      try {
+        await client.query(`
+          UPDATE users SET 
+            stripe_subscription_id = $1,
+            subscription_status = $2,
+            updated_at = NOW()
+          WHERE stripe_customer_id = $3
+        `, [subscriptionId, status, stripeCustomerId]);
+      } finally { client.release(); }
+    } else {
+      this.db.prepare(`
+        UPDATE users SET 
+          stripe_subscription_id = ?,
+          subscription_status = ?,
+          updated_at = datetime('now')
+        WHERE stripe_customer_id = ?
+      `).run(subscriptionId, status, stripeCustomerId);
     }
   }
 }

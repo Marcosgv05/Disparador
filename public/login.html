@@ -382,7 +382,7 @@
                 await updateProfile(user, { displayName: name });
                 const token = await user.getIdToken();
                 
-                showAlert('Conta criada com sucesso! Redirecionando...', 'success');
+                showAlert('Conta criada com sucesso! Redirecionando para pagamento...', 'success');
                 
                 const selectedPlan = JSON.parse(selectedPlanRaw);
 
@@ -394,9 +394,34 @@
                     plan: selectedPlan
                 }));
                 
-                setTimeout(() => {
+                // Cria sessão de checkout do Stripe
+                try {
+                    const checkoutResponse = await fetch('/api/stripe/create-checkout-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            planName: selectedPlan.name,
+                            planId: selectedPlan.id
+                        })
+                    });
+                    
+                    const checkoutData = await checkoutResponse.json();
+                    
+                    if (checkoutData.success && checkoutData.url) {
+                        // Redireciona para o checkout do Stripe
+                        window.location.href = checkoutData.url;
+                    } else {
+                        // Se falhar, vai para o dashboard
+                        console.error('Erro ao criar checkout:', checkoutData.error);
+                        window.location.href = '/';
+                    }
+                } catch (checkoutError) {
+                    console.error('Erro ao criar checkout:', checkoutError);
                     window.location.href = '/';
-                }, 1000);
+                }
             } catch (error) {
                 console.error('Erro no registro:', error);
                 let errorMessage = 'Erro ao criar conta';
