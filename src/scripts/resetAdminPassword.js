@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -20,8 +21,8 @@ const db = new Database(dbPath);
 
 async function resetAdminPassword() {
   try {
-    // Nova senha
-    const newPassword = 'admin123';
+    // Gera senha aleatória segura ou usa variável de ambiente
+    const newPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Atualiza a senha do admin
@@ -34,7 +35,10 @@ async function resetAdminPassword() {
     if (result.changes > 0) {
       console.log('✓ Senha do admin resetada com sucesso!');
       console.log('Email: admin@whatsapp.com');
-      console.log('Nova senha: admin123');
+      console.log('\n========================================');
+      console.log('NOVA SENHA (ANOTE E GUARDE!):');
+      console.log(newPassword);
+      console.log('========================================\n');
     } else {
       console.log('⚠ Usuário admin não encontrado. Criando...');
       
@@ -52,7 +56,10 @@ async function resetAdminPassword() {
       
       console.log('✓ Usuário admin criado com sucesso!');
       console.log('Email: admin@whatsapp.com');
-      console.log('Senha: admin123');
+      console.log('\n========================================');
+      console.log('SENHA (ANOTE E GUARDE!):');
+      console.log(newPassword);
+      console.log('========================================\n');
     }
   } catch (error) {
     console.error('Erro ao resetar senha:', error.message);

@@ -3105,9 +3105,81 @@ document.addEventListener('change', (e) => {
     }
 });
 
+// ==== SUBSCRIPTION CHECK ====
+
+/**
+ * Verifica se o usuário tem assinatura ativa
+ * @returns {Promise<{hasSubscription: boolean, status: string, planName: string}>}
+ */
+async function checkSubscriptionStatus() {
+    try {
+        const token = localStorage.getItem('firebaseToken');
+        if (!token) {
+            return { hasSubscription: false, status: 'none', planName: null };
+        }
+        
+        const response = await fetch('/api/stripe/subscription-status', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+            console.warn('Erro ao verificar assinatura:', response.status);
+            return { hasSubscription: false, status: 'error', planName: null };
+        }
+        
+        const data = await response.json();
+        return {
+            hasSubscription: data.hasSubscription || false,
+            status: data.status || 'none',
+            planName: data.planName || null
+        };
+    } catch (error) {
+        console.error('Erro ao verificar assinatura:', error);
+        return { hasSubscription: false, status: 'error', planName: null };
+    }
+}
+
+/**
+ * Mostra overlay de assinatura necessária
+ */
+function showSubscriptionRequired() {
+    const overlay = document.getElementById('subscriptionRequired');
+    const authLoading = document.getElementById('authLoading');
+    const mainContainer = document.getElementById('mainContainer');
+    
+    if (authLoading) authLoading.style.display = 'none';
+    if (mainContainer) mainContainer.style.display = 'none';
+    if (overlay) overlay.style.display = 'flex';
+}
+
+/**
+ * Logout e redireciona para login
+ */
+function logoutAndRedirect() {
+    localStorage.removeItem('firebaseToken');
+    localStorage.removeItem('user');
+    window.location.href = '/login.html';
+}
+
+// Expõe globalmente para o botão no HTML
+window.logoutAndRedirect = logoutAndRedirect;
+
 // ==== INITIALIZATION ====
 
-function initializeApp() {
+async function initializeApp() {
+    // Verifica assinatura antes de carregar o app
+    const subscription = await checkSubscriptionStatus();
+    
+    if (!subscription.hasSubscription || subscription.status !== 'active') {
+        // Usuário não tem assinatura ativa
+        showSubscriptionRequired();
+        return;
+    }
+    
+    // Salva info do plano no state
+    state.subscription = subscription;
+    
+    // Continua carregamento normal
     loadCampaigns();
     loadSessions();
     loadInstances();

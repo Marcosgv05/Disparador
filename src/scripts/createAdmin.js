@@ -15,17 +15,25 @@ async function createAdmin() {
       return;
     }
 
+    // Gera senha aleatória segura ou usa variável de ambiente
+    const crypto = await import('crypto');
+    const adminPassword = process.env.ADMIN_PASSWORD || crypto.randomBytes(16).toString('hex');
+    
     // Cria admin
     const admin = await User.create({
       email: adminEmail,
-      password: 'admin123',
+      password: adminPassword,
       name: 'Administrador',
       role: 'admin'
     });
 
     logger.info('✅ Usuário admin criado com sucesso!');
-    logger.info('📧 Email: admin@whatsapp.com');
-    logger.info('🔑 Senha: admin123');
+    logger.info('📧 Email: ' + adminEmail);
+    logger.info('🔑 Senha: [gerada - veja console]');
+    console.log('\n========================================');
+    console.log('SENHA DO ADMIN (ANOTE E GUARDE!):');
+    console.log(adminPassword);
+    console.log('========================================\n');
     logger.info('⚠️  IMPORTANTE: Altere a senha após o primeiro login!');
   } catch (error) {
     logger.error(`Erro ao criar admin: ${error.message}`);

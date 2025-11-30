@@ -9,6 +9,8 @@ class CampaignScheduler {
   constructor() {
     this.interval = null;
     this.isRunning = false;
+    this.consecutiveErrors = 0;
+    this.maxConsecutiveErrors = 5;
   }
 
   /**
@@ -20,10 +22,41 @@ class CampaignScheduler {
     logger.info('📅 Iniciando scheduler de campanhas...');
     
     // Verifica a cada minuto
-    this.interval = setInterval(() => this.checkPendingCampaigns(), intervalMs);
+    this.interval = setInterval(() => this.safeCheckPendingCampaigns(), intervalMs);
     
-    // Executa imediatamente na primeira vez
-    this.checkPendingCampaigns();
+    // Aguarda 10 segundos antes da primeira execução para dar tempo do banco conectar
+    setTimeout(() => this.safeCheckPendingCampaigns(), 10000);
+  }
+
+  /**
+   * Wrapper seguro para verificar campanhas - nunca lança exceção
+   */
+  async safeCheckPendingCampaigns() {
+    try {
+      await this.checkPendingCampaigns();
+      this.consecutiveErrors = 0; // Reset em caso de sucesso
+    } catch (error) {
+      this.consecutiveErrors++;
+      
+      // Só loga como erro se for algo diferente de problemas de conexão
+      const isConnectionError = 
+        error.message?.includes('Connection terminated') ||
+        error.message?.includes('network socket disconnected') ||
+        error.message?.includes('ECONNREFUSED') ||
+        error.message?.includes('ETIMEDOUT') ||
+        error.message?.includes('Client has encountered a connection error');
+      
+      if (isConnectionError) {
+        // Erros de conexão são apenas warning (banco pode estar reiniciando)
+        if (this.consecutiveErrors <= 3) {
+          logger.warn(`📅 Scheduler: Banco temporariamente indisponível (tentativa ${this.consecutiveErrors})`);
+        }
+        // Após 3 erros seguidos, loga menos para não poluir
+      } else {
+        // Outros erros são logados normalmente
+        logger.error(`📅 Scheduler erro: ${error.message}`);
+      }
+    }
   }
 
   /**
@@ -107,8 +140,6 @@ class CampaignScheduler {
           });
         }
       }
-    } catch (error) {
-      logger.error(`Erro no scheduler: ${error.message}`);
     } finally {
       this.isRunning = false;
     }

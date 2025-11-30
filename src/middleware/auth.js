@@ -131,6 +131,9 @@ export async function requireAuth(req, res, next) {
           await dbManager.updateUser(dbUser.id, { role: 'admin' });
           role = 'admin';
         }
+        
+        // Guarda dados do usuário para uso posterior
+        req.dbUser = dbUser;
       }
     } catch (e) {
       logger.warn(`Erro ao sincronizar usuário com banco: ${e.message}`);
@@ -142,7 +145,12 @@ export async function requireAuth(req, res, next) {
       email: userEmail,
       name: userName,
       role,
-      maxInstances
+      maxInstances,
+      // Dados adicionais do banco
+      created_at: req.dbUser?.created_at || null,
+      stripe_customer_id: req.dbUser?.stripe_customer_id || null,
+      stripe_subscription_id: req.dbUser?.stripe_subscription_id || null,
+      subscription_status: req.dbUser?.subscription_status || null
     };
     
     next();

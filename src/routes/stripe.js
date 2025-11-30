@@ -134,6 +134,27 @@ router.get('/subscription-status', requireAuth, async (req, res) => {
   try {
     const user = req.user;
     
+    // Data de corte: contas criadas antes dessa data têm acesso livre (legacy)
+    const LEGACY_CUTOFF_DATE = new Date('2025-11-30T00:00:00Z');
+    const userCreatedAt = user.created_at ? new Date(user.created_at) : null;
+    
+    // Log para debug
+    logger.info(`[Subscription Check] User: ${user.email}, created_at: ${user.created_at}, parsed: ${userCreatedAt}, cutoff: ${LEGACY_CUTOFF_DATE}`);
+    
+    // Se a conta foi criada antes da data de corte OU não tem data (conta antiga), é legada
+    const isLegacyAccount = !userCreatedAt || userCreatedAt < LEGACY_CUTOFF_DATE;
+    
+    if (isLegacyAccount) {
+      logger.info(`[Subscription Check] User ${user.email} é legacy - acesso liberado`);
+      return res.json({
+        success: true,
+        hasSubscription: true,
+        status: 'active',
+        planName: 'Legado',
+        isLegacy: true
+      });
+    }
+    
     if (!user.stripe_customer_id) {
       return res.json({ 
         success: true, 

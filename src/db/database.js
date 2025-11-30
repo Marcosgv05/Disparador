@@ -31,7 +31,19 @@ class DatabaseManager {
       
       this.pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        // Configurações para melhor resiliência em produção
+        max: 10, // máximo de conexões no pool
+        idleTimeoutMillis: 30000, // fecha conexões ociosas após 30s
+        connectionTimeoutMillis: 10000, // timeout para conectar
+        keepAlive: true, // mantém conexões vivas
+        keepAliveInitialDelayMillis: 10000 // delay inicial do keepalive
+      });
+
+      // Tratamento de erros do pool (evita crash)
+      this.pool.on('error', (err) => {
+        console.error('🐘 Erro no pool PostgreSQL:', err.message);
+        // Não faz throw - deixa o pool tentar reconectar
       });
 
       // Cria tabelas no PostgreSQL
