@@ -133,32 +133,20 @@ router.post('/create-portal-session', requireAuth, async (req, res) => {
 router.get('/subscription-status', requireAuth, async (req, res) => {
   try {
     const user = req.user;
-    
-    // Data de corte: contas criadas DEPOIS dessa data precisam de assinatura
-    // Contas criadas antes (ou sem data) têm acesso livre (legacy)
-    const LEGACY_CUTOFF_DATE = new Date('2025-12-01T00:00:00Z');
-    const userCreatedAt = user.created_at ? new Date(user.created_at) : null;
-    
-    // Log para debug
-    logger.info(`[Subscription Check] User: ${user.email}, created_at: ${user.created_at}, parsed: ${userCreatedAt}, cutoff: ${LEGACY_CUTOFF_DATE}`);
-    
-    // Conta é legada se:
-    // 1. Não tem data de criação (conta muito antiga)
-    // 2. Foi criada antes de 1 de dezembro de 2025
-    // 3. Conta criada no mesmo dia que a migração (30/11) - considera legada também
-    const isLegacyAccount = !userCreatedAt || userCreatedAt < LEGACY_CUTOFF_DATE;
-    
-    if (isLegacyAccount) {
-      logger.info(`[Subscription Check] User ${user.email} é legacy - acesso liberado`);
+
+    if (user.role === 'admin' || user.subscription_bypass) {
+      const reason = user.role === 'admin' ? 'admin' : 'bypass_manual';
+      logger.info(`[Subscription Check] User ${user.email} acesso liberado por ${reason}`);
       return res.json({
         success: true,
         hasSubscription: true,
         status: 'active',
-        planName: 'Legado',
-        isLegacy: true
+        planName: user.role === 'admin' ? 'Admin' : 'Bypass',
+        isAdmin: user.role === 'admin',
+        subscriptionBypass: !!user.subscription_bypass
       });
     }
-    
+
     if (!user.stripe_customer_id) {
       return res.json({ 
         success: true, 

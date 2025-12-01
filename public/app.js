@@ -3131,7 +3131,8 @@ async function checkSubscriptionStatus() {
         return {
             hasSubscription: data.hasSubscription || false,
             status: data.status || 'none',
-            planName: data.planName || null
+            planName: data.planName || null,
+            subscriptionBypass: !!data.subscriptionBypass
         };
     } catch (error) {
         console.error('Erro ao verificar assinatura:', error);
@@ -3170,7 +3171,7 @@ async function initializeApp() {
     // Verifica assinatura antes de carregar o app
     const subscription = await checkSubscriptionStatus();
     
-    if (!subscription.hasSubscription || subscription.status !== 'active') {
+    if ((!subscription.hasSubscription || subscription.status !== 'active') && !subscription.subscriptionBypass) {
         // Usuário não tem assinatura ativa
         showSubscriptionRequired();
         return;

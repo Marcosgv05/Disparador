@@ -150,7 +150,8 @@ export async function requireAuth(req, res, next) {
       created_at: req.dbUser?.created_at || null,
       stripe_customer_id: req.dbUser?.stripe_customer_id || null,
       stripe_subscription_id: req.dbUser?.stripe_subscription_id || null,
-      subscription_status: req.dbUser?.subscription_status || null
+      subscription_status: req.dbUser?.subscription_status || null,
+      subscription_bypass: !!req.dbUser?.subscription_bypass
     };
     
     next();

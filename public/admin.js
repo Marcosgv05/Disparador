@@ -80,16 +80,45 @@ window.editUser = (u) => {
             <div><label class="text-sm text-slate-400">Máx Instâncias</label><input type="number" id="eInst" value="${u.max_instances||3}" min="1" max="100" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"></div>
             <div><label class="text-sm text-slate-400">Plano</label><select id="ePlan" class="w-full mt-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-white"><option value="">Nenhum</option>${plansCache.map(p=>`<option value="${p.id}" ${u.plan_id==p.id?'selected':''}>${p.name}</option>`).join('')}</select></div>
             <div class="flex items-center gap-2"><input type="checkbox" id="eActive" ${u.is_active?'checked':''}><label class="text-sm">Ativo</label></div>
+            <div class="flex items-center gap-2"><input type="checkbox" id="eBypass" ${u.subscription_bypass?'checked':''}><label class="text-sm">Liberar acesso mesmo sem assinatura</label></div>
             <div class="flex gap-2 pt-2"><button type="button" onclick="closeModal()" class="flex-1 px-3 py-2 bg-slate-700 rounded">Cancelar</button><button class="flex-1 px-3 py-2 bg-indigo-500 rounded">Salvar</button></div>
         </form>`);
 };
 
 window.saveUser = async (e, id) => {
     e.preventDefault();
-    await api(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ name: document.getElementById('eName').value, role: document.getElementById('eRole').value, max_instances: +document.getElementById('eInst').value, is_active: document.getElementById('eActive').checked }) });
+
+    const payload = {
+        name: document.getElementById('eName').value,
+        role: document.getElementById('eRole').value,
+        max_instances: +document.getElementById('eInst').value,
+        is_active: document.getElementById('eActive').checked,
+        subscription_bypass: document.getElementById('eBypass').checked
+    };
+
+    console.log('Salvando usuário', id, payload);
+    const res = await api(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    console.log('Resposta atualização usuário', res);
+
+    if (!res || res.success === false || res.error) {
+        toast((res && res.error) || 'Erro ao atualizar usuário', 'error');
+        return;
+    }
+
     const plan = document.getElementById('ePlan').value;
-    if (plan) await api(`/api/admin/users/${id}/plan`, { method: 'POST', body: JSON.stringify({ plan_id: +plan }) });
-    closeModal(); loadUsers(); loadStats(); toast('Usuário atualizado!');
+    if (plan) {
+        const resPlan = await api(`/api/admin/users/${id}/plan`, { method: 'POST', body: JSON.stringify({ plan_id: +plan }) });
+        console.log('Resposta atribuição de plano', resPlan);
+        if (!resPlan || resPlan.success === false || resPlan.error) {
+            toast((resPlan && resPlan.error) || 'Erro ao atualizar plano do usuário', 'error');
+            return;
+        }
+    }
+
+    closeModal();
+    loadUsers();
+    loadStats();
+    toast('Usuário atualizado!');
 };
 
 window.deleteUser = async (id) => { if (confirm('Excluir?')) { await api(`/api/admin/users/${id}`, { method: 'DELETE' }); loadUsers(); loadStats(); toast('Excluído!'); } };

@@ -88,6 +88,7 @@ class DatabaseManager {
         stripe_customer_id TEXT,
         stripe_subscription_id TEXT,
         subscription_status TEXT DEFAULT 'none',
+        subscription_bypass INTEGER DEFAULT 0,
         created_at TEXT NOT NULL
       )
     `);
@@ -101,6 +102,9 @@ class DatabaseManager {
     } catch (e) { /* coluna já existe */ }
     try {
       this.db.exec(`ALTER TABLE users ADD COLUMN subscription_status TEXT DEFAULT 'none'`);
+    } catch (e) { /* coluna já existe */ }
+    try {
+      this.db.exec(`ALTER TABLE users ADD COLUMN subscription_bypass INTEGER DEFAULT 0`);
     } catch (e) { /* coluna já existe */ }
     
     // Tabela de planos
@@ -316,7 +320,7 @@ class DatabaseManager {
     const now = new Date().toISOString();
     plans.forEach(p => stmt.run(p.name, p.description, p.max_instances, p.max_messages_day, p.price, now));
   }
-  
+
   async initPostgresDefaultSettings(client) {
     const defaults = [
       { key: 'message_delay', value: '3000', description: 'Delay entre mensagens (ms)' },
@@ -396,6 +400,7 @@ class DatabaseManager {
           stripe_customer_id VARCHAR(255),
           stripe_subscription_id VARCHAR(255),
           subscription_status VARCHAR(50) DEFAULT 'none',
+          subscription_bypass BOOLEAN DEFAULT false,
           created_at TIMESTAMP NOT NULL,
           updated_at TIMESTAMP
         )
@@ -408,6 +413,7 @@ class DatabaseManager {
           ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);
           ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'none';
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_bypass BOOLEAN DEFAULT false;
           ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
         EXCEPTION WHEN duplicate_column THEN NULL;
         END $$;
@@ -579,7 +585,7 @@ class DatabaseManager {
       
       await this.initPostgresDefaultSettings(client);
       await this.initPostgresDefaultPlans(client);
-      console.log('✅ Tabelas PostgreSQL criadas');
+      console.log(' Tabelas PostgreSQL criadas');
     } finally {
       client.release();
     }
@@ -674,7 +680,7 @@ class DatabaseManager {
       const client = await this.pool.connect();
       try {
         const result = await client.query(
-          'SELECT id, email, name, role, max_instances, is_active, created_at FROM users ORDER BY created_at DESC'
+          'SELECT id, email, name, role, max_instances, is_active, subscription_bypass, created_at FROM users ORDER BY created_at DESC'
         );
         return result.rows;
       } finally {
@@ -682,7 +688,7 @@ class DatabaseManager {
       }
     } else {
       return this.db.prepare(
-        'SELECT id, email, name, role, max_instances, is_active, created_at FROM users ORDER BY created_at DESC'
+        'SELECT id, email, name, role, max_instances, is_active, subscription_bypass, created_at FROM users ORDER BY created_at DESC'
       ).all();
     }
   }
@@ -691,7 +697,7 @@ class DatabaseManager {
    * Atualiza usuário (admin)
    */
   async updateUser(id, updates) {
-    const { name, role, max_instances, is_active } = updates;
+    const { name, role, max_instances, is_active, subscription_bypass } = updates;
     
     if (this.isPostgres) {
       const client = await this.pool.connect();
@@ -701,9 +707,10 @@ class DatabaseManager {
             name = COALESCE($1, name),
             role = COALESCE($2, role),
             max_instances = COALESCE($3, max_instances),
-            is_active = COALESCE($4, is_active)
-          WHERE id = $5 RETURNING id, email, name, role, max_instances, is_active, created_at`,
-          [name, role, max_instances, is_active, id]
+            is_active = COALESCE($4, is_active),
+            subscription_bypass = COALESCE($5, subscription_bypass)
+          WHERE id = $6 RETURNING id, email, name, role, max_instances, is_active, subscription_bypass, created_at`,
+          [name, role, max_instances, is_active, subscription_bypass, id]
         );
         return result.rows[0];
       } finally {
@@ -717,6 +724,7 @@ class DatabaseManager {
       if (role !== undefined) { fields.push('role = ?'); values.push(role); }
       if (max_instances !== undefined) { fields.push('max_instances = ?'); values.push(max_instances); }
       if (is_active !== undefined) { fields.push('is_active = ?'); values.push(is_active ? 1 : 0); }
+      if (subscription_bypass !== undefined) { fields.push('subscription_bypass = ?'); values.push(subscription_bypass ? 1 : 0); }
       
       if (fields.length === 0) return null;
       

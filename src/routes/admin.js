@@ -17,7 +17,8 @@ router.get('/users', requireAuth, requireAdmin, async (req, res) => {
       users: users.map(u => ({
         ...u,
         is_active: Boolean(u.is_active),
-        max_instances: u.max_instances || 3
+        max_instances: u.max_instances || 3,
+        subscription_bypass: Boolean(u.subscription_bypass)
       }))
     });
   } catch (error) {
@@ -54,7 +55,7 @@ router.get('/users/:id', requireAuth, requireAdmin, async (req, res) => {
 router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, role, max_instances, is_active } = req.body;
+    const { name, role, max_instances, is_active, subscription_bypass } = req.body;
     
     // Validações
     if (max_instances !== undefined && (max_instances < 1 || max_instances > 100)) {
@@ -65,7 +66,7 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Role deve ser "user" ou "admin"' });
     }
     
-    const user = await dbManager.updateUser(id, { name, role, max_instances, is_active });
+    const user = await dbManager.updateUser(id, { name, role, max_instances, is_active, subscription_bypass });
     
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
