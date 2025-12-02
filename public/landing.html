@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vext - Automação Segura de WhatsApp</title>
+    <meta name="description" content="Pare de perder chips. O sistema definitivo de disparo em massa com proteção anti-banimento.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #25D366; /* WhatsApp Green */
+            --primary-dark: #128C7E;
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 100px 0 60px;
+            text-align: center;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero h1 span {
+            color: var(--primary);
+            -webkit-text-fill-color: var(--primary);
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        /* Video Section */
+        .video-container {
+            max-width: 900px;
+            margin: 0 auto 80px;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-placeholder {
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: var(--text-muted);
+        }
+
+        .play-button {
+            width: 80px;
+            height: 80px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .play-button:hover {
+            transform: scale(1.1);
+        }
+
+        .play-icon {
+            width: 0;
+            height: 0;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 25px solid #fff;
+            margin-left: 5px;
+        }
+
+        /* Features Grid */
+        .features {
+            padding: 80px 0;
+            background: var(--surface);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 40px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            padding: 30px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+
+        .card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .card p {
+            color: var(--text-muted);
+        }
+
+        .icon {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 100px 0;
+            text-align: center;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--primary);
+            color: #fff;
+            padding: 18px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border-radius: 50px;
+            text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.3);
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(37, 211, 102, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="hero">
+        <div class="container">
+            <div style="margin-bottom: 20px; display: inline-block; padding: 5px 15px; background: rgba(37, 211, 102, 0.1); color: var(--primary); border-radius: 20px; font-weight: 600; font-size: 0.9rem;">
+                🚀 Nova Tecnologia Anti-Banimento 2024
+            </div>
+            <h1>Pare de Perder Chips.<br><span>Escale Suas Vendas.</span></h1>
+            <p>A única plataforma de disparo em massa que usa <strong>Múltiplas Instâncias</strong> e <strong>Rotação Inteligente</strong> para blindar sua operação.</p>
+            
+            <a href="#demo" class="btn">Ver Como Funciona</a>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="video-container" id="demo">
+            <!-- Substitua este bloco pelo embed do seu vídeo Loom/YouTube -->
+            <div class="video-placeholder">
+                <div class="play-button">
+                    <div class="play-icon"></div>
+                </div>
+                <h3>Vídeo de Demonstração (3 min)</h3>
+                <p>Grave seu vídeo seguindo o script e coloque aqui</p>
+            </div>
+        </div>
+    </div>
+
+    <section class="features">
+        <div class="container">
+            <h2 style="text-align: center; font-size: 2.5rem;">Por que o Vext é Diferente?</h2>
+            <div class="grid">
+                <div class="card">
+                    <span class="icon">🛡️</span>
+                    <h3>Anti-Banimento Real</h3>
+                    <p>Não usamos apenas um chip. Conecte 5, 10 ou 50 WhatsApps e o sistema distribui o envio entre eles automaticamente (Round-Robin).</p>
+                </div>
+                <div class="card">
+                    <span class="icon">🔄</span>
+                    <h3>Rotação de Mensagens</h3>
+                    <p>O sistema nunca manda a mesma mensagem duas vezes. Ele alterna variações e personaliza com o nome do cliente para evitar detecção de spam.</p>
+                </div>
+                <div class="card">
+                    <span class="icon">📊</span>
+                    <h3>Gestão Profissional</h3>
+                    <p>Pause, retome e acompanhe o status de cada envio. Ideal para agências que precisam prestar contas para clientes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container">
+            <h2>Pronto para Blindar sua Operação?</h2>
+            <p style="margin: 20px 0 40px; color: var(--text-muted);">Estou selecionando 3 parceiros para implementação assistida esta semana.</p>
+            <a href="https://wa.me/SEU_NUMERO_AQUI?text=Vi%20a%20landing%20page%20do%20Vext%20e%20quero%20saber%20mais" class="btn">
+                Quero Agendar uma Demo ➝
+            </a>
+        </div>
+    </section>
+
+    <footer style="text-align: center; padding: 40px; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.05);">
+        <p>&copy; 2024 Vext Automation. Todos os direitos reservados.</p>
+    </footer>
+
+</body>
+</html>

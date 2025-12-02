@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import { generateToken, requireAuth, requireAdmin } from '../middleware/auth.js';
 import { logger } from '../config/logger.js';
+import dbManager from '../db/database.js';
 
 const router = express.Router();
 
@@ -100,7 +101,29 @@ router.post('/logout', (req, res) => {
  * GET /api/auth/me
  * Retorna dados do usuário logado
  */
-router.get('/me', requireAuth, (req, res) => {
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    // Registra log de login apenas uma vez por sessão
+    const sessionKey = `login_logged_${req.user.id}`;
+    if (req.session && !req.session[sessionKey]) {
+      const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+      
+      await dbManager.logLogin(
+        req.user.id,
+        req.user.email,
+        ip,
+        userAgent,
+        true // success
+      );
+      
+      req.session[sessionKey] = true;
+      logger.info(`📝 Login registrado: ${req.user.email}`);
+    }
+  } catch (err) {
+    logger.warn(`Erro ao registrar log de login: ${err.message}`);
+  }
+  
   res.json({ user: req.user });
 });
 

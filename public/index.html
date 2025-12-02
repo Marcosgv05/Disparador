@@ -406,27 +406,122 @@
                                         <div class="content-tab-layout">
                                             <!-- Coluna Esquerda: Editor -->
                                             <div class="content-editor-col">
-                                                <div class="content-card">
-                                                    <h4>Editor de Mensagem</h4>
+                                                <!-- Card de Geração com IA -->
+                                                <div class="content-card ai-card">
+                                                    <div class="ai-card-header">
+                                                        <div class="ai-card-title">
+                                                            <h4>Geração com IA</h4>
+                                                        </div>
+                                                        <label class="toggle-switch">
+                                                            <input type="checkbox" id="enableAiMessages" onchange="toggleAiMode()">
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
                                                     
-                                                    <!-- Badges de variáveis -->
-                                                    <div class="variable-badges">
-                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{nome}}')">{{nome}}</button>
-                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{telefone}}')">{{telefone}}</button>
-                                                        <button type="button" class="variable-badge" onclick="insertVariable('{{custom1}}')">{{custom1}}</button>
-                                                        <span class="variable-hint">Clique para inserir variável</span>
+                                                    <div id="aiModeContainer" class="ai-mode-container" style="display: none;">
+                                                        <p class="ai-description">
+                                                            Escreva uma mensagem base e a IA gerará <strong>10 variações únicas</strong> automaticamente.
+                                                            As variações mantêm o mesmo significado mas com palavras diferentes, reduzindo chances de bloqueio.
+                                                        </p>
+                                                        
+                                                        <!-- Badges de variáveis para IA -->
+                                                        <div class="variable-badges">
+                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{nome}}')">{{nome}}</button>
+                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{telefone}}')">{{telefone}}</button>
+                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{custom1}}')">{{custom1}}</button>
+                                                            <span class="variable-hint">Variáveis serão preservadas nas variações</span>
+                                                        </div>
+                                                        
+                                                        <textarea id="aiBaseMessage" class="input message-textarea-large" placeholder="Digite sua mensagem base aqui... A IA vai criar 10 variações diferentes mantendo o mesmo significado." rows="6" oninput="updateAiPreview()"></textarea>
+                                                        
+                                                        <div class="ai-options">
+                                                            <div class="ai-option-group">
+                                                                <label>Tom da mensagem:</label>
+                                                                <select id="aiTone" class="input input-sm">
+                                                                    <option value="original">Original (manter)</option>
+                                                                    <option value="friendly">Amigável</option>
+                                                                    <option value="formal">Formal</option>
+                                                                    <option value="informal">Informal</option>
+                                                                    <option value="persuasive">Persuasivo</option>
+                                                                    <option value="urgent">Urgente</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="ai-option-group">
+                                                                <label>Variações:</label>
+                                                                <select id="aiVariationCount" class="input input-sm">
+                                                                    <option value="5">5 variações</option>
+                                                                    <option value="10" selected>10 variações</option>
+                                                                    <option value="15">15 variações</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="ai-actions">
+                                                            <button class="btn btn-primary btn-ai" onclick="generateAiVariations()" id="btnGenerateAi">
+                                                                Gerar Variações com IA
+                                                            </button>
+                                                            <label class="ai-checkbox">
+                                                                <input type="checkbox" id="aiReplaceExisting">
+                                                                <span>Substituir mensagens existentes</span>
+                                                            </label>
+                                                        </div>
+                                                        
+                                                        <!-- Preview das variações geradas -->
+                                                        <div id="aiVariationsPreview" class="ai-variations-preview" style="display: none;">
+                                                            <div class="ai-variations-header">
+                                                                <h5>Variações Geradas</h5>
+                                                                <div class="ai-variations-actions">
+                                                                    <button class="btn btn-sm btn-secondary" type="button" id="btnApplySelected" onclick="applySelectedVariation()">Aplicar selecionada</button>
+                                                                    <button class="btn btn-sm btn-success" type="button" onclick="applyAiVariations()">Aplicar todas</button>
+                                                                </div>
+                                                            </div>
+                                                            <div id="aiVariationsList" class="ai-variations-list"></div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div id="aiDisabledMessage" class="ai-disabled-message">
+                                                        <p>Ative para gerar variações automáticas da sua mensagem usando inteligência artificial.</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="content-card" id="manualMessageCard">
+                                                    <div class="ai-card-header">
+                                                        <div class="ai-card-title">
+                                                            <h4>Editor de Mensagem Manual</h4>
+                                                        </div>
+                                                        <label class="toggle-switch">
+                                                            <input type="checkbox" id="enableManualMessages" onchange="toggleManualMode()" checked>
+                                                            <span class="toggle-slider"></span>
+                                                        </label>
+                                                    </div>
+                                                    
+                                                    <div id="manualModeContainer" class="manual-mode-container">
+                                                        <!-- Badges de variáveis -->
+                                                        <div class="variable-badges">
+                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{nome}}')">{{nome}}</button>
+                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{telefone}}')">{{telefone}}</button>
+                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{custom1}}')">{{custom1}}</button>
+                                                            <span class="variable-hint">Clique para inserir variável</span>
+                                                        </div>
+
+                                                        <!-- Textarea da mensagem -->
+                                                        <textarea id="newMessageText" class="input message-textarea-large" placeholder="Digite sua mensagem aqui..." rows="8" oninput="updateWhatsAppPreview()"></textarea>
+                                                        
+                                                        <div class="editor-actions">
+                                                            <button class="btn btn-primary" onclick="addMessage()">Salvar Mensagem</button>
+                                                        </div>
                                                     </div>
 
-                                                    <!-- Textarea da mensagem -->
-                                                    <textarea id="newMessageText" class="input message-textarea-large" placeholder="Digite sua mensagem aqui..." rows="8" oninput="updateWhatsAppPreview()"></textarea>
-                                                    
-                                                    <div class="editor-actions">
-                                                        <button class="btn btn-primary" onclick="addMessage()">Salvar Mensagem</button>
+                                                    <div id="manualDisabledMessage" class="ai-disabled-message" style="display: none;">
+                                                        <p>Desative a IA ou ative este editor para escrever mensagens manualmente.</p>
                                                     </div>
                                                 </div>
                                                 <!-- Lista de mensagens salvas -->
                                                 <div class="content-card">
-                                                    <h4>Mensagens Salvas</h4>
+                                                    <div class="messages-saved-header">
+                                                        <h4>Mensagens Salvas</h4>
+                                                        <button class="btn btn-danger btn-sm" type="button" onclick="clearMessages()">Remover todas</button>
+                                                    </div>
                                                     <div id="messagesList" class="messages-list"></div>
                                                 </div>
                                             </div>

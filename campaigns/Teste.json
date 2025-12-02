@@ -23,5 +23,12 @@
   "results": [],
   "linkedInstances": [
     "instance-01"
-  ]
+  ],
+  "aiGenerated": {
+    "enabled": true,
+    "baseMessage": "Olá! {{nome}}\n\n👓 Novos óculos por menos do que você imagina! 👓\n\nNa Ótica Gideão você encontra:\n\n✔ Óculos completos a partir de 10x R$27,90\n✔ Exame de vista 100% grátis\n✔ Seus óculos em até 1 hora\n\n📲 Fale com um consultor agora mesmo e saia de óculos novos hoje!",
+    "generatedAt": "2025-12-02T15:03:33.930Z",
+    "variationCount": 0,
+    "tone": "persuasive"
+  }
 }

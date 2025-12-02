@@ -1437,6 +1437,7 @@ hr {
     color: var(--text);
     line-height: 1.5;
     word-wrap: break-word;
+    white-space: pre-line;
 }
 
 .message-actions {
@@ -2791,6 +2792,14 @@ input:checked + .slider:before {
     color: var(--text);
 }
 
+.messages-saved-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
 /* Card específico de Configurações de Envio (aba Disparo) */
 .dispatch-settings-card {
     min-height: 230px;
@@ -3638,6 +3647,293 @@ input:checked + .slider:before {
     color: #94a3b8;
 }
 
+/* ====== SEÇÃO DE IA (Gemini) ====== */
+
+.ai-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366F1, #8B5CF6, #A855F7);
+}
+
+.ai-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.ai-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ai-card-title h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.ai-icon {
+    font-size: 1.25rem;
+}
+
+.ai-badge {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ai-mode-container {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-description {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.ai-description strong {
+    color: #A78BFA;
+}
+
+.ai-options {
+    display: flex;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+}
+
+.ai-option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 140px;
+}
+
+.ai-option-group label {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.input-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.ai-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-ai {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-ai:hover {
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+}
+
+.btn-ai:disabled {
+    background: #374151;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-ai-icon {
+    font-size: 1rem;
+}
+
+.ai-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+.ai-checkbox input {
+    width: 16px;
+    height: 16px;
+    accent-color: #6366F1;
+}
+
+.ai-disabled-message {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
+.ai-variations-preview {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(99, 102, 241, 0.2);
+    animation: fadeIn 0.3s ease;
+}
+
+.ai-variations-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.ai-variations-header h5 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #A78BFA;
+}
+
+.ai-variations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.ai-variation-item {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 8px;
+    padding: 0.5rem 1rem 0.6rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    position: relative;
+    white-space: pre-line;
+}
+
+.ai-variation-item:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+.ai-variation-item-selected {
+    border-color: rgba(129, 140, 248, 0.9);
+    box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.6);
+    background: rgba(17, 24, 39, 0.9);
+}
+
+.ai-variation-number {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    font-size: 0.7rem;
+    color: #6366F1;
+    font-weight: 600;
+}
+
+.ai-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 1rem;
+}
+
+.ai-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366F1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.ai-loading-text {
+    font-size: 0.9rem;
+    color: #A78BFA;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Toggle Switch melhorado */
+.toggle-switch {
+    position: relative;
+    width: 48px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #374151;
+    transition: 0.3s;
+    border-radius: 26px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #6366F1, #8B5CF6);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(22px);
+}
+
 /* Responsivo */
 @media (max-width: 1024px) {
     .content-tab-layout,
@@ -3652,5 +3948,14 @@ input:checked + .slider:before {
     .whatsapp-phone {
         width: 240px;
         height: 480px;
+    }
+    
+    .ai-options {
+        flex-direction: column;
+    }
+    
+    .ai-actions {
+        flex-direction: column;
+        align-items: stretch;
     }
 }

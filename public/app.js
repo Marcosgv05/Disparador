@@ -22,6 +22,59 @@ socket.on('disconnect', (reason) => {
     console.warn('⚠️ WebSocket desconectado:', reason);
 });
 
+// Seleciona uma variação individual ao clicar
+function selectAiVariation(index) {
+    selectedVariationIndex = index;
+    const list = document.getElementById('aiVariationsList');
+    if (!list) return;
+
+    const items = list.querySelectorAll('.ai-variation-item');
+    items.forEach((item, i) => {
+        if (i === index) {
+            item.classList.add('ai-variation-item-selected');
+        } else {
+            item.classList.remove('ai-variation-item-selected');
+        }
+    });
+
+    // Atualiza o preview WhatsApp com a variação selecionada
+    const previewElement = document.getElementById('whatsappPreviewMessage');
+    if (previewElement && generatedVariations[index]) {
+        const previewText = generatedVariations[index].replace(/\{\{(\w+)\}\}/g, '[$1]');
+        previewElement.querySelector('.whatsapp-message-text').textContent = previewText;
+    }
+}
+
+// Aplica apenas a variação selecionada como mensagem da campanha
+async function applySelectedVariation() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!campaignName) {
+        showToast('Selecione uma campanha primeiro', 'warning');
+        return;
+    }
+
+    if (selectedVariationIndex === null || !generatedVariations[selectedVariationIndex]) {
+        showToast('Selecione uma variação clicando sobre ela', 'warning');
+        return;
+    }
+
+    const message = generatedVariations[selectedVariationIndex];
+
+    try {
+        await apiCall(`/api/campaign/${campaignName}/message`, {
+            method: 'POST',
+            body: JSON.stringify({ message })
+        });
+
+        showToast('Mensagem selecionada adicionada à campanha!', 'success');
+        loadCampaignDetails({ preserveTab: true });
+    } catch (error) {
+        console.error('Erro ao aplicar variação selecionada:', error);
+        showToast('Erro ao aplicar variação selecionada', 'error');
+    }
+}
+
 // Estado global
 let state = {
     currentCampaign: null,
@@ -1017,10 +1070,11 @@ async function loadCampaignDetails(options = {}) {
         };
         const statusInfo = statusConfig[statusKey] || statusConfig.idle;
 
-        if (statusPill) {
-            statusPill.textContent = statusInfo.label;
-            statusPill.className = `campaign-status-pill ${statusInfo.pillClass}`;
-        }
+        {
+                statusPill.style.display = '';
+                statusPill.textContent = statusInfo.label;
+                statusPill.className = `campaign-status-pill ${statusInfo.pillClass}`;
+            }
 
         if (createdLabel) {
             if (campaign.createdAt) {
@@ -1372,6 +1426,35 @@ async function removeMessage(campaignName, index) {
         
     } catch (error) {
         console.error(error);
+    }
+}
+
+async function clearMessages() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!campaignName) {
+        showToast('Selecione uma campanha', 'warning');
+        return;
+    }
+
+    const confirmed = await showConfirmModal(
+        'Remover todas as mensagens',
+        'Tem certeza que deseja remover TODAS as mensagens salvas desta campanha? Esta ação não pode ser desfeita.',
+        'Remover todas',
+        'btn-danger'
+    );
+    if (!confirmed) return;
+
+    try {
+        await apiCall(`/api/campaign/${campaignName}/messages`, {
+            method: 'DELETE'
+        });
+
+        showToast('Todas as mensagens foram removidas.', 'success');
+        loadCampaignDetails({ preserveTab: true });
+    } catch (error) {
+        console.error(error);
+        showToast('Erro ao remover mensagens', 'error');
     }
 }
 
@@ -3205,6 +3288,230 @@ async function initializeApp() {
         }
     };
 }
+
+// ====== FUNÇÕES DE IA (Gemini) ======
+
+// Estado temporário das variações geradas
+let generatedVariations = [];
+let selectedVariationIndex = null;
+
+// Toggle do modo IA
+function toggleAiMode() {
+    const enabled = document.getElementById('enableAiMessages').checked;
+    const aiContainer = document.getElementById('aiModeContainer');
+    const aiDisabled = document.getElementById('aiDisabledMessage');
+    
+    if (enabled) {
+        aiContainer.style.display = 'block';
+        aiDisabled.style.display = 'none';
+        checkAiAvailability();
+    } else {
+        aiContainer.style.display = 'none';
+        aiDisabled.style.display = 'block';
+    }
+}
+
+// Verifica disponibilidade do serviço de IA
+async function checkAiAvailability() {
+    try {
+        const result = await apiCall('/api/ai/status');
+        
+        if (result.status !== 'healthy') {
+            const btn = document.getElementById('btnGenerateAi');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-ai-icon">⚠️</span> IA Indisponível';
+            showToast('Serviço de IA não está configurado. Configure GEMINI_API_KEY.', 'warning');
+        }
+    } catch (error) {
+        console.warn('Serviço de IA não disponível:', error);
+    }
+}
+
+// Insere variável no campo de IA
+function insertVariableAi(variable) {
+    const textarea = document.getElementById('aiBaseMessage');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.focus();
+    textarea.setSelectionRange(start + variable.length, start + variable.length);
+    updateAiPreview();
+}
+
+// Atualiza preview da mensagem base de IA
+function updateAiPreview() {
+    const message = document.getElementById('aiBaseMessage').value;
+    const previewElement = document.getElementById('whatsappPreviewMessage');
+    
+    if (previewElement && message) {
+        const previewText = message.replace(/\{\{(\w+)\}\}/g, '[$1]');
+        previewElement.querySelector('.whatsapp-message-text').textContent = previewText || 'Pré-visualização da mensagem';
+    }
+}
+
+// Gera variações com IA
+async function generateAiVariations() {
+    const baseMessage = document.getElementById('aiBaseMessage').value.trim();
+    const tone = document.getElementById('aiTone').value;
+    const count = parseInt(document.getElementById('aiVariationCount').value);
+    
+    if (!baseMessage) {
+        showToast('Digite uma mensagem base para gerar variações', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('btnGenerateAi');
+    const originalContent = btn.innerHTML;
+    const previewContainer = document.getElementById('aiVariationsPreview');
+    const variationsList = document.getElementById('aiVariationsList');
+    
+    // Estado de loading
+    btn.disabled = true;
+    btn.innerHTML = '<div class="ai-loading-spinner" style="width:20px;height:20px;border-width:2px;"></div> Gerando...';
+    
+    // Mostra loading no preview
+    previewContainer.style.display = 'block';
+    variationsList.innerHTML = `
+        <div class="ai-loading">
+            <div class="ai-loading-spinner"></div>
+            <span class="ai-loading-text">A IA está criando ${count} variações únicas...</span>
+        </div>
+    `;
+    
+    try {
+        const result = await apiCall('/api/ai/generate-variations', {
+            method: 'POST',
+            body: JSON.stringify({
+                baseMessage,
+                count,
+                tone,
+                preserveVariables: true
+            })
+        });
+        
+        if (result.success && result.variations) {
+            generatedVariations = result.variations;
+            selectedVariationIndex = null;
+            const btnApplySelected = document.getElementById('btnApplySelected');
+            if (btnApplySelected) btnApplySelected.disabled = false;
+
+            // Renderiza as variações (clicáveis)
+            variationsList.innerHTML = result.variations.map((variation, index) => `
+                <div class="ai-variation-item" data-index="${index}" onclick="selectAiVariation(${index})">
+                    <span class="ai-variation-number">#${index + 1}</span>
+                    ${escapeHtml(variation)}
+                </div>
+            `).join('');
+            
+            showToast(`✨ ${result.variations.length} variações geradas com sucesso!`, 'success');
+        } else {
+            throw new Error(result.error || 'Erro ao gerar variações');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao gerar variações:', error);
+        variationsList.innerHTML = `
+            <div class="ai-disabled-message">
+                <p>❌ ${error.message || 'Erro ao gerar variações. Tente novamente.'}</p>
+            </div>
+        `;
+        showToast(error.message || 'Erro ao gerar variações', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
+}
+
+// Aplica as variações geradas à campanha
+async function applyAiVariations() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!campaignName) {
+        showToast('Selecione uma campanha primeiro', 'warning');
+        return;
+    }
+    
+    if (!generatedVariations || generatedVariations.length === 0) {
+        showToast('Gere as variações primeiro', 'warning');
+        return;
+    }
+    
+    const baseMessage = document.getElementById('aiBaseMessage').value.trim();
+    const tone = document.getElementById('aiTone').value;
+    const replaceExisting = document.getElementById('aiReplaceExisting').checked;
+    
+    try {
+        const result = await apiCall(`/api/campaign/${campaignName}/ai-messages`, {
+            method: 'POST',
+            body: JSON.stringify({
+                baseMessage,
+                count: generatedVariations.length,
+                tone,
+                preserveVariables: true,
+                replaceExisting
+            })
+        });
+        
+        if (result.success) {
+            showToast(`✅ ${result.aiGenerated.count} mensagens adicionadas à campanha!`, 'success');
+            
+            // Limpa o estado
+            generatedVariations = [];
+            selectedVariationIndex = null;
+            document.getElementById('aiBaseMessage').value = '';
+            document.getElementById('aiVariationsPreview').style.display = 'none';
+            document.getElementById('aiReplaceExisting').checked = false;
+            
+            // Recarrega detalhes da campanha
+            loadCampaignDetails({ preserveTab: true });
+        } else {
+            throw new Error(result.error || 'Erro ao aplicar variações');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao aplicar variações:', error);
+        showToast(error.message || 'Erro ao aplicar variações', 'error');
+    }
+}
+
+// Escape HTML para evitar XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Expõe funções globalmente
+window.toggleAiMode = toggleAiMode;
+window.insertVariableAi = insertVariableAi;
+window.updateAiPreview = updateAiPreview;
+window.generateAiVariations = generateAiVariations;
+window.applyAiVariations = applyAiVariations;
+window.clearMessages = clearMessages;
+window.selectAiVariation = selectAiVariation;
+window.applySelectedVariation = applySelectedVariation;
+
+// ====== FUNÇÕES DO EDITOR MANUAL ======
+
+function toggleManualMode() {
+    const enabled = document.getElementById('enableManualMessages')?.checked;
+    const container = document.getElementById('manualModeContainer');
+    const disabledMsg = document.getElementById('manualDisabledMessage');
+
+    if (!container || !disabledMsg) return;
+
+    if (enabled) {
+        container.style.display = 'block';
+        disabledMsg.style.display = 'none';
+    } else {
+        container.style.display = 'none';
+        disabledMsg.style.display = 'block';
+    }
+}
+
+window.toggleManualMode = toggleManualMode;
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);

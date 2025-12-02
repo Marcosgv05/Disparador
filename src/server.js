@@ -22,6 +22,7 @@ import scheduler from './services/scheduler.js';
 import instanceManager from './services/instanceManager.js';
 import campaignScheduler from './services/campaignScheduler.js';
 import autoPause from './services/autoPause.js';
+import geminiService from './services/geminiService.js';
 import { loadPhoneNumbersFromExcel, loadMessagesFromExcel, validatePhoneSpreadsheet, loadContactsFromExcel } from './utils/excelLoader.js';
 import { logger } from './config/logger.js';
 import { settings } from './config/settings.js';
@@ -185,6 +186,12 @@ app.delete('/api/campaign/:name', requireAuth, async (req, res) => {
     campaignManager.validateOwnership(name, req.user.id);
     
     await campaignManager.deleteCampaign(name);
+    
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Deletou campanha', JSON.stringify({ campaignName: name }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+    
     res.json({ success: true });
   } catch (error) {
     res.status(403).json({ error: error.message });
@@ -494,6 +501,9 @@ await campaignManager.initialize();
 await instanceManager.initialize();
 await scheduler.start();
 
+// Inicializa serviço de IA (Gemini)
+geminiService.initialize();
+
 // Inicia scheduler de campanhas agendadas (após banco inicializado)
 campaignScheduler.start(60000); // Verifica a cada 1 minuto
 
@@ -789,8 +799,51 @@ app.post('/api/campaign/create', requireAuth, async (req, res) => {
     }
 
     const campaign = await campaignManager.createCampaign(name, req.user.id);
+    
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(
+        req.user.id,
+        req.user.email,
+        'Criou campanha',
+        JSON.stringify({ campaignName: name }),
+        req.ip,
+        req.get('User-Agent')
+      );
+    } catch (logErr) {
+      logger.warn(`Erro ao registrar log de atividade: ${logErr.message}`);
+    }
+    
     res.json({ success: true, campaign });
     
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remover todas as mensagens de uma campanha
+app.delete('/api/campaign/:name/messages', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    campaign.messages = [];
+    // Opcional: limpa metadados de geração por IA, se existirem
+    if (campaign.aiGenerated) {
+      campaign.aiGenerated = {
+        ...campaign.aiGenerated,
+        variationCount: 0
+      };
+    }
+
+    await campaignManager.saveCampaign(name);
+
+    res.json({ success: true, campaign });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1070,6 +1123,122 @@ app.delete('/api/campaign/:name/message/:index', requireAuth, validateCampaignOw
   }
 });
 
+// ====== ROTAS DE IA (Gemini) ======
+
+// Verificar disponibilidade do serviço de IA
+app.get('/api/ai/status', requireAuth, async (req, res) => {
+  try {
+    const status = await geminiService.healthCheck();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gerar variações de mensagem com IA
+app.post('/api/ai/generate-variations', requireAuth, async (req, res) => {
+  try {
+    const { baseMessage, count = 10, tone = 'original', preserveVariables = true } = req.body;
+    
+    if (!baseMessage || typeof baseMessage !== 'string' || baseMessage.trim().length === 0) {
+      return res.status(400).json({ error: 'Mensagem base é obrigatória' });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({ 
+        error: 'Serviço de IA não disponível. Configure GEMINI_API_KEY no ambiente.',
+        available: false
+      });
+    }
+
+    // Limita o número de variações entre 1 e 15
+    const variationCount = Math.min(Math.max(parseInt(count) || 10, 1), 15);
+
+    const variations = await geminiService.generateVariations(
+      baseMessage.trim(),
+      variationCount,
+      { tone, preserveVariables }
+    );
+
+    res.json({ 
+      success: true, 
+      variations,
+      count: variations.length,
+      baseMessage: baseMessage.trim()
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao gerar variações: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Gerar variações e adicionar diretamente à campanha
+app.post('/api/campaign/:name/ai-messages', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
+  try {
+    const { name } = req.params;
+    const { baseMessage, count = 10, tone = 'original', preserveVariables = true, replaceExisting = false } = req.body;
+    
+    if (!baseMessage || typeof baseMessage !== 'string' || baseMessage.trim().length === 0) {
+      return res.status(400).json({ error: 'Mensagem base é obrigatória' });
+    }
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    if (!geminiService.isAvailable()) {
+      return res.status(503).json({ 
+        error: 'Serviço de IA não disponível. Configure GEMINI_API_KEY no ambiente.',
+        available: false
+      });
+    }
+
+    const variationCount = Math.min(Math.max(parseInt(count) || 10, 1), 15);
+
+    const variations = await geminiService.generateVariations(
+      baseMessage.trim(),
+      variationCount,
+      { tone, preserveVariables }
+    );
+
+    // Se replaceExisting, limpa as mensagens existentes
+    if (replaceExisting) {
+      campaign.messages = [];
+    }
+
+    // Adiciona as variações geradas
+    for (const variation of variations) {
+      campaign.messages.push(variation);
+    }
+
+    // Salva informações sobre a geração de IA
+    campaign.aiGenerated = {
+      enabled: true,
+      baseMessage: baseMessage.trim(),
+      generatedAt: new Date(),
+      variationCount: variations.length,
+      tone
+    };
+
+    await campaignManager.saveCampaign(name);
+
+    res.json({ 
+      success: true, 
+      campaign,
+      aiGenerated: {
+        count: variations.length,
+        baseMessage: baseMessage.trim()
+      }
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao gerar mensagens com IA: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Remover número/contato
 app.delete('/api/campaign/:name/number/:phoneNumber', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
@@ -1211,6 +1380,11 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
     };
     
     logger.info(`Iniciando disparo com opções: messageDelay=${options.messageDelay || 'padrão'}ms, numberDelay=${options.numberDelay || 'padrão'}ms, pauseAfterMessages=${options.pauseAfterMessages || 'nenhum'}, pauseDuration=${options.pauseDuration || 'nenhum'}, enableTyping=${options.enableTyping ? 'on' : 'off'}`);
+    
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Iniciou disparo', JSON.stringify({ campaignName }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
     
     // Guarda userId para emitir eventos apenas para o dono
     const userId = req.user.id;
