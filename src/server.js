@@ -13,6 +13,7 @@ import rateLimit from 'express-rate-limit';
 import pg from 'pg';
 import connectPgSimple from 'connect-pg-simple';
 import admin from 'firebase-admin';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 // Importa serviços
 import sessionManager from './whatsapp/sessionManager.js';

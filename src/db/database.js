@@ -442,8 +442,19 @@ class DatabaseManager {
           action VARCHAR(255) NOT NULL,
           details TEXT,
           ip_address VARCHAR(50),
+          user_agent TEXT,
           created_at TIMESTAMP NOT NULL
         )
+      `);
+      
+      // Migração: adiciona coluna user_agent se não existir
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='activity_logs' AND column_name='user_agent') THEN
+            ALTER TABLE activity_logs ADD COLUMN user_agent TEXT;
+          END IF;
+        END $$;
       `);
       
       // Tabela de logs de login
@@ -451,12 +462,26 @@ class DatabaseManager {
         CREATE TABLE IF NOT EXISTS login_logs (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          email VARCHAR(255),
-          success BOOLEAN,
+          user_email VARCHAR(255),
           ip_address VARCHAR(50),
           user_agent TEXT,
+          success BOOLEAN DEFAULT true,
           created_at TIMESTAMP NOT NULL
         )
+      `);
+      
+      // Migração: renomeia coluna email para user_email se necessário
+      await client.query(`
+        DO $$ 
+        BEGIN 
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='login_logs' AND column_name='email') 
+             AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='login_logs' AND column_name='user_email') THEN
+            ALTER TABLE login_logs RENAME COLUMN email TO user_email;
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='login_logs' AND column_name='user_email') THEN
+            ALTER TABLE login_logs ADD COLUMN user_email VARCHAR(255);
+          END IF;
+        END $$;
       `);
       
       // Tabela de configurações do sistema
