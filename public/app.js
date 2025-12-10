@@ -3343,7 +3343,8 @@ async function loadAnalytics() {
                 // Usa os stats da campanha (mesma fonte que o dashboard)
                 if (campaign.stats) {
                     totalSent += campaign.stats.sent || 0;
-                    totalDelivered += campaign.stats.delivered || 0;
+                    // "Entregues" no WhatsApp corresponde a mensagens recebidas pelo aparelho (received)
+                    totalDelivered += campaign.stats.delivered || campaign.stats.received || 0;
                     totalRead += campaign.stats.read || 0;
                     totalFailed += campaign.stats.failed || 0;
                 }
@@ -3428,7 +3429,9 @@ async function loadAnalytics() {
                 // Dimensões do gráfico
                 const width = 500;
                 const height = 200;
-                const padding = { top: 20, right: 20, bottom: 30, left: 40 };
+                // Deixamos margem à esquerda para os números do eixo Y, mas removemos margem à direita
+                // para que as linhas ocupem todo o espaço disponível até a borda interna do gráfico.
+                const padding = { top: 20, right: 0, bottom: 30, left: 40 };
                 const chartWidth = width - padding.left - padding.right;
                 const chartHeight = height - padding.top - padding.bottom;
                 
@@ -3511,7 +3514,7 @@ async function loadAnalytics() {
                 // SVG + legenda externa abaixo, alinhada ao canto esquerdo
                 const svgHtml = `
                     <div class="analytics-chart-inner">
-                        <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+                        <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
                             <defs>
                                 <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                                     <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>

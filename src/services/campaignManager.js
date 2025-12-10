@@ -329,6 +329,16 @@ class CampaignManager {
       contact.readAt = new Date();
       if (!campaign.stats.read) campaign.stats.read = 0;
       campaign.stats.read++;
+
+      // Alguns dispositivos podem não enviar explicitamente o status "received" (3),
+      // apenas o "read" (4). Para não deixar o KPI de "Entregues" zerado nesses casos,
+      // consideramos que, se ainda não marcamos como recebida, a leitura também conta
+      // como entrega.
+      if (!contact.receivedAt) {
+        contact.receivedAt = new Date();
+        if (!campaign.stats.received) campaign.stats.received = 0;
+        campaign.stats.received++;
+      }
     } else if (status === 'replied') {
       contact.repliedAt = new Date();
       if (!campaign.stats.replied) campaign.stats.replied = 0;
