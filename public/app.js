@@ -1021,9 +1021,184 @@ function openCampaignManagement(name) {
     });
 }
 
-// Compatibilidade com chamadas antigas
 function selectCampaignFromSidebar(name) {
     openCampaignManagement(name);
+}
+
+// Renderiza gráfico de atividade da campanha (últimos 5 dias)
+function renderCampaignActivityChart(campaign) {
+    const chartContainer = document.getElementById('campaignActivityChart');
+    if (!chartContainer) return;
+    
+    if (!campaign.contacts || campaign.contacts.length === 0) {
+        chartContainer.innerHTML = '<p class="analytics-chart-empty">Nenhuma atividade registrada para esta campanha.</p>';
+        return;
+    }
+    
+    // Agrupa contatos por data (últimos 5 dias)
+    const dailyDataMap = new Map();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    campaign.contacts.forEach(contact => {
+        const sentDate = contact.sentAt ? new Date(contact.sentAt).toISOString().split('T')[0] : null;
+        const repliedDate = contact.repliedAt ? new Date(contact.repliedAt).toISOString().split('T')[0] : null;
+        
+        if (sentDate) {
+            if (!dailyDataMap.has(sentDate)) {
+                dailyDataMap.set(sentDate, { messages_sent: 0, messages_replied: 0 });
+            }
+            dailyDataMap.get(sentDate).messages_sent++;
+        }
+        
+        if (repliedDate) {
+            if (!dailyDataMap.has(repliedDate)) {
+                dailyDataMap.set(repliedDate, { messages_sent: 0, messages_replied: 0 });
+            }
+            dailyDataMap.get(repliedDate).messages_replied++;
+        }
+    });
+    
+    // Monta série contínua de 5 dias
+    const fullSeries = [];
+    for (let i = 4; i >= 0; i--) {
+        const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const key = d.toISOString().split('T')[0];
+        const stats = dailyDataMap.get(key) || { messages_sent: 0, messages_replied: 0 };
+        fullSeries.push({
+            date: key,
+            messages_sent: stats.messages_sent || 0,
+            messages_replied: stats.messages_replied || 0
+        });
+    }
+    
+    // Renderiza gráfico com a mesma lógica do dashboard
+    const limited = fullSeries.slice(-5);
+    const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
+    
+    const width = 500;
+    const height = 200;
+    const padding = { top: 20, right: 0, bottom: 30, left: 40 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    const innerMarginX = 22;
+    const innerWidth = chartWidth - innerMarginX * 2;
+    
+    // Pontos enviadas
+    const sentPoints = limited.map((d, i) => {
+        const x = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
+        const y = padding.top + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
+        return { x, y, value: d.messages_sent || 0, date: d.date };
+    });
+    
+    // Pontos respondidas
+    const repliedPoints = limited.map((d, i) => {
+        const x = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
+        const y = padding.top + chartHeight - ((d.messages_replied || 0) / maxValue) * chartHeight;
+        return { x, y, value: d.messages_replied || 0, date: d.date };
+    });
+    
+    // Path suave
+    const createSmoothPath = (points) => {
+        if (points.length === 0) return '';
+        if (points.length === 1) {
+            return `M ${points[0].x} ${points[0].y}`;
+        }
+        return points.map((p, i) => {
+            if (i === 0) return `M ${p.x} ${p.y}`;
+            const prev = points[i - 1];
+            const cp1x = prev.x + (p.x - prev.x) / 2;
+            const cp1y = prev.y;
+            const cp2x = prev.x + (p.x - prev.x) / 2;
+            const cp2y = p.y;
+            return `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p.x} ${p.y}`;
+        }).join(' ');
+    };
+    
+    const sentPath = createSmoothPath(sentPoints);
+    const repliedPath = createSmoothPath(repliedPoints);
+    const sentArea = `${sentPath} L ${sentPoints[sentPoints.length - 1].x} ${height - padding.bottom} L ${sentPoints[0].x} ${height - padding.bottom} Z`;
+    
+    // Grid
+    const gridLines = [0, 0.25, 0.5, 0.75, 1].map(pct => {
+        const y = padding.top + chartHeight * (1 - pct);
+        const value = Math.round(maxValue * pct);
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#27272a" stroke-dasharray="3 3"/>
+                <text x="${padding.left - 8}" y="${y + 4}" fill="#71717a" font-size="10" text-anchor="end">${value}</text>`;
+    }).join('');
+    
+    // Labels X
+    const xLabels = limited.map((d, i) => {
+        if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % Math.ceil(limited.length / 5) === 0) {
+            const baseX = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
+            const iso = d.date || '';
+            let label = '';
+            if (iso.length >= 10) {
+                const day = iso.slice(8, 10);
+                const month = iso.slice(5, 7);
+                label = `${day}/${month}`;
+            }
+            
+            let x = baseX;
+            let anchor = 'middle';
+            const margin = 8;
+            if (i === 0) {
+                anchor = 'start';
+                x = Math.max(padding.left + margin, baseX);
+            } else if (i === limited.length - 1) {
+                anchor = 'end';
+                x = Math.min(width - margin, baseX);
+            }
+            
+            return `<text x="${x}" y="${height - 8}" fill="#71717a" font-size="10" text-anchor="${anchor}">${label}</text>`;
+        }
+        return '';
+    }).join('');
+    
+    // Pontos
+    const sentPointsHtml = sentPoints.map(p => 
+        `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#6366f1" stroke="#1e1b4b" stroke-width="2" class="chart-hover-point">
+            <title>${p.value} enviadas em ${p.date}</title>
+        </circle>`
+    ).join('');
+    
+    const repliedPointsHtml = repliedPoints.map(p => 
+        `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#10b981" stroke="#047857" stroke-width="2" class="chart-hover-point">
+            <title>${p.value} respondidas em ${p.date}</title>
+        </circle>`
+    ).join('');
+    
+    const svgHtml = `
+        <div class="analytics-chart-inner">
+            <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
+                        <stop offset="95%" stop-color="#6366f1" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                ${gridLines}
+                <path d="${sentArea}" fill="url(#sentGradient)"/>
+                <path d="${sentPath}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="${repliedPath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                ${sentPointsHtml}
+                ${repliedPointsHtml}
+                ${xLabels}
+            </svg>
+            <div class="analytics-chart-legend">
+                <div class="analytics-legend-item">
+                    <span class="analytics-legend-color analytics-legend-sent"></span>
+                    <span class="analytics-legend-label">Enviadas</span>
+                </div>
+                <div class="analytics-legend-item">
+                    <span class="analytics-legend-color analytics-legend-replied"></span>
+                    <span class="analytics-legend-label">Respondidas</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    chartContainer.innerHTML = svgHtml;
 }
 
 async function loadCampaignDetails(options = {}) {
@@ -1136,6 +1311,9 @@ async function loadCampaignDetails(options = {}) {
         
         // Render Linked Instances
         renderLinkedInstances();
+        
+        // Render Campaign Activity Chart (últimos 5 dias)
+        renderCampaignActivityChart(campaign);
         
         // Carrega configuração de agendamento da campanha
         loadScheduleConfig();
@@ -3429,22 +3607,24 @@ async function loadAnalytics() {
                 // Dimensões do gráfico
                 const width = 500;
                 const height = 200;
-                // Deixamos margem à esquerda para os números do eixo Y, mas removemos margem à direita
-                // para que as linhas ocupem todo o espaço disponível até a borda interna do gráfico.
+                // Margem esquerda para os números do eixo Y e uma pequena margem interna à direita
+                // para evitar que os pontos encostem totalmente nas bordas.
                 const padding = { top: 20, right: 0, bottom: 30, left: 40 };
                 const chartWidth = width - padding.left - padding.right;
                 const chartHeight = height - padding.top - padding.bottom;
+                const innerMarginX = 22; // margem interna suave nas laterais
+                const innerWidth = chartWidth - innerMarginX * 2;
                 
                 // Gera pontos para enviadas
                 const sentPoints = limited.map((d, i) => {
-                    const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                    const x = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
                     const y = padding.top + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
                     return { x, y, value: d.messages_sent || 0, date: d.date };
                 });
                 
                 // Gera pontos para respondidas
                 const repliedPoints = limited.map((d, i) => {
-                    const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                    const x = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
                     const y = padding.top + chartHeight - ((d.messages_replied || 0) / maxValue) * chartHeight;
                     return { x, y, value: d.messages_replied || 0, date: d.date };
                 });
@@ -3485,7 +3665,7 @@ async function loadAnalytics() {
                 // Labels do eixo X (formato dd/mm)
                 const xLabels = limited.map((d, i) => {
                     if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % Math.ceil(limited.length / 5) === 0) {
-                        const baseX = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                        const baseX = padding.left + innerMarginX + (limited.length === 1 ? innerWidth / 2 : (i / (limited.length - 1)) * innerWidth);
                         const iso = d.date || '';
                         let label = '';
                         if (iso.length >= 10) {
