@@ -228,6 +228,38 @@ const upload = multer({
   }
 });
 
+// Configuração de uploads de mídia (imagens e vídeos)
+const mediaStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const mediaDir = path.join(process.cwd(), 'uploads', 'media');
+    await fs.mkdir(mediaDir, { recursive: true });
+    cb(null, mediaDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+
+const uploadMedia = multer({ 
+  storage: mediaStorage,
+  limits: {
+    fileSize: 16 * 1024 * 1024, // Máximo 16MB para mídia
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedImages = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const allowedVideos = ['.mp4', '.mov', '.avi', '.mkv'];
+    
+    if (allowedImages.includes(ext) || allowedVideos.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Apenas imagens (JPG, PNG, GIF, WEBP) ou vídeos (MP4, MOV, AVI, MKV) são permitidos'));
+    }
+  }
+});
+
 // Rate Limiting (proteção contra abuso)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -1117,6 +1149,137 @@ app.delete('/api/campaign/:name/message/:index', requireAuth, validateCampaignOw
     campaign.messages.splice(messageIndex, 1);
     await campaignManager.saveCampaign(name);
     
+    res.json({ success: true, campaign });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar uma mensagem pelo índice
+app.put('/api/campaign/:name/message/:index', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
+  try {
+    const { name, index } = req.params;
+    const { message } = req.body;
+    const messageIndex = parseInt(index, 10);
+    
+    if (isNaN(messageIndex)) {
+      return res.status(400).json({ error: 'Índice inválido' });
+    }
+
+    if (!message || typeof message !== 'string' || message.trim() === '') {
+      return res.status(400).json({ error: 'Mensagem não pode estar vazia' });
+    }
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    if (messageIndex < 0 || messageIndex >= campaign.messages.length) {
+      return res.status(400).json({ error: 'Índice fora do intervalo' });
+    }
+
+    // Só permite edição de mensagens de texto (não mídia)
+    const currentMessage = campaign.messages[messageIndex];
+    if (typeof currentMessage === 'object' && currentMessage.type) {
+      return res.status(400).json({ error: 'Não é possível editar mensagens de mídia' });
+    }
+
+    campaign.messages[messageIndex] = message.trim();
+    await campaignManager.saveCampaign(name);
+    
+    logger.info(`✏️ Mensagem ${messageIndex + 1} atualizada na campanha "${name}"`);
+    res.json({ success: true, campaign });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload de mídia GLOBAL (imagem/vídeo) para a campanha
+// Esta mídia será enviada junto com TODAS as mensagens de texto
+app.post('/api/campaign/:name/media', requireAuth, validateCampaignOwnership(campaignManager), uploadMedia.single('media'), async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    }
+
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      // Remove arquivo se campanha não existe
+      await fs.unlink(req.file.path);
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    // Se já existe mídia anterior, remove o arquivo
+    if (campaign.media && campaign.media.mediaPath) {
+      try {
+        await fs.unlink(campaign.media.mediaPath);
+      } catch (e) { /* Ignora erro se arquivo não existe */ }
+    }
+
+    // Determina o tipo de mídia
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const imageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const mediaType = imageExts.includes(ext) ? 'image' : 'video';
+
+    // Salva mídia GLOBAL na campanha (não como mensagem individual)
+    campaign.media = {
+      type: mediaType,
+      mediaPath: req.file.path,
+      mediaFilename: req.file.filename,
+      mimetype: req.file.mimetype,
+      originalName: req.file.originalname,
+      createdAt: new Date().toISOString()
+    };
+
+    await campaignManager.saveCampaign(name);
+
+    logger.info(`📎 Mídia GLOBAL definida para campanha "${name}": ${mediaType} - ${req.file.filename}`);
+    
+    res.json({ 
+      success: true, 
+      media: campaign.media,
+      campaign 
+    });
+    
+  } catch (error) {
+    // Remove arquivo em caso de erro
+    if (req.file) {
+      try { await fs.unlink(req.file.path); } catch (e) {}
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Servir arquivos de mídia
+app.use('/media', express.static(path.join(process.cwd(), 'uploads', 'media')));
+
+// Remover mídia global da campanha
+app.delete('/api/campaign/:name/media', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    const campaign = campaignManager.getCampaign(name);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campanha não encontrada' });
+    }
+
+    // Remove o arquivo de mídia se existir
+    if (campaign.media && campaign.media.mediaPath) {
+      try {
+        await fs.unlink(campaign.media.mediaPath);
+      } catch (e) { /* Ignora erro se arquivo não existe */ }
+    }
+
+    // Remove a mídia da campanha
+    delete campaign.media;
+    await campaignManager.saveCampaign(name);
+
+    logger.info(`🗑️ Mídia removida da campanha "${name}"`);
     res.json({ success: true, campaign });
     
   } catch (error) {

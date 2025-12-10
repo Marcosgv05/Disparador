@@ -1140,6 +1140,12 @@ async function loadCampaignDetails(options = {}) {
         // Carrega configuração de agendamento da campanha
         loadScheduleConfig();
         
+        // Mostra preview de mídia global se existir
+        showGlobalMediaPreview(campaign.media);
+        
+        // Verifica status do dispatch para atualizar controles
+        checkDispatchStatus();
+        
     } catch (error) {
         console.error(error);
     }
@@ -1360,6 +1366,157 @@ async function addMessage() {
     }
 }
 
+// ==== UPLOAD DE MÍDIA GLOBAL ====
+
+function openMediaUpload() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!campaignName) {
+        showToast('Selecione uma campanha primeiro', 'warning');
+        return;
+    }
+    
+    const input = document.getElementById('mediaUploadInput');
+    if (input) {
+        input.click();
+    }
+}
+
+async function uploadMedia() {
+    const input = document.getElementById('mediaUploadInput');
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    
+    // Verifica tamanho do arquivo (máx 16MB)
+    if (file.size > 16 * 1024 * 1024) {
+        showToast('Arquivo muito grande. Máximo: 16MB', 'error');
+        input.value = '';
+        return;
+    }
+    
+    // Verifica tipo de arquivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/x-msvideo'];
+    if (!allowedTypes.includes(file.type) && !file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        showToast('Tipo de arquivo não suportado. Use imagens ou vídeos.', 'error');
+        input.value = '';
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('media', file);
+    
+    try {
+        const token = localStorage.getItem('firebaseToken');
+        
+        const response = await fetch(`${API_URL}/api/campaign/${campaignName}/media`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro ao fazer upload');
+        }
+        
+        const mediaType = file.type.startsWith('image/') ? 'Imagem' : 'Vídeo';
+        showToast(`${mediaType} anexado! Será enviado com todas as mensagens.`, 'success');
+        
+        // Atualiza o state
+        if (state.currentCampaign) {
+            state.currentCampaign.media = data.media;
+        }
+        
+        // Mostra o preview
+        showGlobalMediaPreview(data.media);
+        
+        // Adiciona log no console
+        addConsoleLog(`${mediaType} "${file.name}" anexado à campanha`, 'success');
+        
+    } catch (error) {
+        console.error('Erro ao fazer upload de mídia:', error);
+        showToast(error.message || 'Erro ao fazer upload', 'error');
+    }
+    
+    input.value = '';
+}
+
+function showGlobalMediaPreview(media) {
+    const previewContainer = document.getElementById('globalMediaPreview');
+    const previewContent = document.getElementById('mediaPreviewContent');
+    
+    if (!previewContainer || !previewContent) return;
+    
+    if (!media) {
+        previewContainer.style.display = 'none';
+        return;
+    }
+    
+    const mediaUrl = `/media/${media.mediaFilename}`;
+    
+    if (media.type === 'image') {
+        previewContent.innerHTML = `
+            <img src="${mediaUrl}" alt="Preview" class="global-media-thumb" onclick="window.open('${mediaUrl}', '_blank')">
+            <span class="media-name">${media.originalName || media.mediaFilename}</span>
+        `;
+    } else {
+        previewContent.innerHTML = `
+            <div class="global-video-thumb" onclick="window.open('${mediaUrl}', '_blank')">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            </div>
+            <span class="media-name">${media.originalName || media.mediaFilename}</span>
+        `;
+    }
+    
+    previewContainer.style.display = 'block';
+}
+
+async function removeGlobalMedia() {
+    const campaignName = document.getElementById('selectedCampaign').value;
+    
+    if (!campaignName) return;
+    
+    const confirmed = await showConfirmModal(
+        'Remover Mídia',
+        'Tem certeza que deseja remover a mídia anexada? Ela não será mais enviada com as mensagens.',
+        'Remover',
+        'btn-danger'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        await apiCall(`/api/campaign/${campaignName}/media`, {
+            method: 'DELETE'
+        });
+        
+        // Atualiza o state
+        if (state.currentCampaign) {
+            delete state.currentCampaign.media;
+        }
+        
+        // Esconde o preview
+        const previewContainer = document.getElementById('globalMediaPreview');
+        if (previewContainer) {
+            previewContainer.style.display = 'none';
+        }
+        
+        showToast('Mídia removida', 'success');
+        addConsoleLog('Mídia removida da campanha', 'muted');
+        
+    } catch (error) {
+        console.error('Erro ao remover mídia:', error);
+        showToast('Erro ao remover mídia', 'error');
+    }
+}
+
 async function addBulkMessages() {
     const textarea = document.getElementById('bulkMessagesText');
     const text = textarea.value.trim();
@@ -1458,25 +1615,110 @@ async function clearMessages() {
     }
 }
 
+// ==== EDITAR MENSAGEM ====
+
+async function editMessage(campaignName, index) {
+    // Obtém a mensagem atual
+    const campaign = state.currentCampaign;
+    if (!campaign || !campaign.messages || !campaign.messages[index]) {
+        showToast('Mensagem não encontrada', 'error');
+        return;
+    }
+    
+    const currentMessage = campaign.messages[index];
+    
+    // Se for mídia, não permite edição por enquanto
+    if (typeof currentMessage === 'object' && currentMessage.type) {
+        showToast('Para editar mídia, remova e adicione novamente', 'warning');
+        return;
+    }
+    
+    // Mostra modal de edição
+    const modal = document.getElementById('confirmModal');
+    const title = document.getElementById('modalTitle');
+    const body = document.getElementById('modalBody');
+    const footer = document.getElementById('modalFooter');
+    
+    title.textContent = 'Editar Mensagem';
+    body.innerHTML = `
+        <div class="form-group">
+            <label>Mensagem</label>
+            <textarea id="editMessageText" class="input message-textarea-large" rows="6">${escapeHtml(currentMessage)}</textarea>
+        </div>
+    `;
+    
+    footer.innerHTML = `
+        <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditedMessage('${campaignName}', ${index})">Salvar</button>
+    `;
+    
+    modal.style.display = 'flex';
+}
+
+async function saveEditedMessage(campaignName, index) {
+    const textarea = document.getElementById('editMessageText');
+    const newMessage = textarea.value.trim();
+    
+    if (!newMessage) {
+        showToast('A mensagem não pode estar vazia', 'warning');
+        return;
+    }
+    
+    try {
+        await apiCall(`/api/campaign/${campaignName}/message/${index}`, {
+            method: 'PUT',
+            body: JSON.stringify({ message: newMessage })
+        });
+        
+        showToast('Mensagem atualizada!', 'success');
+        closeModal();
+        loadCampaignDetails({ preserveTab: true });
+        
+    } catch (error) {
+        console.error(error);
+        showToast('Erro ao atualizar mensagem', 'error');
+    }
+}
+
 function renderMessages(campaign) {
     const container = document.getElementById('messagesList');
     
-    if (!campaign.messages || campaign.messages.length === 0) {
+    // Filtra apenas mensagens de texto (ignora objetos de mídia antigos)
+    const textMessages = (campaign.messages || []).filter(msg => typeof msg === 'string');
+    
+    if (textMessages.length === 0) {
         container.innerHTML = '<p class="empty-state">Nenhuma mensagem adicionada</p>';
         return;
     }
     
-    container.innerHTML = campaign.messages.map((msg, idx) => `
-        <div class="message-item">
-            <div class="message-number">${idx + 1}</div>
-            <div class="message-content">
-                <div class="message-text">${msg}</div>
-                <div class="message-actions">
-                    <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${idx})">Remover</button>
+    // Mostra indicador se tem mídia global anexada
+    let mediaIndicator = '';
+    if (campaign.media) {
+        const mediaType = campaign.media.type === 'image' ? '🖼️ Imagem' : '🎬 Vídeo';
+        mediaIndicator = `
+            <div class="messages-media-indicator">
+                <span>${mediaType} anexada - será enviada com todas as mensagens</span>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = mediaIndicator + textMessages.map((msg, idx) => {
+        // Encontra o índice original na lista de mensagens
+        const originalIdx = campaign.messages.indexOf(msg);
+        
+        return `
+            <div class="message-item">
+                <div class="message-number">${idx + 1}</div>
+                <div class="message-content">
+                    <div class="message-text">${escapeHtml(msg)}</div>
+                    <div class="message-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="editMessage('${campaign.name}', ${originalIdx})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${originalIdx})">Remover</button>
+                    </div>
                 </div>
             </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function showMessagesResult(data) {
@@ -1820,6 +2062,34 @@ socket.on('dispatch-complete', (data) => {
     loadCampaigns();
 });
 
+// Verifica o status atual do dispatch e atualiza a UI
+async function checkDispatchStatus() {
+    try {
+        const status = await apiCall('/api/dispatch/status');
+        
+        if (status.isRunning && status.campaign) {
+            const campaignStatus = status.campaign.status;
+            
+            if (campaignStatus === 'running') {
+                updateDispatchControls('running');
+                document.getElementById('dispatchProgress').style.display = 'block';
+                addConsoleLog(`Campanha "${status.campaign.name}" está em execução`, 'success');
+            } else if (campaignStatus === 'paused') {
+                updateDispatchControls('paused');
+                document.getElementById('dispatchProgress').style.display = 'block';
+                addConsoleLog(`Campanha "${status.campaign.name}" está pausada`, 'muted');
+            } else {
+                updateDispatchControls('idle');
+            }
+        } else {
+            updateDispatchControls('idle');
+        }
+    } catch (error) {
+        console.warn('Erro ao verificar status do dispatch:', error);
+        updateDispatchControls('idle');
+    }
+}
+
 socket.on('dispatch-error', (data) => {
     showToast(`Erro na campanha: ${data.error}`, 'error');
     updateDispatchControls('idle');
@@ -1872,6 +2142,45 @@ function togglePauseOptions() {
     } else {
         container.style.display = 'none';
     }
+}
+
+// ==== DELAY FEEDBACK ====
+
+function onDelayChanged() {
+    const input = document.getElementById('messageDelay');
+    const feedback = document.getElementById('delayFeedback');
+    const value = parseInt(input.value, 10);
+    
+    if (!feedback) return;
+    
+    // Valida o valor
+    if (isNaN(value) || value < 1) {
+        input.value = 1;
+        feedback.textContent = '⚠️ Valor mínimo: 1 segundo';
+        feedback.style.display = 'block';
+        feedback.style.color = '#f59e0b';
+    } else if (value > 360) {
+        input.value = 360;
+        feedback.textContent = '⚠️ Valor máximo: 360 segundos';
+        feedback.style.display = 'block';
+        feedback.style.color = '#f59e0b';
+    } else {
+        // Calcula o intervalo humanizado (30% a 100% do valor)
+        const minDelay = Math.round(value * 0.3);
+        const maxDelay = value;
+        
+        feedback.textContent = `✅ Intervalo atualizado: ${minDelay}s a ${maxDelay}s entre mensagens`;
+        feedback.style.display = 'block';
+        feedback.style.color = '#10b981';
+        
+        // Mostra no console também
+        addConsoleLog(`Intervalo alterado: ${minDelay}s a ${maxDelay}s`, 'success');
+    }
+    
+    // Esconde o feedback após 3 segundos
+    setTimeout(() => {
+        feedback.style.display = 'none';
+    }, 3000);
 }
 
 // ==== LINKED INSTANCES ====
@@ -2911,7 +3220,37 @@ async function executeScheduledCampaign(id) {
 async function loadAnalytics() {
     try {
         const days = document.getElementById('analyticsPeriod')?.value || 30;
-        const { summary, dailyData, recentCampaigns } = await apiCall(`/api/analytics/summary?days=${days}`);
+        let { summary, dailyData, recentCampaigns } = await apiCall(`/api/analytics/summary?days=${days}`);
+        
+        // Se não tem dados do banco, calcula a partir das campanhas em memória
+        if ((!dailyData || dailyData.length === 0) && state.campaigns) {
+            // Calcula estatísticas a partir das campanhas
+            let totalSent = 0, totalDelivered = 0, totalRead = 0, totalFailed = 0;
+            
+            state.campaigns.forEach(campaign => {
+                if (campaign.contacts) {
+                    campaign.contacts.forEach(contact => {
+                        if (contact.status === 'sent') totalSent++;
+                        else if (contact.status === 'delivered') totalDelivered++;
+                        else if (contact.status === 'read') totalRead++;
+                        else if (contact.status === 'failed') totalFailed++;
+                    });
+                }
+            });
+            
+            summary = {
+                total_sent: totalSent,
+                total_delivered: totalDelivered,
+                total_read: totalRead,
+                total_failed: totalFailed
+            };
+            
+            // Gera dados diários simulados do último envio
+            if (totalSent > 0) {
+                const today = new Date().toISOString().split('T')[0];
+                dailyData = [{ date: today, messages_sent: totalSent }];
+            }
+        }
         
         // Atualiza cards
         document.getElementById('analyticsSent').textContent = summary?.total_sent || 0;
@@ -3271,6 +3610,9 @@ async function initializeApp() {
     loadTemplates();
     loadScheduledCampaigns();
     loadAnalytics();
+    
+    // Verifica se há algum dispatch em andamento
+    checkDispatchStatus();
     
     // Listener para filtro de categoria de templates
     document.getElementById('templateCategory')?.addEventListener('change', loadTemplates);

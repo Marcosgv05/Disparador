@@ -102,7 +102,7 @@ class Dispatcher {
         // Obtém a próxima mensagem com variáveis substituídas
         const message = messageRotator.getNextCustomMessage(variables);
 
-        // Envia a mensagem
+        // Envia a mensagem (com mídia global se existir)
         logger.info(`📤 Enviando para ${phoneNumber}...`);
         const result = await messageSender.sendMessage(
           phoneNumber,
@@ -112,7 +112,8 @@ class Dispatcher {
           campaign.userId,
           { 
             enableTyping,
-            linkedInstances: campaign.linkedInstances || []
+            linkedInstances: campaign.linkedInstances || [],
+            globalMedia: campaign.media || null // Mídia global da campanha
           }
         );
 

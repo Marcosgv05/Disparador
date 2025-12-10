@@ -4,6 +4,7 @@ import { logger } from '../config/logger.js';
 import { formatPhoneNumber, isValidPhoneNumber } from '../utils/phoneFormatter.js';
 import { delay, humanizedDelay } from '../utils/delay.js';
 import { settings } from '../config/settings.js';
+import fs from 'fs/promises';
 
 class MessageSender {
   constructor() {
@@ -67,8 +68,71 @@ class MessageSender {
         }
       }
 
+      // Prepara o conteúdo da mensagem (texto simples ou com mídia global)
+      let messageContent;
+      let sentMsg;
+      
+      // Verifica se há mídia GLOBAL para anexar à mensagem
+      const globalMedia = options.globalMedia;
+      
+      if (globalMedia && globalMedia.mediaPath) {
+        // Mensagem com mídia GLOBAL (imagem/vídeo + texto como legenda)
+        try {
+          const mediaBuffer = await fs.readFile(globalMedia.mediaPath);
+          const textMessage = typeof message === 'string' ? message : '';
+          
+          if (globalMedia.type === 'image') {
+            messageContent = {
+              image: mediaBuffer,
+              caption: textMessage,
+              mimetype: globalMedia.mimetype || 'image/jpeg'
+            };
+          } else if (globalMedia.type === 'video') {
+            messageContent = {
+              video: mediaBuffer,
+              caption: textMessage,
+              mimetype: globalMedia.mimetype || 'video/mp4'
+            };
+          }
+          
+          logger.info(`📎 Enviando ${globalMedia.type} + texto para ${phoneNumber}...`);
+        } catch (mediaError) {
+          logger.error(`Erro ao ler mídia global: ${mediaError.message}`);
+          // Se falhar ao carregar mídia, envia só o texto
+          logger.warn(`Enviando apenas texto como fallback...`);
+          messageContent = { text: typeof message === 'string' ? message : '' };
+        }
+      } else if (typeof message === 'object' && message.type) {
+        // Mensagem com mídia individual (legado - não usado mais)
+        try {
+          const mediaBuffer = await fs.readFile(message.mediaPath);
+          
+          if (message.type === 'image') {
+            messageContent = {
+              image: mediaBuffer,
+              caption: message.caption || '',
+              mimetype: message.mimetype || 'image/jpeg'
+            };
+          } else if (message.type === 'video') {
+            messageContent = {
+              video: mediaBuffer,
+              caption: message.caption || '',
+              mimetype: message.mimetype || 'video/mp4'
+            };
+          }
+          
+          logger.info(`📎 Enviando ${message.type} para ${phoneNumber}...`);
+        } catch (mediaError) {
+          logger.error(`Erro ao ler arquivo de mídia: ${mediaError.message}`);
+          throw new Error(`Falha ao carregar mídia: ${mediaError.message}`);
+        }
+      } else {
+        // Mensagem de texto simples
+        messageContent = { text: message };
+      }
+      
       // Envia a mensagem e captura o messageId
-      const sentMsg = await session.sendMessage(formattedNumber, { text: message });
+      sentMsg = await session.sendMessage(formattedNumber, messageContent);
       const messageId = sentMsg?.key?.id;
       
       // Rastreia a mensagem para detectar status

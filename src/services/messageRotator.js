@@ -68,10 +68,20 @@ class MessageRotator {
   /**
    * Obtém a próxima mensagem personalizada
    * @param {Object} variables - Variáveis para substituição
-   * @returns {string}
+   * @returns {string|Object} - Mensagem de texto ou objeto de mídia
    */
   getNextCustomMessage(variables = {}) {
     const message = this.getNextMessage();
+    
+    // Se for um objeto de mídia, substitui variáveis apenas na legenda
+    if (typeof message === 'object' && message.type) {
+      return {
+        ...message,
+        caption: message.caption ? this.replaceVariables(message.caption, variables) : ''
+      };
+    }
+    
+    // Mensagem de texto simples
     return this.replaceVariables(message, variables);
   }
 

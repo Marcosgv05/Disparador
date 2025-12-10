@@ -3480,6 +3480,22 @@ input:checked + .slider:before {
     line-height: 1.4;
 }
 
+.form-feedback {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.1);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .pause-options-container {
     background: rgba(15, 23, 42, 0.5);
     border-left: 3px solid var(--primary);
@@ -3932,6 +3948,173 @@ input:checked + .slider:before {
 
 .toggle-switch input:checked + .toggle-slider:before {
     transform: translateX(22px);
+}
+
+/* Mensagens com Mídia */
+.message-item-media {
+    border-left: 3px solid var(--primary);
+}
+
+.message-media-preview {
+    margin-bottom: 0.75rem;
+}
+
+.media-thumbnail {
+    max-width: 120px;
+    max-height: 80px;
+    border-radius: 8px;
+    cursor: pointer;
+    object-fit: cover;
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.media-thumbnail:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+.video-thumbnail {
+    width: 120px;
+    height: 80px;
+    background: linear-gradient(135deg, #1e293b, #334155);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    transition: transform 0.2s, border-color 0.2s;
+    color: #94a3b8;
+}
+
+.video-thumbnail:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.video-thumbnail svg {
+    margin-bottom: 4px;
+}
+
+.video-thumbnail span {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.message-media-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.media-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.badge-image {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+.badge-video {
+    background: rgba(99, 102, 241, 0.15);
+    color: #6366f1;
+}
+
+/* Preview de Mídia Global */
+.global-media-preview {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+}
+
+.media-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.media-preview-badge {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #a5b4fc;
+}
+
+.media-preview-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.global-media-thumb {
+    width: 80px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid rgba(99, 102, 241, 0.4);
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.global-media-thumb:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+.global-video-thumb {
+    width: 80px;
+    height: 60px;
+    background: linear-gradient(135deg, #1e293b, #334155);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid rgba(99, 102, 241, 0.4);
+    transition: transform 0.2s, border-color 0.2s;
+    color: #94a3b8;
+}
+
+.global-video-thumb:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.media-name {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Indicador de mídia nas mensagens */
+.messages-media-indicator {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8rem;
+    color: #a5b4fc;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 /* Responsivo */

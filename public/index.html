@@ -251,11 +251,7 @@
                         </div>
                     </div>
 
-                    <div id="sessionsList" class="sessions-list">
-                        <h3>Todas as Sessões Ativas</h3>
-                        <div id="sessionsItems"></div>
-                    </div>
-                </section>
+                    </section>
 
                 <!-- Painel de Disparos Section -->
                 <section id="dispatch-panel" class="section">
@@ -507,9 +503,27 @@
                                                         <!-- Textarea da mensagem -->
                                                         <textarea id="newMessageText" class="input message-textarea-large" placeholder="Digite sua mensagem aqui..." rows="8" oninput="updateWhatsAppPreview()"></textarea>
                                                         
+                                                        <!-- Preview de mídia global -->
+                                                        <div id="globalMediaPreview" class="global-media-preview" style="display: none;">
+                                                            <div class="media-preview-header">
+                                                                <span class="media-preview-badge">📎 Mídia anexada (será enviada com todas as mensagens)</span>
+                                                                <button class="btn btn-danger btn-sm" onclick="removeGlobalMedia()">Remover</button>
+                                                            </div>
+                                                            <div id="mediaPreviewContent" class="media-preview-content"></div>
+                                                        </div>
+                                                        
                                                         <div class="editor-actions">
                                                             <button class="btn btn-primary" onclick="addMessage()">Salvar Mensagem</button>
+                                                            <button class="btn btn-secondary" onclick="openMediaUpload()">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
+                                                                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                                                                </svg>
+                                                                Anexar Mídia
+                                                            </button>
                                                         </div>
+                                                        
+                                                        <!-- Input oculto para upload de mídia -->
+                                                        <input type="file" id="mediaUploadInput" accept="image/*,video/*" onchange="uploadMedia()" style="display: none;">
                                                     </div>
 
                                                     <div id="manualDisabledMessage" class="ai-disabled-message" style="display: none;">
@@ -591,8 +605,9 @@
                                                     <div class="dispatch-settings-form">
                                                         <div class="form-group">
                                                             <label>Intervalo máximo entre mensagens (seg)</label>
-                                                            <input type="number" id="messageDelay" class="input" value="15" min="1" max="360">
+                                                            <input type="number" id="messageDelay" class="input" value="15" min="1" max="360" onchange="onDelayChanged()">
                                                             <span class="form-hint">Os envios serão feitos em intervalos aleatórios entre 30% e 100% deste valor para simular comportamento humano.</span>
+                                                            <span id="delayFeedback" class="form-feedback" style="display: none;"></span>
                                                         </div>
                                                         <div class="dispatch-checkbox">
                                                             <label>
