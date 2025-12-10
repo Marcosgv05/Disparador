@@ -702,15 +702,20 @@ async function loadSessions() {
         state.sessions = sessions;
 
         const container = document.getElementById('sessionsItems');
-        if (sessions.length === 0) {
-            container.innerHTML = '<p class="empty-state">Nenhuma sessão ativa</p>';
-        } else {
-            container.innerHTML = sessions.map(s => `
-                <div class="number-item">
-                    <span>${s.id} - ${s.phone || 'Conectando...'}</span>
-                    <button class="btn btn-danger btn-sm" onclick="removeSession('${s.id}')">Remover</button>
-                </div>
-            `).join('');
+        // Em algumas telas o container de sessões pode não existir.
+        // Nesse caso, apenas atualizamos o estado e o cabeçalho sem tentar
+        // escrever no DOM para não quebrar o restante do script.
+        if (container) {
+            if (sessions.length === 0) {
+                container.innerHTML = '<p class="empty-state">Nenhuma sessão ativa</p>';
+            } else {
+                container.innerHTML = sessions.map(s => `
+                    <div class="number-item">
+                        <span>${s.id} - ${s.phone || 'Conectando...'}</span>
+                        <button class="btn btn-danger btn-sm" onclick="removeSession('${s.id}')">Remover</button>
+                    </div>
+                `).join('');
+            }
         }
         updateHeaderConnectionStatus();
     } catch (error) {
@@ -1076,11 +1081,26 @@ function renderCampaignActivityChart(campaign) {
     const limited = fullSeries.slice(-5);
     const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
 
-    // Dimensões do gráfico - calcula baseado no tamanho real do contêiner pai
-    // Usa o card pai para ter uma largura mais confiável
-    const parentCard = chartContainer.closest('.campaign-activity-card') || chartContainer.parentElement;
-    const containerRect = parentCard ? parentCard.getBoundingClientRect() : chartContainer.getBoundingClientRect();
-    const width = Math.max(containerRect.width - 32, 400); // desconta padding do card, mínimo 400
+    // Dimensões do gráfico - calcula baseado no tamanho real do contêiner visível
+    // Busca hierarquia de elementos pais até encontrar um com largura válida
+    let parentElement = chartContainer.closest('.campaign-detail-overview')
+        || chartContainer.closest('.campaign-card.full')
+        || chartContainer.closest('.campaign-activity-card')
+        || chartContainer.parentElement;
+
+    // Busca um pai com largura válida (> 400px)
+    let containerWidth = 400;
+    let el = parentElement;
+    while (el && el !== document.body) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 500) {
+            containerWidth = rect.width;
+            break;
+        }
+        el = el.parentElement;
+    }
+
+    const width = Math.max(containerWidth - 48, 400); // desconta padding, mínimo 400
     const height = 180;
     const padding = { top: 20, right: 10, bottom: 30, left: 40 };
     const chartWidth = width - padding.left - padding.right;
