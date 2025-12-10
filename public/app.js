@@ -3485,7 +3485,7 @@ async function loadAnalytics() {
                 // Labels do eixo X (formato dd/mm)
                 const xLabels = limited.map((d, i) => {
                     if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % Math.ceil(limited.length / 5) === 0) {
-                        const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                        const baseX = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
                         const iso = d.date || '';
                         let label = '';
                         if (iso.length >= 10) {
@@ -3493,7 +3493,20 @@ async function loadAnalytics() {
                             const month = iso.slice(5, 7);
                             label = `${day}/${month}`;
                         }
-                        return `<text x="${x}" y="${height - 8}" fill="#71717a" font-size="10" text-anchor="middle">${label}</text>`;
+
+                        // Garante que o texto do primeiro e do último dia não fique cortado nas bordas
+                        let x = baseX;
+                        let anchor = 'middle';
+                        const margin = 8;
+                        if (i === 0) {
+                            anchor = 'start';
+                            x = Math.max(padding.left + margin, baseX);
+                        } else if (i === limited.length - 1) {
+                            anchor = 'end';
+                            x = Math.min(width - margin, baseX);
+                        }
+
+                        return `<text x="${x}" y="${height - 8}" fill="#71717a" font-size="10" text-anchor="${anchor}">${label}</text>`;
                     }
                     return '';
                 }).join('');
