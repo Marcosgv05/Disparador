@@ -3357,11 +3357,41 @@ async function loadAnalytics() {
                 total_failed: totalFailed
             };
             
-            // Se não tem dados diários do banco ou estão incompletos, gera a partir das campanhas
-            if (!dailyData || dailyData.length === 0 || 
-                (dailyData.reduce((sum, d) => sum + (d.messages_sent || 0), 0) < totalSent)) {
+            // Gera dados diários a partir das campanhas para ter enviadas e respondidas
+            const dailyDataMap = new Map();
+            
+            state.campaigns.forEach(campaign => {
+                if (campaign.contacts) {
+                    campaign.contacts.forEach(contact => {
+                        const sentDate = contact.sentAt ? new Date(contact.sentAt).toISOString().split('T')[0] : null;
+                        const repliedDate = contact.repliedAt ? new Date(contact.repliedAt).toISOString().split('T')[0] : null;
+                        
+                        if (sentDate) {
+                            if (!dailyDataMap.has(sentDate)) {
+                                dailyDataMap.set(sentDate, { date: sentDate, messages_sent: 0, messages_replied: 0 });
+                            }
+                            dailyDataMap.get(sentDate).messages_sent++;
+                        }
+                        
+                        if (repliedDate) {
+                            if (!dailyDataMap.has(repliedDate)) {
+                                dailyDataMap.set(repliedDate, { date: repliedDate, messages_sent: 0, messages_replied: 0 });
+                            }
+                            dailyDataMap.get(repliedDate).messages_replied++;
+                        }
+                    });
+                }
+            });
+            
+            // Converte para array e ordena por data
+            dailyData = Array.from(dailyDataMap.values()).sort((a, b) => 
+                new Date(a.date) - new Date(b.date)
+            );
+            
+            // Se não tem dados, cria um registro para hoje
+            if (dailyData.length === 0) {
                 const today = new Date().toISOString().split('T')[0];
-                dailyData = [{ date: today, messages_sent: totalSent }];
+                dailyData = [{ date: today, messages_sent: totalSent, messages_replied: 0 }];
             }
         }
         
@@ -3371,13 +3401,12 @@ async function loadAnalytics() {
         document.getElementById('analyticsRead').textContent = summary?.total_read || 0;
         document.getElementById('analyticsFailed').textContent = summary?.total_failed || 0;
         
-        // Renderiza gráfico de linhas estilo AutomIA
+        // Renderiza gráfico com duas linhas estilo AutomIA
         const chartContainer = document.getElementById('analyticsChart');
         if (chartContainer) {
             if (dailyData && dailyData.length > 0) {
                 const limited = dailyData.slice(-14);
-                const maxValue = Math.max(...limited.map(d => d.messages_sent || 0), 1);
-                const totalMessages = summary?.total_sent || 0;
+                const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
                 
                 // Dimensões do gráfico
                 const width = 500;
@@ -3386,20 +3415,26 @@ async function loadAnalytics() {
                 const chartWidth = width - padding.left - padding.right;
                 const chartHeight = height - padding.top - padding.bottom;
                 
-                // Gera pontos do gráfico
-                const points = limited.map((d, i) => {
+                // Gera pontos para enviadas
+                const sentPoints = limited.map((d, i) => {
                     const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
                     const y = padding.top + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
                     return { x, y, value: d.messages_sent || 0, date: d.date };
                 });
                 
-                // Cria path suave (curva monotone simulada)
-                let pathD = '';
-                if (points.length === 1) {
-                    // Se só tem 1 ponto, desenha uma linha horizontal
-                    pathD = `M ${padding.left} ${points[0].y} L ${width - padding.right} ${points[0].y}`;
-                } else {
-                    pathD = points.map((p, i) => {
+                // Gera pontos para respondidas
+                const repliedPoints = limited.map((d, i) => {
+                    const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                    const y = padding.top + chartHeight - ((d.messages_replied || 0) / maxValue) * chartHeight;
+                    return { x, y, value: d.messages_replied || 0, date: d.date };
+                });
+                
+                // Função para criar path suave
+                const createSmoothPath = (points) => {
+                    if (points.length === 1) {
+                        return `M ${padding.left} ${points[0].y} L ${width - padding.right} ${points[0].y}`;
+                    }
+                    return points.map((p, i) => {
                         if (i === 0) return `M ${p.x} ${p.y}`;
                         const prev = points[i - 1];
                         const cp1x = prev.x + (p.x - prev.x) / 2;
@@ -3408,10 +3443,13 @@ async function loadAnalytics() {
                         const cp2y = p.y;
                         return `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p.x} ${p.y}`;
                     }).join(' ');
-                }
+                };
                 
-                // Área preenchida
-                const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding.bottom} L ${points[0].x} ${height - padding.bottom} Z`;
+                const sentPath = createSmoothPath(sentPoints);
+                const repliedPath = createSmoothPath(repliedPoints);
+                
+                // Área preenchida apenas para enviadas
+                const sentArea = `${sentPath} L ${sentPoints[sentPoints.length - 1].x} ${height - padding.bottom} L ${sentPoints[0].x} ${height - padding.bottom} Z`;
                 
                 // Grid horizontal
                 const gridLines = [0, 0.25, 0.5, 0.75, 1].map(pct => {
@@ -3432,30 +3470,54 @@ async function loadAnalytics() {
                 }).join('');
                 
                 // Pontos interativos
-                const pointsHtml = points.map(p => 
+                const sentPointsHtml = sentPoints.map(p => 
                     `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#6366f1" stroke="#1e1b4b" stroke-width="2" class="chart-hover-point">
-                        <title>${p.value} mensagens em ${p.date}</title>
+                        <title>${p.value} enviadas em ${p.date}</title>
                     </circle>`
                 ).join('');
+                
+                const repliedPointsHtml = repliedPoints.map(p => 
+                    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#10b981" stroke="#047857" stroke-width="2" class="chart-hover-point">
+                        <title>${p.value} respondidas em ${p.date}</title>
+                    </circle>`
+                ).join('');
+                
+                // Legenda
+                const legendHtml = `
+                    <g transform="translate(${width - 120}, 10)">
+                        <rect x="0" y="0" width="110" height="50" fill="#18181b" stroke="#27272a" rx="4"/>
+                        <line x1="10" y1="15" x2="25" y2="15" stroke="#6366f1" stroke-width="2.5"/>
+                        <circle cx="17.5" cy="15" r="3" fill="#6366f1"/>
+                        <text x="30" y="19" fill="#fff" font-size="11">Enviadas</text>
+                        <line x1="10" y1="35" x2="25" y2="35" stroke="#10b981" stroke-width="2.5"/>
+                        <circle cx="17.5" cy="35" r="3" fill="#10b981"/>
+                        <text x="30" y="39" fill="#fff" font-size="11">Respondidas</text>
+                    </g>
+                `;
                 
                 const svgHtml = `
                     <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
                         <defs>
-                            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                                 <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
                                 <stop offset="95%" stop-color="#6366f1" stop-opacity="0"/>
                             </linearGradient>
                         </defs>
                         <!-- Grid -->
                         ${gridLines}
-                        <!-- Área preenchida -->
-                        <path d="${areaD}" fill="url(#areaGradient)"/>
-                        <!-- Linha principal -->
-                        <path d="${pathD}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Área preenchida (enviadas) -->
+                        <path d="${sentArea}" fill="url(#sentGradient)"/>
+                        <!-- Linha das enviadas -->
+                        <path d="${sentPath}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Linha das respondidas -->
+                        <path d="${repliedPath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                         <!-- Pontos -->
-                        ${pointsHtml}
+                        ${sentPointsHtml}
+                        ${repliedPointsHtml}
                         <!-- Labels X -->
                         ${xLabels}
+                        <!-- Legenda -->
+                        ${legendHtml}
                     </svg>
                 `;
                 
