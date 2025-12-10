@@ -2107,11 +2107,15 @@ socket.on('contacts-updated', (data) => {
 
 // Atualização de status de contato individual
 socket.on('contact-status-updated', (data) => {
-    // Adiciona log no console de execução
+    // Adiciona log no console de execução somente para status de envio
     if (data.status === 'sent') {
         addConsoleLog(`Enviando para ${data.phone}... OK`, 'success');
     } else if (data.status === 'failed') {
         addConsoleLog(`Enviando para ${data.phone}... FALHA`, 'error');
+    } else if (data.status === 'received') {
+        console.log(`📨 Mensagem recebida por ${data.phone}`);
+    } else if (data.status === 'read') {
+        console.log(`👁️ Mensagem lida por ${data.phone}`);
     }
     
     if (state.currentCampaign && state.currentCampaign.name === data.campaignName) {
@@ -2125,11 +2129,119 @@ socket.on('contact-status-updated', (data) => {
             if (data.repliedAt) contact.repliedAt = data.repliedAt;
             if (data.error) contact.error = data.error;
             
-            // Recarrega detalhes da campanha para atualizar estatísticas
-            loadCampaignDetails({ preserveTab: true });
+            // Atualiza tabela de contatos sem recarregar tudo
+            renderContactsTable(state.currentCampaign);
         }
     }
 });
+
+// Atualização de stats da campanha em tempo real (funciona mesmo com disparo parado)
+socket.on('campaign-stats-updated', (data) => {
+    console.log('📊 Stats atualizados:', data.campaignName, data.stats);
+    
+    // Atualiza stats na campanha em memória
+    const campaign = state.campaigns.find(c => c.name === data.campaignName);
+    if (campaign) {
+        campaign.stats = { ...campaign.stats, ...data.stats };
+    }
+    
+    // Se está visualizando esta campanha, atualiza a UI
+    if (state.currentCampaign && state.currentCampaign.name === data.campaignName) {
+        state.currentCampaign.stats = { ...state.currentCampaign.stats, ...data.stats };
+        
+        // Atualiza os cards de estatísticas
+        renderCampaignStats(state.currentCampaign);
+    }
+    
+    // Atualiza o dashboard também
+    updateDashboard(state.campaigns);
+    
+    // Atualiza os KPIs do analytics
+    updateAnalyticsKPIs();
+});
+
+// Função para atualizar os cards de stats da campanha atual
+function renderCampaignStats(campaign) {
+    const statsContainer = document.getElementById('campaignStats');
+    if (!statsContainer || !campaign) return;
+    
+    const totalContacts = (campaign.stats && typeof campaign.stats.total === 'number')
+        ? campaign.stats.total
+        : (Array.isArray(campaign.contacts) ? campaign.contacts.length : 0);
+    const delivered = (campaign.stats && typeof campaign.stats.sent === 'number')
+        ? campaign.stats.sent
+        : 0;
+    const received = (campaign.stats && typeof campaign.stats.received === 'number')
+        ? campaign.stats.received
+        : 0;
+    const read = (campaign.stats && typeof campaign.stats.read === 'number')
+        ? campaign.stats.read
+        : 0;
+    const replies = (campaign.stats && typeof campaign.stats.replied === 'number')
+        ? campaign.stats.replied
+        : 0;
+    const failures = (campaign.stats && typeof campaign.stats.failed === 'number')
+        ? campaign.stats.failed
+        : 0;
+
+    statsContainer.innerHTML = `
+        <div class="stat-item">
+            <h4>${totalContacts}</h4>
+            <p>Total contatos</p>
+        </div>
+        <div class="stat-item">
+            <h4>${delivered}</h4>
+            <p>Enviadas</p>
+        </div>
+        <div class="stat-item">
+            <h4>${received}</h4>
+            <p>Recebidas</p>
+        </div>
+        <div class="stat-item">
+            <h4>${read}</h4>
+            <p>Lidas</p>
+        </div>
+        <div class="stat-item">
+            <h4>${replies}</h4>
+            <p>Respostas</p>
+        </div>
+        <div class="stat-item">
+            <h4>${failures}</h4>
+            <p>Falhas</p>
+        </div>
+    `;
+}
+
+// Função para atualizar KPIs do analytics em tempo real
+function updateAnalyticsKPIs() {
+    if (!state.campaigns || state.campaigns.length === 0) return;
+    
+    let totalSent = 0, totalDelivered = 0, totalRead = 0, totalFailed = 0;
+    
+    state.campaigns.forEach(campaign => {
+        if (campaign.stats) {
+            totalSent += campaign.stats.sent || 0;
+            totalDelivered += campaign.stats.delivered || campaign.stats.received || 0;
+            totalRead += campaign.stats.read || 0;
+            totalFailed += campaign.stats.failed || 0;
+        }
+    });
+    
+    // Atualiza os elementos do dashboard
+    const sentEl = document.getElementById('analyticsSent');
+    const deliveredEl = document.getElementById('analyticsDelivered');
+    const readEl = document.getElementById('analyticsRead');
+    const failedEl = document.getElementById('analyticsFailed');
+    
+    if (sentEl) sentEl.textContent = totalSent;
+    if (deliveredEl) deliveredEl.textContent = totalDelivered;
+    if (readEl) readEl.textContent = totalRead;
+    if (failedEl) failedEl.textContent = totalFailed;
+    
+    // Atualiza também o card de mensagens enviadas
+    const dashSentEl = document.getElementById('dashSent');
+    if (dashSentEl) dashSentEl.textContent = totalSent;
+}
 
 // ==== PAUSE OPTIONS TOGGLE ====
 
@@ -3222,22 +3334,22 @@ async function loadAnalytics() {
         const days = document.getElementById('analyticsPeriod')?.value || 30;
         let { summary, dailyData, recentCampaigns } = await apiCall(`/api/analytics/summary?days=${days}`);
         
-        // Se não tem dados do banco, calcula a partir das campanhas em memória
-        if ((!dailyData || dailyData.length === 0) && state.campaigns) {
-            // Calcula estatísticas a partir das campanhas
+        // Sempre calcula estatísticas a partir das campanhas em memória para consistência
+        // Isso garante que os números do gráfico batem com os cards do topo
+        if (state.campaigns && state.campaigns.length > 0) {
             let totalSent = 0, totalDelivered = 0, totalRead = 0, totalFailed = 0;
             
             state.campaigns.forEach(campaign => {
-                if (campaign.contacts) {
-                    campaign.contacts.forEach(contact => {
-                        if (contact.status === 'sent') totalSent++;
-                        else if (contact.status === 'delivered') totalDelivered++;
-                        else if (contact.status === 'read') totalRead++;
-                        else if (contact.status === 'failed') totalFailed++;
-                    });
+                // Usa os stats da campanha (mesma fonte que o dashboard)
+                if (campaign.stats) {
+                    totalSent += campaign.stats.sent || 0;
+                    totalDelivered += campaign.stats.delivered || 0;
+                    totalRead += campaign.stats.read || 0;
+                    totalFailed += campaign.stats.failed || 0;
                 }
             });
             
+            // Atualiza summary com os dados das campanhas
             summary = {
                 total_sent: totalSent,
                 total_delivered: totalDelivered,
@@ -3245,8 +3357,9 @@ async function loadAnalytics() {
                 total_failed: totalFailed
             };
             
-            // Gera dados diários simulados do último envio
-            if (totalSent > 0) {
+            // Se não tem dados diários do banco ou estão incompletos, gera a partir das campanhas
+            if (!dailyData || dailyData.length === 0 || 
+                (dailyData.reduce((sum, d) => sum + (d.messages_sent || 0), 0) < totalSent)) {
                 const today = new Date().toISOString().split('T')[0];
                 dailyData = [{ date: today, messages_sent: totalSent }];
             }
@@ -3258,56 +3371,95 @@ async function loadAnalytics() {
         document.getElementById('analyticsRead').textContent = summary?.total_read || 0;
         document.getElementById('analyticsFailed').textContent = summary?.total_failed || 0;
         
-        // Renderiza gráfico de linhas
+        // Renderiza gráfico de linhas estilo AutomIA
         const chartContainer = document.getElementById('analyticsChart');
         if (chartContainer) {
             if (dailyData && dailyData.length > 0) {
                 const limited = dailyData.slice(-14);
                 const maxValue = Math.max(...limited.map(d => d.messages_sent || 0), 1);
+                const totalMessages = summary?.total_sent || 0;
                 
                 // Dimensões do gráfico
-                const width = 100;
-                const height = 100;
-                const padding = 5;
-                const chartWidth = width - padding * 2;
-                const chartHeight = height - padding * 2;
+                const width = 500;
+                const height = 200;
+                const padding = { top: 20, right: 20, bottom: 30, left: 40 };
+                const chartWidth = width - padding.left - padding.right;
+                const chartHeight = height - padding.top - padding.bottom;
                 
                 // Gera pontos do gráfico
                 const points = limited.map((d, i) => {
-                    const x = padding + (i / (limited.length - 1 || 1)) * chartWidth;
-                    const y = padding + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
+                    const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                    const y = padding.top + chartHeight - ((d.messages_sent || 0) / maxValue) * chartHeight;
                     return { x, y, value: d.messages_sent || 0, date: d.date };
                 });
                 
-                // Cria path da linha
-                const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+                // Cria path suave (curva monotone simulada)
+                let pathD = '';
+                if (points.length === 1) {
+                    // Se só tem 1 ponto, desenha uma linha horizontal
+                    pathD = `M ${padding.left} ${points[0].y} L ${width - padding.right} ${points[0].y}`;
+                } else {
+                    pathD = points.map((p, i) => {
+                        if (i === 0) return `M ${p.x} ${p.y}`;
+                        const prev = points[i - 1];
+                        const cp1x = prev.x + (p.x - prev.x) / 2;
+                        const cp1y = prev.y;
+                        const cp2x = prev.x + (p.x - prev.x) / 2;
+                        const cp2y = p.y;
+                        return `C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p.x} ${p.y}`;
+                    }).join(' ');
+                }
                 
-                // Cria área preenchida (gradiente)
-                const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding} L ${padding} ${height - padding} Z`;
+                // Área preenchida
+                const areaD = `${pathD} L ${points[points.length - 1].x} ${height - padding.bottom} L ${points[0].x} ${height - padding.bottom} Z`;
+                
+                // Grid horizontal
+                const gridLines = [0, 0.25, 0.5, 0.75, 1].map(pct => {
+                    const y = padding.top + chartHeight * (1 - pct);
+                    const value = Math.round(maxValue * pct);
+                    return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#27272a" stroke-dasharray="3 3"/>
+                            <text x="${padding.left - 8}" y="${y + 4}" fill="#71717a" font-size="10" text-anchor="end">${value}</text>`;
+                }).join('');
+                
+                // Labels do eixo X
+                const xLabels = limited.map((d, i) => {
+                    if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % Math.ceil(limited.length / 5) === 0) {
+                        const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
+                        const label = (d.date || '').slice(5); // MM-DD
+                        return `<text x="${x}" y="${height - 8}" fill="#71717a" font-size="10" text-anchor="middle">${label}</text>`;
+                    }
+                    return '';
+                }).join('');
+                
+                // Pontos interativos
+                const pointsHtml = points.map(p => 
+                    `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#6366f1" stroke="#1e1b4b" stroke-width="2" class="chart-hover-point">
+                        <title>${p.value} mensagens em ${p.date}</title>
+                    </circle>`
+                ).join('');
                 
                 const svgHtml = `
-                    <svg class="analytics-line-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                    <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
                         <defs>
                             <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="0%" style="stop-color: rgba(99, 102, 241, 0.4)"/>
-                                <stop offset="100%" style="stop-color: rgba(99, 102, 241, 0)"/>
+                                <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
+                                <stop offset="95%" stop-color="#6366f1" stop-opacity="0"/>
                             </linearGradient>
                         </defs>
-                        <path class="chart-area" d="${areaD}" fill="url(#areaGradient)"/>
-                        <path class="chart-line" d="${pathD}" fill="none" stroke="#6366f1" stroke-width="0.5"/>
-                        ${points.map(p => `<circle class="chart-point" cx="${p.x}" cy="${p.y}" r="1" fill="#6366f1"/>`).join('')}
+                        <!-- Grid -->
+                        ${gridLines}
+                        <!-- Área preenchida -->
+                        <path d="${areaD}" fill="url(#areaGradient)"/>
+                        <!-- Linha principal -->
+                        <path d="${pathD}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <!-- Pontos -->
+                        ${pointsHtml}
+                        <!-- Labels X -->
+                        ${xLabels}
                     </svg>
                 `;
                 
-                const labelsHtml = `<div class="analytics-chart-xlabels">${limited.map((d, i) => {
-                    // Mostra apenas alguns labels para não ficar lotado
-                    if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % 3 === 0) {
-                        return `<span>${(d.date || '').slice(5)}</span>`;
-                    }
-                    return '<span></span>';
-                }).join('')}</div>`;
-                
-                chartContainer.innerHTML = svgHtml + labelsHtml;
+                chartContainer.innerHTML = svgHtml;
             } else {
                 chartContainer.innerHTML = '<p class="analytics-chart-empty">Sem dados para exibir</p>';
             }

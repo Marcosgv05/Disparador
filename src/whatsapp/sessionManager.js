@@ -51,6 +51,31 @@ class SessionManager {
    */
   trackSentMessage(messageId, phone, campaignName) {
     this.sentMessages.set(messageId, { phone, campaignName, sentAt: new Date() });
+    
+    // Limpa mensagens antigas a cada 100 novas mensagens
+    if (this.sentMessages.size % 100 === 0) {
+      this.cleanOldMessages();
+    }
+  }
+
+  /**
+   * Remove mensagens com mais de 24 horas do rastreamento
+   */
+  cleanOldMessages() {
+    const maxAge = 24 * 60 * 60 * 1000; // 24 horas
+    const now = Date.now();
+    let removed = 0;
+    
+    for (const [messageId, data] of this.sentMessages.entries()) {
+      if (now - new Date(data.sentAt).getTime() > maxAge) {
+        this.sentMessages.delete(messageId);
+        removed++;
+      }
+    }
+    
+    if (removed > 0) {
+      logger.info(`🧹 Limpeza de mensagens antigas: ${removed} removidas, ${this.sentMessages.size} restantes`);
+    }
   }
 
   /**

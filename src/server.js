@@ -601,32 +601,47 @@ if (instancesToRestore.length > 0) {
   }, 6000); // 6 segundos após restauração
 }
 
-// Registra callbacks para status de mensagens
+// Registra callbacks para status de mensagens (funciona mesmo com disparo parado)
 sessionManager.onMessageStatus((phone, status, details) => {
-  const { campaignName, userId } = details;
+  const { campaignName, messageId, message } = details;
   
   if (!campaignName) return;
   
-  // Atualiza status no campaignManager
-  const contact = campaignManager.updateContactStatus(campaignName, phone, status, details);
-  
-  if (contact) {
-    // Emite atualização via WebSocket apenas para o dono da campanha
-    if (contact.userId || userId) {
-      const ownerId = contact.userId || userId;
-      io.to(`user:${ownerId}`).emit('contact-status-updated', {
-        campaignName,
-        phone,
-        status,
-        details,
-        sentAt: contact.sentAt,
-        receivedAt: contact.receivedAt,
-        readAt: contact.readAt,
-        repliedAt: contact.repliedAt
-      });
-    }
+  try {
+    // Atualiza status no campaignManager
+    const statusDetails = { messageId };
+    if (message) statusDetails.message = message;
     
-    logger.info(`📊 Status atualizado: ${phone} -> ${status}`);
+    const contact = campaignManager.updateContactStatus(campaignName, phone, status, statusDetails);
+    
+    if (contact) {
+      // Busca a campanha para obter o userId e stats
+      const campaign = campaignManager.getCampaign(campaignName);
+      if (campaign && campaign.userId) {
+        // Emite atualização do contato via WebSocket
+        io.to(`user:${campaign.userId}`).emit('contact-status-updated', {
+          campaignName,
+          phone,
+          status: contact.status,
+          details: contact.statusDetails,
+          sentAt: contact.sentAt,
+          receivedAt: contact.receivedAt,
+          readAt: contact.readAt,
+          repliedAt: contact.repliedAt,
+          error: contact.error
+        });
+        
+        // Emite também os stats atualizados da campanha para atualizar KPIs
+        io.to(`user:${campaign.userId}`).emit('campaign-stats-updated', {
+          campaignName,
+          stats: campaign.stats
+        });
+      }
+      
+      logger.info(`📊 Status atualizado: ${phone} -> ${status} (Campanha: ${campaignName})`);
+    }
+  } catch (error) {
+    logger.error(`Erro ao atualizar status de contato: ${error.message}`);
   }
 });
 
@@ -1790,42 +1805,8 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Registra callback para atualização de status de mensagens
-sessionManager.onMessageStatus((phone, status, details) => {
-  const { campaignName, messageId, message } = details;
-  
-  if (!campaignName) return;
-  
-  try {
-    logger.info(`📊 Atualizando status: ${phone} -> ${status} (Campanha: ${campaignName})`);
-    
-    const statusDetails = { messageId };
-    if (message) statusDetails.message = message;
-    
-    campaignManager.updateContactStatus(campaignName, phone, status, statusDetails);
-    
-    // Emite atualização via WebSocket apenas para o dono da campanha
-    const campaign = campaignManager.getCampaign(campaignName);
-    if (campaign) {
-      const contact = campaign.contacts.find(c => c.phone === phone);
-      if (contact && campaign.userId) {
-        io.to(`user:${campaign.userId}`).emit('contact-status-updated', {
-          campaignName,
-          phone,
-          status: contact.status,
-          details: contact.statusDetails,
-          sentAt: contact.sentAt,
-          receivedAt: contact.receivedAt,
-          readAt: contact.readAt,
-          repliedAt: contact.repliedAt,
-          error: contact.error
-        });
-      }
-    }
-  } catch (error) {
-    logger.error(`Erro ao atualizar status de contato: ${error.message}`);
-  }
-});
+// NOTA: Callback de status de mensagens já registrado acima (linha ~605)
+// Removido callback duplicado para evitar contagem dupla de estatísticas
 
 // Inicia servidor
 const PORT = process.env.PORT || 3000;

@@ -520,6 +520,31 @@ body {
     r: 2;
 }
 
+/* Gráfico de Área/Linhas estilo AutomIA */
+.analytics-area-chart {
+    width: 100%;
+    height: 180px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.analytics-area-chart .chart-hover-point {
+    cursor: pointer;
+    transition: r 0.2s ease, fill 0.2s ease;
+}
+
+.analytics-area-chart .chart-hover-point:hover {
+    r: 6;
+    fill: #818cf8;
+}
+
+/* Container do gráfico com borda e fundo */
+.analytics-chart {
+    background: radial-gradient(circle at top, rgba(37, 99, 235, 0.15), rgba(15, 23, 42, 1));
+    border: 1px solid rgba(39, 39, 42, 0.8);
+    border-radius: 12px;
+    padding: 0.5rem;
+}
+
 .dashboard-recent-list {
     margin-top: 1rem;
     display: flex;
