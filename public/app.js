@@ -3368,31 +3368,45 @@ async function loadAnalytics() {
                         
                         if (sentDate) {
                             if (!dailyDataMap.has(sentDate)) {
-                                dailyDataMap.set(sentDate, { date: sentDate, messages_sent: 0, messages_replied: 0 });
+                                dailyDataMap.set(sentDate, { messages_sent: 0, messages_replied: 0 });
                             }
                             dailyDataMap.get(sentDate).messages_sent++;
                         }
                         
                         if (repliedDate) {
                             if (!dailyDataMap.has(repliedDate)) {
-                                dailyDataMap.set(repliedDate, { date: repliedDate, messages_sent: 0, messages_replied: 0 });
+                                dailyDataMap.set(repliedDate, { messages_sent: 0, messages_replied: 0 });
                             }
                             dailyDataMap.get(repliedDate).messages_replied++;
                         }
                     });
                 }
             });
-            
-            // Converte para array e ordena por data
-            dailyData = Array.from(dailyDataMap.values()).sort((a, b) => 
-                new Date(a.date) - new Date(b.date)
-            );
-            
-            // Se não tem dados, cria um registro para hoje
-            if (dailyData.length === 0) {
-                const today = new Date().toISOString().split('T')[0];
-                dailyData = [{ date: today, messages_sent: totalSent, messages_replied: 0 }];
+
+            // Monta série contínua de dias no período selecionado (inclui dias com zero)
+            const daysInt = parseInt(days, 10) || 30;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const fullSeries = [];
+
+            for (let i = daysInt - 1; i >= 0; i--) {
+                const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+                const key = d.toISOString().split('T')[0];
+                const stats = dailyDataMap.get(key) || { messages_sent: 0, messages_replied: 0 };
+                fullSeries.push({
+                    date: key,
+                    messages_sent: stats.messages_sent || 0,
+                    messages_replied: stats.messages_replied || 0
+                });
             }
+
+            // Garante pelo menos um ponto (hoje) caso não haja nenhum envio no período
+            if (fullSeries.length === 0) {
+                const key = new Date().toISOString().split('T')[0];
+                fullSeries.push({ date: key, messages_sent: 0, messages_replied: 0 });
+            }
+
+            dailyData = fullSeries;
         }
         
         // Atualiza cards
@@ -3431,8 +3445,11 @@ async function loadAnalytics() {
                 
                 // Função para criar path suave
                 const createSmoothPath = (points) => {
+                    if (points.length === 0) return '';
                     if (points.length === 1) {
-                        return `M ${padding.left} ${points[0].y} L ${width - padding.right} ${points[0].y}`;
+                        // Com apenas um ponto, desenha apenas o segmento no próprio ponto
+                        // para evitar uma linha reta constante em todo o gráfico
+                        return `M ${points[0].x} ${points[0].y}`;
                     }
                     return points.map((p, i) => {
                         if (i === 0) return `M ${p.x} ${p.y}`;
@@ -3469,7 +3486,7 @@ async function loadAnalytics() {
                     return '';
                 }).join('');
                 
-                // Pontos interativos
+                // Pontos interativos (bolinhas sobre as linhas)
                 const sentPointsHtml = sentPoints.map(p => 
                     `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#6366f1" stroke="#1e1b4b" stroke-width="2" class="chart-hover-point">
                         <title>${p.value} enviadas em ${p.date}</title>
@@ -3482,43 +3499,41 @@ async function loadAnalytics() {
                     </circle>`
                 ).join('');
                 
-                // Legenda
-                const legendHtml = `
-                    <g transform="translate(${width - 120}, 10)">
-                        <rect x="0" y="0" width="110" height="50" fill="#18181b" stroke="#27272a" rx="4"/>
-                        <line x1="10" y1="15" x2="25" y2="15" stroke="#6366f1" stroke-width="2.5"/>
-                        <circle cx="17.5" cy="15" r="3" fill="#6366f1"/>
-                        <text x="30" y="19" fill="#fff" font-size="11">Enviadas</text>
-                        <line x1="10" y1="35" x2="25" y2="35" stroke="#10b981" stroke-width="2.5"/>
-                        <circle cx="17.5" cy="35" r="3" fill="#10b981"/>
-                        <text x="30" y="39" fill="#fff" font-size="11">Respondidas</text>
-                    </g>
-                `;
-                
+                // SVG + legenda externa abaixo, alinhada ao canto esquerdo
                 const svgHtml = `
-                    <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
-                        <defs>
-                            <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
-                                <stop offset="95%" stop-color="#6366f1" stop-opacity="0"/>
-                            </linearGradient>
-                        </defs>
-                        <!-- Grid -->
-                        ${gridLines}
-                        <!-- Área preenchida (enviadas) -->
-                        <path d="${sentArea}" fill="url(#sentGradient)"/>
-                        <!-- Linha das enviadas -->
-                        <path d="${sentPath}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <!-- Linha das respondidas -->
-                        <path d="${repliedPath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <!-- Pontos -->
-                        ${sentPointsHtml}
-                        ${repliedPointsHtml}
-                        <!-- Labels X -->
-                        ${xLabels}
-                        <!-- Legenda -->
-                        ${legendHtml}
-                    </svg>
+                    <div class="analytics-chart-inner">
+                        <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+                            <defs>
+                                <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
+                                    <stop offset="95%" stop-color="#6366f1" stop-opacity="0"/>
+                                </linearGradient>
+                            </defs>
+                            <!-- Grid -->
+                            ${gridLines}
+                            <!-- Área preenchida (enviadas) -->
+                            <path d="${sentArea}" fill="url(#sentGradient)"/>
+                            <!-- Linha das enviadas -->
+                            <path d="${sentPath}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <!-- Linha das respondidas -->
+                            <path d="${repliedPath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <!-- Pontos -->
+                            ${sentPointsHtml}
+                            ${repliedPointsHtml}
+                            <!-- Labels X -->
+                            ${xLabels}
+                        </svg>
+                        <div class="analytics-chart-legend">
+                            <div class="analytics-legend-item">
+                                <span class="analytics-legend-color analytics-legend-sent"></span>
+                                <span class="analytics-legend-label">Enviadas</span>
+                            </div>
+                            <div class="analytics-legend-item">
+                                <span class="analytics-legend-color analytics-legend-replied"></span>
+                                <span class="analytics-legend-label">Respondidas</span>
+                            </div>
+                        </div>
+                    </div>
                 `;
                 
                 chartContainer.innerHTML = svgHtml;

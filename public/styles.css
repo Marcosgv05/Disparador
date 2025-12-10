@@ -537,6 +537,45 @@ body {
     fill: #818cf8;
 }
 
+/* Wrapper interno do gráfico + legenda (analytics) */
+.analytics-chart-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+}
+
+/* Legenda fora do gráfico, canto inferior esquerdo */
+.analytics-chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    font-size: 0.78rem;
+    color: var(--text-light);
+    padding-left: 0.5rem;
+}
+
+.analytics-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.analytics-legend-color {
+    width: 18px;
+    height: 3px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.analytics-legend-sent {
+    background: #6366f1;
+}
+
+.analytics-legend-replied {
+    background: #10b981;
+}
+
 /* Container do gráfico com borda e fundo */
 .analytics-chart {
     background: radial-gradient(circle at top, rgba(37, 99, 235, 0.15), rgba(15, 23, 42, 1));
