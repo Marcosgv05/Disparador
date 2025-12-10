@@ -1076,9 +1076,11 @@ function renderCampaignActivityChart(campaign) {
     const limited = fullSeries.slice(-5);
     const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
 
-    // Dimensões do gráfico - calcula baseado no tamanho real do contêiner
-    const containerRect = chartContainer.getBoundingClientRect();
-    const width = Math.max(containerRect.width - 16, 400); // desconta padding, mínimo 400
+    // Dimensões do gráfico - calcula baseado no tamanho real do contêiner pai
+    // Usa o card pai para ter uma largura mais confiável
+    const parentCard = chartContainer.closest('.campaign-activity-card') || chartContainer.parentElement;
+    const containerRect = parentCard ? parentCard.getBoundingClientRect() : chartContainer.getBoundingClientRect();
+    const width = Math.max(containerRect.width - 32, 400); // desconta padding do card, mínimo 400
     const height = 180;
     const padding = { top: 20, right: 10, bottom: 30, left: 40 };
     const chartWidth = width - padding.left - padding.right;
