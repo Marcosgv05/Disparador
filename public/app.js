@@ -3384,7 +3384,9 @@ async function loadAnalytics() {
             });
 
             // Monta série contínua de dias no período selecionado (inclui dias com zero)
-            const daysInt = parseInt(days, 10) || 30;
+            // Usamos uma janela fixa de 5 dias para o gráfico, deslizando conforme o tempo passa
+            const periodDays = parseInt(days, 10) || 30;
+            const daysInt = Math.min(periodDays, 5);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const fullSeries = [];
@@ -3419,7 +3421,8 @@ async function loadAnalytics() {
         const chartContainer = document.getElementById('analyticsChart');
         if (chartContainer) {
             if (dailyData && dailyData.length > 0) {
-                const limited = dailyData.slice(-14);
+                // Janela fixa de 5 dias no gráfico
+                const limited = dailyData.slice(-5);
                 const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
                 
                 // Dimensões do gráfico
@@ -3476,11 +3479,17 @@ async function loadAnalytics() {
                             <text x="${padding.left - 8}" y="${y + 4}" fill="#71717a" font-size="10" text-anchor="end">${value}</text>`;
                 }).join('');
                 
-                // Labels do eixo X
+                // Labels do eixo X (formato dd/mm)
                 const xLabels = limited.map((d, i) => {
                     if (limited.length <= 7 || i === 0 || i === limited.length - 1 || i % Math.ceil(limited.length / 5) === 0) {
                         const x = padding.left + (limited.length === 1 ? chartWidth / 2 : (i / (limited.length - 1)) * chartWidth);
-                        const label = (d.date || '').slice(5); // MM-DD
+                        const iso = d.date || '';
+                        let label = '';
+                        if (iso.length >= 10) {
+                            const day = iso.slice(8, 10);
+                            const month = iso.slice(5, 7);
+                            label = `${day}/${month}`;
+                        }
                         return `<text x="${x}" y="${height - 8}" fill="#71717a" font-size="10" text-anchor="middle">${label}</text>`;
                     }
                     return '';
