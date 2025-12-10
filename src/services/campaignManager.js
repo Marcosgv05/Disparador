@@ -82,6 +82,12 @@ class CampaignManager {
             if (!campaign.instanceStats) campaign.instanceStats = {};
             if (!campaign.linkedInstances) campaign.linkedInstances = [];
             
+            // Se o servidor foi reiniciado no meio de um disparo, evita deixar a campanha presa em "running"
+            if (campaign.status === 'running') {
+              logger.warn(`Campanha "${row.name}" estava em execução ao iniciar o servidor. Marcando como "paused" para permitir retomada segura.`);
+              campaign.status = 'paused';
+            }
+            
             this.campaigns.set(row.name, campaign);
             loadedCount++;
           } catch (error) {
@@ -780,6 +786,13 @@ class CampaignManager {
       // Inicializa linkedInstances se não existir (compatibilidade com campanhas antigas)
       if (!campaign.linkedInstances) {
         campaign.linkedInstances = [];
+      }
+      
+      // Se a campanha foi carregada como "running" após um restart, tratamos como "paused"
+      // para evitar erro de "já está em execução" quando o dispatcher ainda não marcou isRunning.
+      if (campaign.status === 'running') {
+        logger.warn(`Campanha "${campaignName}" carregada com status "running". Marcando como "paused" para evitar estado travado após restart.`);
+        campaign.status = 'paused';
       }
       
       this.campaigns.set(campaignName, campaign);
