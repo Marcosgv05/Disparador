@@ -1076,9 +1076,11 @@ function renderCampaignActivityChart(campaign) {
     const limited = fullSeries.slice(-5);
     const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
 
-    const width = 500;
-    const height = 200;
-    const padding = { top: 20, right: 0, bottom: 30, left: 40 };
+    // Dimensões do gráfico - calcula baseado no tamanho real do contêiner
+    const containerRect = chartContainer.getBoundingClientRect();
+    const width = Math.max(containerRect.width - 16, 400); // desconta padding, mínimo 400
+    const height = 180;
+    const padding = { top: 20, right: 10, bottom: 30, left: 40 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
     const innerMarginX = 22;
@@ -1170,7 +1172,7 @@ function renderCampaignActivityChart(campaign) {
 
     const svgHtml = `
         <div class="analytics-chart-inner">
-            <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+            <svg class="analytics-area-chart" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
                 <defs>
                     <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>
@@ -3604,12 +3606,13 @@ async function loadAnalytics() {
                 const limited = dailyData.slice(-5);
                 const maxValue = Math.max(...limited.map(d => Math.max(d.messages_sent || 0, d.messages_replied || 0)), 1);
 
-                // Dimensões do gráfico
-                const width = 500;
-                const height = 200;
+                // Dimensões do gráfico - calcula baseado no tamanho real do contêiner
+                const containerRect = chartContainer.getBoundingClientRect();
+                const width = Math.max(containerRect.width - 16, 400); // desconta padding, mínimo 400
+                const height = 180;
                 // Margem esquerda para os números do eixo Y e uma pequena margem interna à direita
                 // para evitar que os pontos encostem totalmente nas bordas.
-                const padding = { top: 20, right: 0, bottom: 30, left: 40 };
+                const padding = { top: 20, right: 10, bottom: 30, left: 40 };
                 const chartWidth = width - padding.left - padding.right;
                 const chartHeight = height - padding.top - padding.bottom;
                 const innerMarginX = 22; // margem interna suave nas laterais
@@ -3707,7 +3710,7 @@ async function loadAnalytics() {
                 // SVG + legenda externa abaixo, alinhada ao canto esquerdo
                 const svgHtml = `
                     <div class="analytics-chart-inner">
-                        <svg class="analytics-area-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">
+                        <svg class="analytics-area-chart" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
                             <defs>
                                 <linearGradient id="sentGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                                     <stop offset="5%" stop-color="#6366f1" stop-opacity="0.3"/>

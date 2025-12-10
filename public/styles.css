@@ -544,10 +544,9 @@ body {
 
 /* Gráfico de Área/Linhas estilo AutomIA */
 .analytics-area-chart {
-    width: 100%;
-    height: auto;
-    max-height: 180px;
     display: block;
+    max-width: 100%;
+    height: auto;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
