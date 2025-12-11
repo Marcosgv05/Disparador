@@ -3805,9 +3805,7 @@ function toggleScheduleOptions() {
         container.style.display = checkbox.checked ? 'block' : 'none';
         scheduleConfig.enabled = checkbox.checked;
 
-        if (checkbox.checked) {
-            startScheduleMonitor();
-        } else {
+        if (!checkbox.checked) {
             stopScheduleMonitor();
             updateScheduleStatus('inactive');
         }
@@ -4037,10 +4035,15 @@ function showSubscriptionRequired() {
 /**
  * Logout e redireciona para login
  */
-function logoutAndRedirect() {
-    localStorage.removeItem('firebaseToken');
-    localStorage.removeItem('user');
-    window.location.href = '/login.html';
+async function logoutAndRedirect() {
+    try {
+        const { logout } = await import('./firebase-auth.js');
+        await logout();
+    } catch (error) {
+        localStorage.removeItem('firebaseToken');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+    }
 }
 
 // Expõe globalmente para o botão no HTML
