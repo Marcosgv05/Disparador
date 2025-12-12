@@ -97,9 +97,9 @@ const httpServer = createServer(app);
 // Configura origens permitidas para Socket.IO
 const getSocketOrigins = () => {
   if (process.env.NODE_ENV !== 'production') return '*';
-  
+
   const origins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
-  
+
   // Adiciona automaticamente URLs do Railway/Render
   if (process.env.RAILWAY_PUBLIC_DOMAIN) {
     origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
@@ -110,7 +110,7 @@ const getSocketOrigins = () => {
   if (process.env.RENDER_EXTERNAL_URL) {
     origins.push(process.env.RENDER_EXTERNAL_URL);
   }
-  
+
   return origins.length > 0 ? origins : '*';
 };
 
@@ -182,17 +182,17 @@ io.use(async (socket, next) => {
 app.delete('/api/campaign/:name', requireAuth, async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     // Valida propriedade
     campaignManager.validateOwnership(name, req.user.id);
-    
+
     await campaignManager.deleteCampaign(name);
-    
+
     // Registra log de atividade
     try {
       await dbManager.logActivity(req.user.id, req.user.email, 'Deletou campanha', JSON.stringify({ campaignName: name }), req.ip, req.get('User-Agent'));
     } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
-    
+
     res.json({ success: true });
   } catch (error) {
     res.status(403).json({ error: error.message });
@@ -212,7 +212,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // Máximo 5MB por arquivo
@@ -241,7 +241,7 @@ const mediaStorage = multer.diskStorage({
   }
 });
 
-const uploadMedia = multer({ 
+const uploadMedia = multer({
   storage: mediaStorage,
   limits: {
     fileSize: 16 * 1024 * 1024, // Máximo 16MB para mídia
@@ -251,7 +251,7 @@ const uploadMedia = multer({
     const ext = path.extname(file.originalname).toLowerCase();
     const allowedImages = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const allowedVideos = ['.mp4', '.mov', '.avi', '.mkv'];
-    
+
     if (allowedImages.includes(ext) || allowedVideos.includes(ext)) {
       cb(null, true);
     } else {
@@ -277,7 +277,7 @@ const authLimiter = rateLimit({
 });
 
 // Middlewares - Configuração CORS
-const corsOrigins = process.env.CORS_ORIGIN 
+const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
@@ -298,22 +298,22 @@ app.use(cors({
   origin: (origin, callback) => {
     // Permite requisições sem origin (mobile apps, Postman, servidor próprio, etc)
     if (!origin) return callback(null, true);
-    
+
     // Permite origens configuradas
     if (corsOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // Em desenvolvimento, permite qualquer origem
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    
+
     // Em produção, permite origens .railway.app (mesmo domínio)
     if (origin.endsWith('.up.railway.app')) {
       return callback(null, true);
     }
-    
+
     logger.warn(`CORS bloqueado para origin não autorizado: ${origin}`);
     return callback(new Error('Origin não permitido pelo CORS'));
   },
@@ -389,8 +389,8 @@ app.use((req, res, next) => {
 
 // Health check para Railway/Render/monitoramento
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
@@ -445,16 +445,16 @@ app.get('/api/auto-pause/status', requireAuth, (req, res) => {
 app.post('/api/auto-pause/configure', requireAuth, (req, res) => {
   try {
     const { windowSize, errorThreshold, consecutiveErrors, cooldownTime, enabled } = req.body;
-    
+
     const config = {};
     if (windowSize !== undefined) config.windowSize = parseInt(windowSize);
     if (errorThreshold !== undefined) config.errorThreshold = parseFloat(errorThreshold);
     if (consecutiveErrors !== undefined) config.consecutiveErrors = parseInt(consecutiveErrors);
     if (cooldownTime !== undefined) config.cooldownTime = parseInt(cooldownTime) * 1000; // Converte para ms
     if (enabled !== undefined) config.enabled = enabled;
-    
+
     autoPause.configure(config);
-    
+
     res.json({
       success: true,
       config: autoPause.getConfig()
@@ -469,7 +469,7 @@ app.post('/api/auto-pause/toggle', requireAuth, (req, res) => {
   try {
     const { enabled } = req.body;
     autoPause.setEnabled(enabled);
-    
+
     res.json({
       success: true,
       enabled: autoPause.getConfig().enabled
@@ -484,7 +484,7 @@ app.post('/api/auto-pause/resume/:instanceId', requireAuth, (req, res) => {
   try {
     const { instanceId } = req.params;
     autoPause.resumeInstance(instanceId, false);
-    
+
     res.json({
       success: true,
       stats: autoPause.getInstanceStats(instanceId)
@@ -499,7 +499,7 @@ app.post('/api/auto-pause/reset/:instanceId', requireAuth, (req, res) => {
   try {
     const { instanceId } = req.params;
     autoPause.resetInstance(instanceId);
-    
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -511,11 +511,11 @@ app.get('/api/auto-pause/instance/:instanceId', requireAuth, (req, res) => {
   try {
     const { instanceId } = req.params;
     const stats = autoPause.getInstanceStats(instanceId);
-    
+
     if (!stats) {
       return res.status(404).json({ error: 'Instância não encontrada' });
     }
-    
+
     res.json(stats);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -545,7 +545,7 @@ autoPause.onPauseEvent((event) => {
   if (event.instanceId && event.userId) {
     io.to(`user:${event.userId}`).emit('autoPauseEvent', event);
   }
-  
+
   if (event.type === 'pause') {
     logger.warn(`🚨 Socket.IO: Instância ${event.instanceId} pausada - ${event.reason}`);
   } else if (event.type === 'resume') {
@@ -573,7 +573,7 @@ if (instancesToRestore.length > 0) {
   // Aguarda restauração das sessões
   const restoredSessions = await sessionManager.restoreSessions(instancesToRestore);
   logger.info(`👋 ${restoredSessions.length} sessão(oes) restaurada(s) com sucesso`);
-  
+
   // Verifica novamente o status de cada instância após restauração
   setTimeout(() => {
     logger.info('🔍 Verificando status final das instâncias restauradas...');
@@ -584,9 +584,9 @@ if (instancesToRestore.length > 0) {
           const session = sessionManager.getSession(currentInst.sessionId);
           if (session && session.user) {
             const phone = session.user?.id?.split(':')[0] || 'Conectado';
-            instanceManager.updateInstance(currentInst.id, { 
+            instanceManager.updateInstance(currentInst.id, {
               status: 'connected',
-              phone 
+              phone
             });
             if (currentInst.userId) {
               io.to(`user:${currentInst.userId}`).emit('session-connected', { sessionId: currentInst.sessionId, phone });
@@ -604,16 +604,16 @@ if (instancesToRestore.length > 0) {
 // Registra callbacks para status de mensagens (funciona mesmo com disparo parado)
 sessionManager.onMessageStatus((phone, status, details) => {
   const { campaignName, messageId, message } = details;
-  
+
   if (!campaignName) return;
-  
+
   try {
     // Atualiza status no campaignManager
     const statusDetails = { messageId };
     if (message) statusDetails.message = message;
-    
+
     const contact = campaignManager.updateContactStatus(campaignName, phone, status, statusDetails);
-    
+
     if (contact) {
       // Busca a campanha para obter o userId e stats
       const campaign = campaignManager.getCampaign(campaignName);
@@ -630,14 +630,14 @@ sessionManager.onMessageStatus((phone, status, details) => {
           repliedAt: contact.repliedAt,
           error: contact.error
         });
-        
+
         // Emite também os stats atualizados da campanha para atualizar KPIs
         io.to(`user:${campaign.userId}`).emit('campaign-stats-updated', {
           campaignName,
           stats: campaign.stats
         });
       }
-      
+
       logger.info(`📊 Status atualizado: ${phone} -> ${status} (Campanha: ${campaignName})`);
     }
   } catch (error) {
@@ -665,15 +665,15 @@ sessionManager.onConnectionUpdate(async (sessionId, event, data) => {
       io.to(`user:${ownerId}`).emit('session-connected', { sessionId, phone: data.phone });
     }
     logger.info(`✅ Sessão ${sessionId} conectada: ${data.phone}`);
-    
+
     // Atualiza instância se estiver em restauração
     try {
       if (instance) {
         logger.info(`🔍 Instância encontrada: ${instance.id}, status atual: ${instance.status}`);
         if (instance.status === 'connecting') {
-          instanceManager.updateInstance(instance.id, { 
+          instanceManager.updateInstance(instance.id, {
             status: 'connected',
-            phone: data.phone 
+            phone: data.phone
           });
           logger.info(`📱 Instância ${instance.id} atualizada para conectada após restauração`);
         } else {
@@ -702,7 +702,7 @@ sessionManager.onConnectionUpdate(async (sessionId, event, data) => {
 // WebSocket para atualizações em tempo real
 io.on('connection', (socket) => {
   logger.info('Cliente conectado via WebSocket');
-  
+
   socket.on('disconnect', () => {
     logger.info('Cliente desconectado');
   });
@@ -721,7 +721,7 @@ function emitProgress(data) {
 app.post('/api/session/create', requireAuth, async (req, res) => {
   try {
     const { sessionId, forceNew } = req.body;
-    
+
     if (!sessionId) {
       return res.status(400).json({ error: 'sessionId é obrigatório' });
     }
@@ -733,18 +733,23 @@ app.post('/api/session/create', requireAuth, async (req, res) => {
     }
 
     // Responde imediatamente
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Sessão criada. Aguarde o QR Code.',
-      sessionId 
+      sessionId
     });
 
     // Cria sessão de forma assíncrona
-    await sessionManager.createSession(sessionId, { 
+    await sessionManager.createSession(sessionId, {
       waitForConnection: false,
       forceNew: forceNew || false
     });
-    
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Conectou WhatsApp', JSON.stringify({ sessionId }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
   } catch (error) {
     logger.error(`Erro ao criar sessão: ${error.message}`);
     // Emite erro apenas para o usuário que tentou criar a sessão
@@ -758,15 +763,15 @@ app.post('/api/session/create', requireAuth, async (req, res) => {
 app.get('/api/session/list', requireAuth, (req, res) => {
   try {
     const allSessions = sessionManager.getAllSessions();
-    
+
     // Filtra sessões pelas instâncias do usuário
     const userInstances = instanceManager.listInstances(req.user.id);
     const userSessionIds = userInstances.map(i => i.sessionId).filter(Boolean);
-    
-    const userSessions = allSessions.filter(session => 
+
+    const userSessions = allSessions.filter(session =>
       userSessionIds.includes(session.id)
     );
-    
+
     res.json({ sessions: userSessions });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -777,14 +782,20 @@ app.get('/api/session/list', requireAuth, (req, res) => {
 app.delete('/api/session/:sessionId', requireAuth, async (req, res) => {
   try {
     const { sessionId } = req.params;
-    
+
     // Verifica se o sessionId corresponde a uma instância do usuário
     const instance = instanceManager.getInstanceBySession(sessionId);
     if (instance && instance.userId !== req.user.id) {
       return res.status(403).json({ error: 'Acesso negado a esta sessão' });
     }
-    
+
     await sessionManager.removeSession(sessionId);
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Desconectou WhatsApp', JSON.stringify({ sessionId }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
     res.json({ success: true, message: 'Sessão removida' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -841,13 +852,13 @@ app.delete('/api/instances/:instanceId', requireAuth, (req, res) => {
 app.post('/api/campaign/create', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Nome da campanha é obrigatório' });
     }
 
     const campaign = await campaignManager.createCampaign(name, req.user.id);
-    
+
     // Registra log de atividade
     try {
       await dbManager.logActivity(
@@ -861,9 +872,9 @@ app.post('/api/campaign/create', requireAuth, async (req, res) => {
     } catch (logErr) {
       logger.warn(`Erro ao registrar log de atividade: ${logErr.message}`);
     }
-    
+
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -912,11 +923,11 @@ app.get('/api/campaign/:name', requireAuth, (req, res) => {
   try {
     const { name } = req.params;
     const campaign = campaignManager.getCampaign(name, req.user.id);
-    
+
     if (!campaign) {
       return res.status(404).json({ error: 'Campanha não encontrada' });
     }
-    
+
     res.json({ campaign });
   } catch (error) {
     res.status(403).json({ error: error.message });
@@ -928,14 +939,14 @@ app.post('/api/campaign/:name/add-number', requireAuth, validateCampaignOwnershi
   try {
     const { name } = req.params;
     const { phoneNumber } = req.body;
-    
+
     if (!phoneNumber) {
       return res.status(400).json({ error: 'Número de telefone é obrigatório' });
     }
 
     const campaign = campaignManager.addNumber(name, phoneNumber);
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -980,19 +991,19 @@ app.post('/api/campaign/:name/add-contact', requireAuth, validateCampaignOwnersh
 app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwnership(campaignManager), upload.single('file'), async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     if (!req.file) {
       return res.status(400).json({ error: 'Arquivo não enviado' });
     }
 
     const filePath = req.file.path;
-    
+
     // Carrega contatos com nome
     const contacts = await loadContactsFromExcel(filePath);
-    
+
     if (contacts.length === 0) {
       await fs.unlink(filePath);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Nenhum contato encontrado na planilha'
       });
     }
@@ -1019,28 +1030,33 @@ app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwne
         validation.invalidContacts.push(contact);
       }
     }
-    
+
     if (validation.valid === 0) {
       await fs.unlink(filePath);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Nenhum número válido encontrado',
-        validation 
+        validation
       });
     }
 
     // Adiciona contatos válidos
     const campaign = campaignManager.addContacts(name, validation.validContacts);
-    
+
     // Remove arquivo temporário
     await fs.unlink(filePath);
-    
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Importou contatos', JSON.stringify({ campaignName: name, total: validation.valid }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
     // Emite atualização via WebSocket apenas para o dono da campanha
     if (req.user?.id) {
       io.to(`user:${req.user.id}`).emit('contacts-updated', { campaignName: name, contacts: campaign.contacts });
     }
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       campaign,
       validation: {
         total: validation.total,
@@ -1049,10 +1065,10 @@ app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwne
         contacts: validation.validContacts.slice(0, 50) // Primeiros 50 para preview
       }
     });
-    
+
   } catch (error) {
     if (req.file) {
-      await fs.unlink(req.file.path).catch(() => {});
+      await fs.unlink(req.file.path).catch(() => { });
     }
     res.status(500).json({ error: error.message });
   }
@@ -1062,16 +1078,16 @@ app.post('/api/campaign/:name/upload-numbers', requireAuth, validateCampaignOwne
 app.post('/api/campaign/:name/upload-messages', requireAuth, validateCampaignOwnership(campaignManager), upload.single('file'), async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     if (!req.file) {
       return res.status(400).json({ error: 'Arquivo não enviado' });
     }
 
     const filePath = req.file.path;
-    
+
     // Carrega mensagens
     const messages = await loadMessagesFromExcel(filePath);
-    
+
     if (messages.length === 0) {
       await fs.unlink(filePath);
       return res.status(400).json({ error: 'Nenhuma mensagem encontrada na planilha' });
@@ -1079,20 +1095,25 @@ app.post('/api/campaign/:name/upload-messages', requireAuth, validateCampaignOwn
 
     // Define mensagens
     const campaign = campaignManager.setMessages(name, messages);
-    
+
     // Remove arquivo temporário
     await fs.unlink(filePath);
-    
-    res.json({ 
-      success: true, 
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Importou mensagens', JSON.stringify({ campaignName: name, total: messages.length }), req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
+    res.json({
+      success: true,
       campaign,
       messagesCount: messages.length,
       messages: messages.slice(0, 10) // Primeiras 10 mensagens para preview
     });
-    
+
   } catch (error) {
     if (req.file) {
-      await fs.unlink(req.file.path).catch(() => {});
+      await fs.unlink(req.file.path).catch(() => { });
     }
     res.status(500).json({ error: error.message });
   }
@@ -1103,7 +1124,7 @@ app.post('/api/campaign/:name/add-messages', requireAuth, validateCampaignOwners
   try {
     const { name } = req.params;
     const { messages } = req.body;
-    
+
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: 'Mensagens devem ser um array' });
     }
@@ -1111,7 +1132,7 @@ app.post('/api/campaign/:name/add-messages', requireAuth, validateCampaignOwners
     const campaign = campaignManager.setMessages(name, messages);
     await campaignManager.saveCampaign(name);
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1122,7 +1143,7 @@ app.post('/api/campaign/:name/message', requireAuth, validateCampaignOwnership(c
   try {
     const { name } = req.params;
     const { message } = req.body;
-    
+
     if (!message || typeof message !== 'string' || message.trim() === '') {
       return res.status(400).json({ error: 'Mensagem não pode estar vazia' });
     }
@@ -1134,9 +1155,9 @@ app.post('/api/campaign/:name/message', requireAuth, validateCampaignOwnership(c
 
     campaign.messages.push(message.trim());
     await campaignManager.saveCampaign(name);
-    
+
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1147,7 +1168,7 @@ app.delete('/api/campaign/:name/message/:index', requireAuth, validateCampaignOw
   try {
     const { name, index } = req.params;
     const messageIndex = parseInt(index, 10);
-    
+
     if (isNaN(messageIndex)) {
       return res.status(400).json({ error: 'Índice inválido' });
     }
@@ -1163,9 +1184,9 @@ app.delete('/api/campaign/:name/message/:index', requireAuth, validateCampaignOw
 
     campaign.messages.splice(messageIndex, 1);
     await campaignManager.saveCampaign(name);
-    
+
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1177,7 +1198,7 @@ app.put('/api/campaign/:name/message/:index', requireAuth, validateCampaignOwner
     const { name, index } = req.params;
     const { message } = req.body;
     const messageIndex = parseInt(index, 10);
-    
+
     if (isNaN(messageIndex)) {
       return res.status(400).json({ error: 'Índice inválido' });
     }
@@ -1203,10 +1224,10 @@ app.put('/api/campaign/:name/message/:index', requireAuth, validateCampaignOwner
 
     campaign.messages[messageIndex] = message.trim();
     await campaignManager.saveCampaign(name);
-    
+
     logger.info(`✏️ Mensagem ${messageIndex + 1} atualizada na campanha "${name}"`);
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1254,17 +1275,17 @@ app.post('/api/campaign/:name/media', requireAuth, validateCampaignOwnership(cam
     await campaignManager.saveCampaign(name);
 
     logger.info(`📎 Mídia GLOBAL definida para campanha "${name}": ${mediaType} - ${req.file.filename}`);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       media: campaign.media,
-      campaign 
+      campaign
     });
-    
+
   } catch (error) {
     // Remove arquivo em caso de erro
     if (req.file) {
-      try { await fs.unlink(req.file.path); } catch (e) {}
+      try { await fs.unlink(req.file.path); } catch (e) { }
     }
     res.status(500).json({ error: error.message });
   }
@@ -1277,7 +1298,7 @@ app.use('/media', express.static(path.join(process.cwd(), 'uploads', 'media')));
 app.delete('/api/campaign/:name/media', requireAuth, validateCampaignOwnership(campaignManager), async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     const campaign = campaignManager.getCampaign(name);
     if (!campaign) {
       return res.status(404).json({ error: 'Campanha não encontrada' });
@@ -1296,7 +1317,7 @@ app.delete('/api/campaign/:name/media', requireAuth, validateCampaignOwnership(c
 
     logger.info(`🗑️ Mídia removida da campanha "${name}"`);
     res.json({ success: true, campaign });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1318,13 +1339,13 @@ app.get('/api/ai/status', requireAuth, async (req, res) => {
 app.post('/api/ai/generate-variations', requireAuth, async (req, res) => {
   try {
     const { baseMessage, count = 10, tone = 'original', preserveVariables = true } = req.body;
-    
+
     if (!baseMessage || typeof baseMessage !== 'string' || baseMessage.trim().length === 0) {
       return res.status(400).json({ error: 'Mensagem base é obrigatória' });
     }
 
     if (!geminiService.isAvailable()) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Serviço de IA não disponível. Configure GEMINI_API_KEY no ambiente.',
         available: false
       });
@@ -1339,8 +1360,8 @@ app.post('/api/ai/generate-variations', requireAuth, async (req, res) => {
       { tone, preserveVariables }
     );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       variations,
       count: variations.length,
       baseMessage: baseMessage.trim()
@@ -1357,7 +1378,7 @@ app.post('/api/campaign/:name/ai-messages', requireAuth, validateCampaignOwnersh
   try {
     const { name } = req.params;
     const { baseMessage, count = 10, tone = 'original', preserveVariables = true, replaceExisting = false } = req.body;
-    
+
     if (!baseMessage || typeof baseMessage !== 'string' || baseMessage.trim().length === 0) {
       return res.status(400).json({ error: 'Mensagem base é obrigatória' });
     }
@@ -1368,7 +1389,7 @@ app.post('/api/campaign/:name/ai-messages', requireAuth, validateCampaignOwnersh
     }
 
     if (!geminiService.isAvailable()) {
-      return res.status(503).json({ 
+      return res.status(503).json({
         error: 'Serviço de IA não disponível. Configure GEMINI_API_KEY no ambiente.',
         available: false
       });
@@ -1403,8 +1424,8 @@ app.post('/api/campaign/:name/ai-messages', requireAuth, validateCampaignOwnersh
 
     await campaignManager.saveCampaign(name);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       campaign,
       aiGenerated: {
         count: variations.length,
@@ -1445,29 +1466,29 @@ app.post('/api/campaign/:name/linked-instances', requireAuth, async (req, res) =
   try {
     const campaignName = decodeURIComponent(req.params.name);
     const { instanceIds } = req.body;
-    
+
     // Valida propriedade da campanha
     try {
       campaignManager.validateOwnership(campaignName, req.user.id);
     } catch (e) {
       return res.status(403).json({ error: e.message });
     }
-    
+
     if (!Array.isArray(instanceIds)) {
       return res.status(400).json({ error: 'instanceIds deve ser um array' });
     }
-    
+
     // Valida que as instâncias pertencem ao usuário
     const userInstances = instanceManager.listInstances(req.user.id);
     const userInstanceIds = userInstances.map(i => i.id);
     const validIds = instanceIds.filter(id => userInstanceIds.includes(id));
-    
+
     const campaign = campaignManager.setLinkedInstances(campaignName, validIds);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       linkedInstances: campaign.linkedInstances,
-      campaign 
+      campaign
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1478,21 +1499,21 @@ app.post('/api/campaign/:name/linked-instances', requireAuth, async (req, res) =
 app.get('/api/campaign/:name/linked-instances', requireAuth, async (req, res) => {
   try {
     const campaignName = decodeURIComponent(req.params.name);
-    
+
     // Valida propriedade da campanha
     try {
       campaignManager.validateOwnership(campaignName, req.user.id);
     } catch (e) {
       return res.status(403).json({ error: e.message });
     }
-    
+
     const linkedInstances = campaignManager.getLinkedInstances(campaignName);
-    
+
     // Retorna também os dados completos das instâncias vinculadas
     const userInstances = instanceManager.listInstances(req.user.id);
     const linkedInstancesData = userInstances.filter(i => linkedInstances.includes(i.id));
-    
-    res.json({ 
+
+    res.json({
       linkedInstances,
       instances: linkedInstancesData
     });
@@ -1505,14 +1526,14 @@ app.get('/api/campaign/:name/linked-instances', requireAuth, async (req, res) =>
 app.post('/api/campaign/load', requireAuth, async (req, res) => {
   try {
     const { name } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Nome da campanha é obrigatório' });
     }
 
     // Valida propriedade da campanha
     campaignManager.validateOwnership(name, req.user.id);
-    
+
     const campaign = await campaignManager.loadCampaign(name);
     res.json({ success: true, campaign });
   } catch (error) {
@@ -1529,10 +1550,10 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
   try {
     const { campaignName } = req.params;
     const { messageDelay, numberDelay, pauseAfterMessages, pauseDuration, enableTyping } = req.body || {};
-    
+
     // Valida propriedade
     campaignManager.validateOwnership(campaignName, req.user.id);
-    
+
     // Prepara opções de delay e controle
     const options = {};
     if (messageDelay && messageDelay > 0) {
@@ -1557,17 +1578,17 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
         emitProgress({ userId: campaign.userId, campaign });
       }
     };
-    
+
     logger.info(`Iniciando disparo com opções: messageDelay=${options.messageDelay || 'padrão'}ms, numberDelay=${options.numberDelay || 'padrão'}ms, pauseAfterMessages=${options.pauseAfterMessages || 'nenhum'}, pauseDuration=${options.pauseDuration || 'nenhum'}, enableTyping=${options.enableTyping ? 'on' : 'off'}`);
-    
+
     // Registra log de atividade
     try {
       await dbManager.logActivity(req.user.id, req.user.email, 'Iniciou disparo', JSON.stringify({ campaignName }), req.ip, req.get('User-Agent'));
     } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
-    
+
     // Guarda userId para emitir eventos apenas para o dono
     const userId = req.user.id;
-    
+
     // Inicia disparo em background
     dispatcher.runCampaign(campaignName, options)
       .then(() => {
@@ -1578,9 +1599,9 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
         // Emite apenas para o usuário dono da campanha
         io.to(`user:${userId}`).emit('dispatch-error', { campaignName, error: error.message });
       });
- 
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Disparo iniciado',
       delays: {
         messageDelay: options.messageDelay || settings.messageDelay,
@@ -1590,16 +1611,22 @@ app.post('/api/dispatch/start/:campaignName', requireAuth, async (req, res) => {
         enableTyping: !!options.enableTyping
       }
     });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Pausar disparo
-app.post('/api/dispatch/pause', requireAuth, (req, res) => {
+app.post('/api/dispatch/pause', requireAuth, async (req, res) => {
   try {
     dispatcher.pause();
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Pausou disparo', null, req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
     res.json({ success: true, message: 'Disparo pausado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1607,9 +1634,15 @@ app.post('/api/dispatch/pause', requireAuth, (req, res) => {
 });
 
 // Retomar disparo
-app.post('/api/dispatch/resume', requireAuth, (req, res) => {
+app.post('/api/dispatch/resume', requireAuth, async (req, res) => {
   try {
     dispatcher.resume();
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Retomou disparo', null, req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
     res.json({ success: true, message: 'Disparo retomado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1617,9 +1650,15 @@ app.post('/api/dispatch/resume', requireAuth, (req, res) => {
 });
 
 // Parar disparo
-app.post('/api/dispatch/stop', requireAuth, (req, res) => {
+app.post('/api/dispatch/stop', requireAuth, async (req, res) => {
   try {
     dispatcher.stop();
+
+    // Registra log de atividade
+    try {
+      await dbManager.logActivity(req.user.id, req.user.email, 'Parou disparo', null, req.ip, req.get('User-Agent'));
+    } catch (logErr) { logger.warn(`Erro log atividade: ${logErr.message}`); }
+
     res.json({ success: true, message: 'Disparo parado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1646,30 +1685,30 @@ app.post('/api/schedule/:campaignName', requireAuth, (req, res) => {
   try {
     const { campaignName } = req.params;
     const schedule = req.body;
-    
+
     // Garante que a campanha pertence ao usuário
     try {
       campaignManager.validateOwnership(campaignName, req.user.id);
     } catch (e) {
       return res.status(403).json({ error: e.message });
     }
-    
+
     // Valida horários
     if (!scheduler.constructor.validateTime(schedule.startTime)) {
       return res.status(400).json({ error: 'Horário de início inválido' });
     }
-    
+
     if (schedule.pauseTime && !scheduler.constructor.validateTime(schedule.pauseTime)) {
       return res.status(400).json({ error: 'Horário de pausa inválido' });
     }
-    
+
     if (schedule.stopTime && !scheduler.constructor.validateTime(schedule.stopTime)) {
       return res.status(400).json({ error: 'Horário de parada inválido' });
     }
-    
+
     const scheduleData = scheduler.setSchedule(campaignName, schedule, req.user.id);
     res.json({ success: true, schedule: scheduleData });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1688,14 +1727,14 @@ app.get('/api/schedule/:campaignName', requireAuth, (req, res) => {
     }
 
     const schedule = scheduler.getSchedule(campaignName);
-    
+
     if (!schedule) {
       return res.status(404).json({ error: 'Agendamento não encontrado' });
     }
-    
+
     const nextRun = scheduler.getNextRun(campaignName);
     res.json({ schedule, nextRun });
-    
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1786,19 +1825,19 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   logger.error(`Erro não tratado: ${err.message}`);
   logger.error(err.stack);
-  
+
   if (req.path.startsWith('/api/')) {
     // Em produção, não expõe detalhes do erro
     const errorResponse = {
       error: 'Erro interno do servidor'
     };
-    
+
     // Apenas em desenvolvimento, inclui detalhes do erro
     if (process.env.NODE_ENV !== 'production') {
       errorResponse.message = err.message;
       errorResponse.stack = err.stack;
     }
-    
+
     res.status(500).json(errorResponse);
   } else {
     res.status(500).send('Erro interno do servidor');
