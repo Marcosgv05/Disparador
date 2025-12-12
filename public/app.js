@@ -357,6 +357,56 @@ function escapeHtml(text) {
 window.updateWhatsAppPreview = updateWhatsAppPreview;
 window.insertVariable = insertVariable;
 
+// Mostra uma mensagem salva no pré-visualizador do WhatsApp
+function previewSavedMessage(message) {
+    const preview = document.getElementById('whatsappPreviewMessage');
+    if (!preview) return;
+
+    // Decodifica entidades HTML
+    const decodedMessage = message.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+
+    // Verifica se há mídia anexada na campanha atual
+    const hasMedia = state.currentCampaign && state.currentCampaign.media;
+    let mediaHtml = '';
+
+    if (hasMedia) {
+        const media = state.currentCampaign.media;
+        const mediaUrl = `/media/${media.mediaFilename}`;
+
+        if (media.type === 'image') {
+            mediaHtml = `
+                <div class="whatsapp-preview-media">
+                    <img src="${mediaUrl}" alt="Mídia anexada" class="whatsapp-preview-image">
+                </div>
+            `;
+        } else if (media.type === 'video') {
+            mediaHtml = `
+                <div class="whatsapp-preview-media whatsapp-preview-video">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </div>
+            `;
+        }
+    }
+
+    // Substitui variáveis por exemplos
+    let displayMessage = decodedMessage
+        .replace(/\{\{nome\}\}/g, 'João Silva')
+        .replace(/\{\{telefone\}\}/g, '+55 11 99999-9999')
+        .replace(/\{\{custom1\}\}/g, 'valor personalizado');
+
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    preview.innerHTML = `
+        ${mediaHtml}
+        <p class="whatsapp-message-text">${escapeHtml(displayMessage)}</p>
+        <p class="whatsapp-message-time">${time} <span class="whatsapp-check">✓✓</span></p>
+    `;
+}
+window.previewSavedMessage = previewSavedMessage;
+
 // ================================
 // FUNÇÕES DA ABA DISPARO (Console)
 // ================================
@@ -1995,15 +2045,17 @@ function renderMessages(campaign) {
     container.innerHTML = mediaIndicator + textMessages.map((msg, idx) => {
         // Encontra o índice original na lista de mensagens
         const originalIdx = campaign.messages.indexOf(msg);
+        // Escapa aspas para uso em atributos HTML
+        const msgEscaped = msg.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
         return `
             <div class="message-item">
                 <div class="message-number">${idx + 1}</div>
-                <div class="message-content">
+                <div class="message-content" onclick="previewSavedMessage('${msgEscaped}')" title="Clique para pré-visualizar">
                     <div class="message-text">${escapeHtml(msg)}</div>
                     <div class="message-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="editMessage('${campaign.name}', ${originalIdx})">Editar</button>
-                        <button class="btn btn-danger btn-sm" onclick="removeMessage('${campaign.name}', ${originalIdx})">Remover</button>
+                        <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); editMessage('${campaign.name}', ${originalIdx})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); removeMessage('${campaign.name}', ${originalIdx})">Remover</button>
                     </div>
                 </div>
             </div>

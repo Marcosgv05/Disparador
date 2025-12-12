@@ -4,7 +4,10 @@
   "userId": 1,
   "contacts": [],
   "numbers": [],
-  "messages": [],
+  "messages": [
+    "Teste um mano bagulho é doido{{nome}}",
+    "salve"
+  ],
   "status": "idle",
   "createdAt": "2025-11-26T23:54:46.226Z",
   "startedAt": null,
