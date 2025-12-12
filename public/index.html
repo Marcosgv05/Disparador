@@ -1,22 +1,33 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vext - Sistema de Campanhas</title>
+    <title>Arauto - Sistema de Campanhas</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
     <!-- Loading overlay enquanto verifica autenticação -->
-    <div id="authLoading" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; display: flex; align-items: center; justify-content: center; z-index: 9999;">
+    <div id="authLoading"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a2e; display: flex; align-items: center; justify-content: center; z-index: 9999;">
         <div style="text-align: center; color: white;">
-            <div style="width: 50px; height: 50px; border: 3px solid #333; border-top-color: #25D366; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <div
+                style="width: 50px; height: 50px; border: 3px solid #333; border-top-color: #25D366; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;">
+            </div>
             <p>Verificando autenticação...</p>
         </div>
-        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        <style>
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
     </div>
-    
-    <!-- Overlay de assinatura necessária -->
+
+    <!-- Overlay de assinatura necessária - DESATIVADO TEMPORARIAMENTE
     <div id="subscriptionRequired" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.97); z-index: 9998; align-items: center; justify-content: center;">
         <div style="text-align: center; color: white; max-width: 420px; padding: 2rem;">
             <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;">
@@ -38,15 +49,18 @@
             </div>
         </div>
     </div>
-    
+    -->
+
     <div class="container" id="mainContainer" style="display: none;">
         <!-- Header -->
         <header class="header">
             <div class="logo">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
+                    <path
+                        d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+                        fill="#25D366" />
                 </svg>
-                <h1>Vext</h1>
+                <h1>Arauto</h1>
             </div>
             <div class="header-status">
                 <div class="status-item" id="sessionStatus">
@@ -68,7 +82,7 @@
                                 <a href="#" class="nav-item active" data-section="dashboard">
                                     <span class="nav-item-icon">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm10 4h8v4h-8v-4z"/>
+                                            <path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm10 4h8v4h-8v-4z" />
                                         </svg>
                                     </span>
                                     <span class="nav-item-label">Dashboard</span>
@@ -76,7 +90,8 @@
                                 <a href="#" class="nav-item" data-section="whatsapp">
                                     <span class="nav-item-icon">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M6.62 10.79a15.91 15.91 0 006.59 6.59l1.4-1.4a1 1 0 011.01-.24 11.05 11.05 0 003.46.55 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h2.71a1 1 0 011 1 11.05 11.05 0 00.55 3.46 1 1 0 01-.24 1.01l-1.4 1.32z"/>
+                                            <path
+                                                d="M6.62 10.79a15.91 15.91 0 006.59 6.59l1.4-1.4a1 1 0 011.01-.24 11.05 11.05 0 003.46.55 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h2.71a1 1 0 011 1 11.05 11.05 0 00.55 3.46 1 1 0 01-.24 1.01l-1.4 1.32z" />
                                         </svg>
                                     </span>
                                     <span class="nav-item-label">Conexões</span>
@@ -84,16 +99,18 @@
                                 <a href="#" class="nav-item" data-section="dispatch-panel" data-tab="tab-campaigns">
                                     <span class="nav-item-icon">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                                            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
                                         </svg>
                                     </span>
                                     <span class="nav-item-label">Campanhas</span>
                                 </a>
-                                
-                                <a href="/admin.html" class="nav-item nav-item-admin" id="adminLink" style="display: none;">
+
+                                <a href="/admin.html" class="nav-item nav-item-admin" id="adminLink"
+                                    style="display: none;">
                                     <span class="nav-item-icon">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l6 2.67V11c0 3.87-2.69 7.19-6 8-3.31-.81-6-4.13-6-8V7.67L12 5z"/>
+                                            <path
+                                                d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4l6 2.67V11c0 3.87-2.69 7.19-6 8-3.31-.81-6-4.13-6-8V7.67L12 5z" />
                                         </svg>
                                     </span>
                                     <span class="nav-item-label">Administração</span>
@@ -127,12 +144,14 @@
                             <p class="dashboard-subtitle">Visão geral das suas campanhas de WhatsApp</p>
                         </div>
                         <div class="dashboard-actions">
-                            <select id="analyticsPeriod" class="form-control dashboard-period" onchange="loadAnalytics()">
+                            <select id="analyticsPeriod" class="form-control dashboard-period"
+                                onchange="loadAnalytics()">
                                 <option value="7">Últimos 7 dias</option>
                                 <option value="30" selected>Últimos 30 dias</option>
                                 <option value="90">Últimos 90 dias</option>
                             </select>
-                            <button class="btn btn-secondary dashboard-export" onclick="exportAnalytics()">Exportar Relatório</button>
+                            <button class="btn btn-secondary dashboard-export" onclick="exportAnalytics()">Exportar
+                                Relatório</button>
                         </div>
                     </div>
 
@@ -165,7 +184,8 @@
                         <div class="kpi-card">
                             <div class="kpi-icon kpi-icon-indigo">
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13z"/>
+                                    <path
+                                        d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13z" />
                                 </svg>
                             </div>
                             <div class="kpi-content">
@@ -177,7 +197,8 @@
                         <div class="kpi-card">
                             <div class="kpi-icon kpi-icon-danger">
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2L1 21h22L12 2zm0 4.77L19.53 19H4.47L12 6.77zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/>
+                                    <path
+                                        d="M12 2L1 21h22L12 2zm0 4.77L19.53 19H4.47L12 6.77zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z" />
                                 </svg>
                             </div>
                             <div class="kpi-content">
@@ -234,7 +255,7 @@
                 <!-- WhatsApp Connection Section -->
                 <section id="whatsapp" class="section">
                     <h2>Instâncias WhatsApp</h2>
-                    
+
                     <div class="instances-container">
                         <div class="instances-header">
                             <div>
@@ -242,7 +263,7 @@
                                 <p>Conecte múltiplos chips/números para disparos simultâneos</p>
                             </div>
                             <button class="btn btn-primary" onclick="addInstanceSlot()">
-                                 Adicionar Instância
+                                Adicionar Instância
                             </button>
                         </div>
 
@@ -251,7 +272,7 @@
                         </div>
                     </div>
 
-                    </section>
+                </section>
 
                 <!-- Painel de Disparos Section -->
                 <section id="dispatch-panel" class="section">
@@ -277,7 +298,8 @@
                                     <div class="form-group compact">
                                         <div class="campaign-select-actions">
                                             <!-- Select mantido apenas para lógica interna, mas oculto da interface -->
-                                            <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()" style="display: none;">
+                                            <select id="selectedCampaign" class="input" onchange="loadCampaignDetails()"
+                                                style="display: none;">
                                                 <option value="">-- Selecione --</option>
                                             </select>
                                         </div>
@@ -302,16 +324,21 @@
                                 <div>
                                     <h3 id="campaignDetailsTitle">Campanha selecionada</h3>
                                     <div class="campaign-details-meta">
-                                        <span id="campaignDetailsStatusPill" class="campaign-status-pill campaign-status-idle">Status</span>
+                                        <span id="campaignDetailsStatusPill"
+                                            class="campaign-status-pill campaign-status-idle">Status</span>
                                         <span id="campaignDetailsCreated" class="campaign-details-created"></span>
                                     </div>
                                 </div>
                             </div>
                             <div class="campaign-inner-tabs">
-                                <button class="campaign-inner-tab active" data-campaign-tab="overview" onclick="setCampaignInnerTab('overview')">Visão Geral</button>
-                                <button class="campaign-inner-tab" data-campaign-tab="audience" onclick="setCampaignInnerTab('audience')">Contatos</button>
-                                <button class="campaign-inner-tab" data-campaign-tab="content" onclick="setCampaignInnerTab('content')">Mensagens</button>
-                                <button class="campaign-inner-tab" data-campaign-tab="dispatch" onclick="setCampaignInnerTab('dispatch')">Disparo</button>
+                                <button class="campaign-inner-tab active" data-campaign-tab="overview"
+                                    onclick="setCampaignInnerTab('overview')">Visão Geral</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="audience"
+                                    onclick="setCampaignInnerTab('audience')">Contatos</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="content"
+                                    onclick="setCampaignInnerTab('content')">Mensagens</button>
+                                <button class="campaign-inner-tab" data-campaign-tab="dispatch"
+                                    onclick="setCampaignInnerTab('dispatch')">Disparo</button>
                             </div>
                         </div>
 
@@ -327,46 +354,59 @@
                                             <div class="campaign-activity-card">
                                                 <div class="campaign-activity-header">
                                                     <h4>Atividade recente</h4>
-                                                    <p class="campaign-activity-subtitle">Gráfico de envios por hora aparecerá aqui.</p>
+                                                    <p class="campaign-activity-subtitle">Gráfico de envios por hora
+                                                        aparecerá aqui.</p>
                                                 </div>
                                                 <div id="campaignActivityChart" class="campaign-activity-body">
-                                                    <p class="campaign-activity-placeholder">Ainda não há atividade registrada para esta campanha.</p>
+                                                    <p class="campaign-activity-placeholder">Ainda não há atividade
+                                                        registrada para esta campanha.</p>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- Aba interna: Contatos -->
-                                    <div class="campaign-tab-panel" data-campaign-tab-panel="audience" style="display: none;">
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="audience"
+                                        style="display: none;">
                                         <div class="campaign-add-numbers">
                                             <div class="audience-header">
                                                 <h4>Gerenciar Contatos</h4>
                                                 <div class="audience-actions">
-                                                    <button class="btn btn-secondary btn-sm" type="button" onclick="openNumbersFileDialog()">
+                                                    <button class="btn btn-secondary btn-sm" type="button"
+                                                        onclick="openNumbersFileDialog()">
                                                         Importar Planilha
                                                     </button>
-                                                    <button class="btn btn-primary btn-sm" type="button" onclick="focusManualContactForm()">
+                                                    <button class="btn btn-primary btn-sm" type="button"
+                                                        onclick="focusManualContactForm()">
                                                         Adicionar Manual
                                                     </button>
                                                 </div>
                                             </div>
 
                                             <!-- Input de arquivo oculto, usado por Importar/Carregar -->
-                                            <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls" onchange="uploadNumbers()" style="display: none;">
+                                            <input type="file" id="numbersFile" accept=".csv,.xlsx,.xls"
+                                                onchange="uploadNumbers()" style="display: none;">
 
                                             <div class="audience-empty">
                                                 <div class="audience-empty-icon">
-                                                    <svg class="audience-empty-icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                                                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.33 0-6 1.34-6 3v1a1 1 0 001 1h10a1 1 0 001-1v-1c0-1.66-2.67-3-6-3z" fill="currentColor" />
+                                                    <svg class="audience-empty-icon-svg" viewBox="0 0 24 24"
+                                                        aria-hidden="true" focusable="false">
+                                                        <path
+                                                            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-3.33 0-6 1.34-6 3v1a1 1 0 001 1h10a1 1 0 001-1v-1c0-1.66-2.67-3-6-3z"
+                                                            fill="currentColor" />
                                                     </svg>
                                                 </div>
                                                 <p class="audience-empty-title">Sua lista de contatos está vazia</p>
-                                                <p class="audience-empty-subtitle">Importe um arquivo CSV ou Excel para começar.</p>
-                                                <button class="btn btn-primary" type="button" onclick="openNumbersFileDialog()">
+                                                <p class="audience-empty-subtitle">Importe um arquivo CSV ou Excel para
+                                                    começar.</p>
+                                                <button class="btn btn-primary" type="button"
+                                                    onclick="openNumbersFileDialog()">
                                                     Carregar Lista de Contatos
                                                 </button>
-                                                <p class="audience-empty-subtitle" style="font-size: 12px; margin-top: 6px;">
-                                                    Os números devem estar no formato código do país + DDD, sem o 9. Ex: 558581632929
+                                                <p class="audience-empty-subtitle"
+                                                    style="font-size: 12px; margin-top: 6px;">
+                                                    Os números devem estar no formato código do país + DDD, sem o 9. Ex:
+                                                    558581632929
                                                 </p>
                                             </div>
                                         </div>
@@ -389,7 +429,8 @@
                                                     </thead>
                                                     <tbody id="contactsTableBody">
                                                         <tr>
-                                                            <td colspan="6" class="empty-state">Nenhum contato adicionado</td>
+                                                            <td colspan="6" class="empty-state">Nenhum contato
+                                                                adicionado</td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
@@ -398,7 +439,8 @@
                                     </div>
 
                                     <!-- Aba interna: Conteúdo (Mensagens) -->
-                                    <div class="campaign-tab-panel" data-campaign-tab-panel="content" style="display: none;">
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="content"
+                                        style="display: none;">
                                         <div class="content-tab-layout">
                                             <!-- Coluna Esquerda: Editor -->
                                             <div class="content-editor-col">
@@ -409,27 +451,38 @@
                                                             <h4>Geração com IA</h4>
                                                         </div>
                                                         <label class="toggle-switch">
-                                                            <input type="checkbox" id="enableAiMessages" onchange="toggleAiMode()">
+                                                            <input type="checkbox" id="enableAiMessages"
+                                                                onchange="toggleAiMode()">
                                                             <span class="toggle-slider"></span>
                                                         </label>
                                                     </div>
-                                                    
-                                                    <div id="aiModeContainer" class="ai-mode-container" style="display: none;">
+
+                                                    <div id="aiModeContainer" class="ai-mode-container"
+                                                        style="display: none;">
                                                         <p class="ai-description">
-                                                            Escreva uma mensagem base e a IA gerará <strong>10 variações únicas</strong> automaticamente.
-                                                            As variações mantêm o mesmo significado mas com palavras diferentes, reduzindo chances de bloqueio.
+                                                            Escreva uma mensagem base e a IA gerará <strong>10 variações
+                                                                únicas</strong> automaticamente.
+                                                            As variações mantêm o mesmo significado mas com palavras
+                                                            diferentes, reduzindo chances de bloqueio.
                                                         </p>
-                                                        
+
                                                         <!-- Badges de variáveis para IA -->
                                                         <div class="variable-badges">
-                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{nome}}')">{{nome}}</button>
-                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{telefone}}')">{{telefone}}</button>
-                                                            <button type="button" class="variable-badge" onclick="insertVariableAi('{{custom1}}')">{{custom1}}</button>
-                                                            <span class="variable-hint">Variáveis serão preservadas nas variações</span>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariableAi('{{nome}}')">{{nome}}</button>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariableAi('{{telefone}}')">{{telefone}}</button>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariableAi('{{custom1}}')">{{custom1}}</button>
+                                                            <span class="variable-hint">Variáveis serão preservadas nas
+                                                                variações</span>
                                                         </div>
-                                                        
-                                                        <textarea id="aiBaseMessage" class="input message-textarea-large" placeholder="Digite sua mensagem base aqui... A IA vai criar 10 variações diferentes mantendo o mesmo significado." rows="6" oninput="updateAiPreview()"></textarea>
-                                                        
+
+                                                        <textarea id="aiBaseMessage"
+                                                            class="input message-textarea-large"
+                                                            placeholder="Digite sua mensagem base aqui... A IA vai criar 10 variações diferentes mantendo o mesmo significado."
+                                                            rows="6" oninput="updateAiPreview()"></textarea>
+
                                                         <div class="ai-options">
                                                             <div class="ai-option-group">
                                                                 <label>Tom da mensagem:</label>
@@ -451,9 +504,10 @@
                                                                 </select>
                                                             </div>
                                                         </div>
-                                                        
+
                                                         <div class="ai-actions">
-                                                            <button class="btn btn-primary btn-ai" onclick="generateAiVariations()" id="btnGenerateAi">
+                                                            <button class="btn btn-primary btn-ai"
+                                                                onclick="generateAiVariations()" id="btnGenerateAi">
                                                                 Gerar Variações com IA
                                                             </button>
                                                             <label class="ai-checkbox">
@@ -461,80 +515,108 @@
                                                                 <span>Substituir mensagens existentes</span>
                                                             </label>
                                                         </div>
-                                                        
+
                                                         <!-- Preview das variações geradas -->
-                                                        <div id="aiVariationsPreview" class="ai-variations-preview" style="display: none;">
+                                                        <div id="aiVariationsPreview" class="ai-variations-preview"
+                                                            style="display: none;">
                                                             <div class="ai-variations-header">
                                                                 <h5>Variações Geradas</h5>
                                                                 <div class="ai-variations-actions">
-                                                                    <button class="btn btn-sm btn-secondary" type="button" id="btnApplySelected" onclick="applySelectedVariation()">Aplicar selecionada</button>
-                                                                    <button class="btn btn-sm btn-success" type="button" onclick="applyAiVariations()">Aplicar todas</button>
+                                                                    <button class="btn btn-sm btn-secondary"
+                                                                        type="button" id="btnApplySelected"
+                                                                        onclick="applySelectedVariation()">Aplicar
+                                                                        selecionada</button>
+                                                                    <button class="btn btn-sm btn-success" type="button"
+                                                                        onclick="applyAiVariations()">Aplicar
+                                                                        todas</button>
                                                                 </div>
                                                             </div>
                                                             <div id="aiVariationsList" class="ai-variations-list"></div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div id="aiDisabledMessage" class="ai-disabled-message">
-                                                        <p>Ative para gerar variações automáticas da sua mensagem usando inteligência artificial.</p>
+                                                        <p>Ative para gerar variações automáticas da sua mensagem usando
+                                                            inteligência artificial.</p>
                                                     </div>
                                                 </div>
-                                                
+
                                                 <div class="content-card" id="manualMessageCard">
                                                     <div class="ai-card-header">
                                                         <div class="ai-card-title">
                                                             <h4>Editor de Mensagem Manual</h4>
                                                         </div>
                                                         <label class="toggle-switch">
-                                                            <input type="checkbox" id="enableManualMessages" onchange="toggleManualMode()" checked>
+                                                            <input type="checkbox" id="enableManualMessages"
+                                                                onchange="toggleManualMode()" checked>
                                                             <span class="toggle-slider"></span>
                                                         </label>
                                                     </div>
-                                                    
+
                                                     <div id="manualModeContainer" class="manual-mode-container">
                                                         <!-- Badges de variáveis -->
                                                         <div class="variable-badges">
-                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{nome}}')">{{nome}}</button>
-                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{telefone}}')">{{telefone}}</button>
-                                                            <button type="button" class="variable-badge" onclick="insertVariable('{{custom1}}')">{{custom1}}</button>
-                                                            <span class="variable-hint">Clique para inserir variável</span>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariable('{{nome}}')">{{nome}}</button>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariable('{{telefone}}')">{{telefone}}</button>
+                                                            <button type="button" class="variable-badge"
+                                                                onclick="insertVariable('{{custom1}}')">{{custom1}}</button>
+                                                            <span class="variable-hint">Clique para inserir
+                                                                variável</span>
                                                         </div>
 
                                                         <!-- Textarea da mensagem -->
-                                                        <textarea id="newMessageText" class="input message-textarea-large" placeholder="Digite sua mensagem aqui..." rows="8" oninput="updateWhatsAppPreview()"></textarea>
-                                                        
+                                                        <textarea id="newMessageText"
+                                                            class="input message-textarea-large"
+                                                            placeholder="Digite sua mensagem aqui..." rows="8"
+                                                            oninput="updateWhatsAppPreview()"></textarea>
+
                                                         <!-- Preview de mídia global -->
-                                                        <div id="globalMediaPreview" class="global-media-preview" style="display: none;">
+                                                        <div id="globalMediaPreview" class="global-media-preview"
+                                                            style="display: none;">
                                                             <div class="media-preview-header">
-                                                                <span class="media-preview-badge">📎 Mídia anexada (será enviada com todas as mensagens)</span>
-                                                                <button class="btn btn-danger btn-sm" onclick="removeGlobalMedia()">Remover</button>
+                                                                <span class="media-preview-badge">📎 Mídia anexada (será
+                                                                    enviada com todas as mensagens)</span>
+                                                                <button class="btn btn-danger btn-sm"
+                                                                    onclick="removeGlobalMedia()">Remover</button>
                                                             </div>
-                                                            <div id="mediaPreviewContent" class="media-preview-content"></div>
+                                                            <div id="mediaPreviewContent" class="media-preview-content">
+                                                            </div>
                                                         </div>
-                                                        
+
                                                         <div class="editor-actions">
-                                                            <button class="btn btn-primary" onclick="addMessage()">Salvar Mensagem</button>
-                                                            <button class="btn btn-secondary" onclick="openMediaUpload()">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
-                                                                    <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                                                            <button class="btn btn-primary"
+                                                                onclick="addMessage()">Salvar Mensagem</button>
+                                                            <button class="btn btn-secondary"
+                                                                onclick="openMediaUpload()">
+                                                                <svg width="16" height="16" viewBox="0 0 24 24"
+                                                                    fill="currentColor" style="margin-right: 6px;">
+                                                                    <path
+                                                                        d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
                                                                 </svg>
                                                                 Anexar Mídia
                                                             </button>
                                                         </div>
-                                                        
+
                                                         <!-- Input oculto para upload de mídia -->
-                                                        <input type="file" id="mediaUploadInput" accept="image/*,video/*" onchange="uploadMedia()" style="display: none;">
+                                                        <input type="file" id="mediaUploadInput"
+                                                            accept="image/*,video/*" onchange="uploadMedia()"
+                                                            style="display: none;">
                                                     </div>
 
-                                                    <div id="manualDisabledMessage" class="ai-disabled-message" style="display: none;">
-                                                        <p>Desative a IA ou ative este editor para escrever mensagens manualmente.</p>
+                                                    <div id="manualDisabledMessage" class="ai-disabled-message"
+                                                        style="display: none;">
+                                                        <p>Desative a IA ou ative este editor para escrever mensagens
+                                                            manualmente.</p>
                                                     </div>
                                                 </div>
                                                 <!-- Lista de mensagens salvas -->
                                                 <div class="content-card">
                                                     <div class="messages-saved-header">
                                                         <h4>Mensagens Salvas</h4>
-                                                        <button class="btn btn-danger btn-sm" type="button" onclick="clearMessages()">Remover todas</button>
+                                                        <button class="btn btn-danger btn-sm" type="button"
+                                                            onclick="clearMessages()">Remover todas</button>
                                                     </div>
                                                     <div id="messagesList" class="messages-list"></div>
                                                 </div>
@@ -546,7 +628,7 @@
                                                     <div class="whatsapp-phone">
                                                         <!-- Notch -->
                                                         <div class="whatsapp-notch"></div>
-                                                        
+
                                                         <!-- Header WhatsApp -->
                                                         <div class="whatsapp-header">
                                                             <div class="whatsapp-avatar"></div>
@@ -560,8 +642,10 @@
                                                         <div class="whatsapp-chat">
                                                             <div class="whatsapp-chat-pattern"></div>
                                                             <div id="whatsappPreviewMessage" class="whatsapp-message">
-                                                                <p class="whatsapp-message-text">Pré-visualização da mensagem</p>
-                                                                <p class="whatsapp-message-time">10:42 <span class="whatsapp-check">✓✓</span></p>
+                                                                <p class="whatsapp-message-text">Pré-visualização da
+                                                                    mensagem</p>
+                                                                <p class="whatsapp-message-time">10:42 <span
+                                                                        class="whatsapp-check">✓✓</span></p>
                                                             </div>
                                                         </div>
 
@@ -570,8 +654,9 @@
                                                             <div class="whatsapp-footer-icon"></div>
                                                             <div class="whatsapp-footer-input"></div>
                                                             <div class="whatsapp-footer-send">
-                                                                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                                                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                                                <svg viewBox="0 0 24 24" fill="currentColor" width="14"
+                                                                    height="14">
+                                                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                                                                 </svg>
                                                             </div>
                                                         </div>
@@ -582,7 +667,8 @@
                                     </div>
 
                                     <!-- Aba interna: Disparo -->
-                                    <div class="campaign-tab-panel" data-campaign-tab-panel="dispatch" style="display: none;">
+                                    <div class="campaign-tab-panel" data-campaign-tab-panel="dispatch"
+                                        style="display: none;">
                                         <div class="dispatch-tab-layout">
                                             <!-- Coluna Esquerda: Configurações -->
                                             <div class="dispatch-config-col">
@@ -590,13 +676,16 @@
                                                 <div class="content-card linked-instances-card">
                                                     <div class="linked-instances-header">
                                                         <h4>Instâncias Vinculadas</h4>
-                                                        <button class="btn btn-sm btn-secondary" onclick="openLinkedInstancesModal()">
+                                                        <button class="btn btn-sm btn-secondary"
+                                                            onclick="openLinkedInstancesModal()">
                                                             Gerenciar
                                                         </button>
                                                     </div>
-                                                    <p class="linked-instances-hint">Selecione quais números de WhatsApp serão usados para enviar mensagens desta campanha.</p>
+                                                    <p class="linked-instances-hint">Selecione quais números de WhatsApp
+                                                        serão usados para enviar mensagens desta campanha.</p>
                                                     <div id="linkedInstancesList" class="linked-instances-list">
-                                                        <p class="empty-state-sm">Nenhuma instância vinculada. Clique em "Gerenciar" para vincular.</p>
+                                                        <p class="empty-state-sm">Nenhuma instância vinculada. Clique em
+                                                            "Gerenciar" para vincular.</p>
                                                     </div>
                                                 </div>
 
@@ -605,24 +694,33 @@
                                                     <div class="dispatch-settings-form">
                                                         <div class="form-group">
                                                             <label>Intervalo máximo entre mensagens (seg)</label>
-                                                            <input type="number" id="messageDelay" class="input" value="15" min="1" max="360" onchange="onDelayChanged()">
-                                                            <span class="form-hint">Os envios serão feitos em intervalos aleatórios entre 30% e 100% deste valor para simular comportamento humano.</span>
-                                                            <span id="delayFeedback" class="form-feedback" style="display: none;"></span>
+                                                            <input type="number" id="messageDelay" class="input"
+                                                                value="15" min="1" max="360"
+                                                                onchange="onDelayChanged()">
+                                                            <span class="form-hint">Os envios serão feitos em intervalos
+                                                                aleatórios entre 30% e 100% deste valor para simular
+                                                                comportamento humano.</span>
+                                                            <span id="delayFeedback" class="form-feedback"
+                                                                style="display: none;"></span>
                                                         </div>
                                                         <div class="dispatch-checkbox">
                                                             <label>
-                                                                <input type="checkbox" id="enablePauseAfterMessages" onchange="togglePauseOptions()">
+                                                                <input type="checkbox" id="enablePauseAfterMessages"
+                                                                    onchange="togglePauseOptions()">
                                                                 <span>Adicionar pausa após número de mensagens</span>
                                                             </label>
                                                         </div>
-                                                        <div id="pauseOptionsContainer" class="pause-options-container" style="display: none;">
+                                                        <div id="pauseOptionsContainer" class="pause-options-container"
+                                                            style="display: none;">
                                                             <div class="form-group">
                                                                 <label>Pausa após X mensagens</label>
-                                                                <input type="number" id="pauseAfterMessages" class="input" value="50" min="1" max="500">
+                                                                <input type="number" id="pauseAfterMessages"
+                                                                    class="input" value="50" min="1" max="500">
                                                             </div>
                                                             <div class="form-group">
                                                                 <label>Tempo de pausa (min)</label>
-                                                                <input type="number" id="pauseDuration" class="input" value="5" min="1" max="60">
+                                                                <input type="number" id="pauseDuration" class="input"
+                                                                    value="5" min="1" max="60">
                                                             </div>
                                                         </div>
                                                         <div class="dispatch-checkbox">
@@ -638,27 +736,34 @@
                                                 <div class="content-card dispatch-schedule-card">
                                                     <div class="schedule-header">
                                                         <h4>
-                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                                                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24"
+                                                                fill="currentColor">
+                                                                <path
+                                                                    d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" />
                                                             </svg>
                                                             Agendamento de Disparos
                                                         </h4>
                                                         <label class="toggle-switch">
-                                                            <input type="checkbox" id="enableSchedule" onchange="toggleScheduleOptions()">
+                                                            <input type="checkbox" id="enableSchedule"
+                                                                onchange="toggleScheduleOptions()">
                                                             <span class="toggle-slider"></span>
                                                         </label>
                                                     </div>
-                                                    <p class="schedule-hint">Configure horários para iniciar e parar os disparos automaticamente.</p>
-                                                    
-                                                    <div id="scheduleOptionsContainer" class="schedule-options" style="display: none;">
+                                                    <p class="schedule-hint">Configure horários para iniciar e parar os
+                                                        disparos automaticamente.</p>
+
+                                                    <div id="scheduleOptionsContainer" class="schedule-options"
+                                                        style="display: none;">
                                                         <div class="schedule-time-row">
                                                             <div class="schedule-time-group">
                                                                 <label>Iniciar às</label>
-                                                                <input type="time" id="scheduleStartTime" class="input input-time" value="08:00">
+                                                                <input type="time" id="scheduleStartTime"
+                                                                    class="input input-time" value="08:00">
                                                             </div>
                                                             <div class="schedule-time-group">
                                                                 <label>Parar às</label>
-                                                                <input type="time" id="scheduleEndTime" class="input input-time" value="18:00">
+                                                                <input type="time" id="scheduleEndTime"
+                                                                    class="input input-time" value="18:00">
                                                             </div>
                                                         </div>
                                                         <div class="schedule-days">
@@ -668,19 +773,24 @@
                                                                     <input type="checkbox" id="scheduleDay0"> Dom
                                                                 </label>
                                                                 <label class="schedule-day">
-                                                                    <input type="checkbox" id="scheduleDay1" checked> Seg
+                                                                    <input type="checkbox" id="scheduleDay1" checked>
+                                                                    Seg
                                                                 </label>
                                                                 <label class="schedule-day">
-                                                                    <input type="checkbox" id="scheduleDay2" checked> Ter
+                                                                    <input type="checkbox" id="scheduleDay2" checked>
+                                                                    Ter
                                                                 </label>
                                                                 <label class="schedule-day">
-                                                                    <input type="checkbox" id="scheduleDay3" checked> Qua
+                                                                    <input type="checkbox" id="scheduleDay3" checked>
+                                                                    Qua
                                                                 </label>
                                                                 <label class="schedule-day">
-                                                                    <input type="checkbox" id="scheduleDay4" checked> Qui
+                                                                    <input type="checkbox" id="scheduleDay4" checked>
+                                                                    Qui
                                                                 </label>
                                                                 <label class="schedule-day">
-                                                                    <input type="checkbox" id="scheduleDay5" checked> Sex
+                                                                    <input type="checkbox" id="scheduleDay5" checked>
+                                                                    Sex
                                                                 </label>
                                                                 <label class="schedule-day">
                                                                     <input type="checkbox" id="scheduleDay6"> Sáb
@@ -689,7 +799,8 @@
                                                         </div>
                                                         <div id="scheduleStatus" class="schedule-status">
                                                             <span class="schedule-status-dot"></span>
-                                                            <span class="schedule-status-text">Agendamento inativo</span>
+                                                            <span class="schedule-status-text">Agendamento
+                                                                inativo</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -700,8 +811,10 @@
                                                 <div class="console-window">
                                                     <div class="console-header">
                                                         <div class="console-header-left">
-                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                                                                <path d="M20 19V7H4v12h16m0-16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h16m-7 14v-2h5v2h-5m-3.13-4.41L8.41 11.13l1.42-1.41 1.46 1.46 3.18-3.18 1.41 1.41-4.61 4.59z"/>
+                                                            <svg width="18" height="18" viewBox="0 0 24 24"
+                                                                fill="currentColor">
+                                                                <path
+                                                                    d="M20 19V7H4v12h16m0-16a2 2 0 012 2v14a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h16m-7 14v-2h5v2h-5m-3.13-4.41L8.41 11.13l1.42-1.41 1.46 1.46 3.18-3.18 1.41 1.41-4.61 4.59z" />
                                                             </svg>
                                                             <span>Console de Execução</span>
                                                         </div>
@@ -712,29 +825,36 @@
                                                         </div>
                                                     </div>
                                                     <div class="console-body" id="dispatchConsole">
-                                                        <p class="console-line console-muted">Inicializando sistema de disparos v2.4...</p>
+                                                        <p class="console-line console-muted">Inicializando sistema de
+                                                            disparos v2.4...</p>
                                                         <p class="console-line console-muted">Aguardando comando...</p>
                                                     </div>
-                                                    <div class="console-cursor" id="consoleCursor" style="display: none;"></div>
+                                                    <div class="console-cursor" id="consoleCursor"
+                                                        style="display: none;"></div>
                                                 </div>
 
                                                 <div class="dispatch-control-card">
                                                     <h4>Controle da Campanha</h4>
-                                                    <p class="dispatch-control-hint">Certifique-se que o WhatsApp está conectado antes de iniciar.</p>
-                                                    
+                                                    <p class="dispatch-control-hint">Certifique-se que o WhatsApp está
+                                                        conectado antes de iniciar.</p>
+
                                                     <div id="dispatchMainControl">
-                                                        <button class="btn btn-primary btn-dispatch-main" onclick="startDispatch()">
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                                <path d="M8 5v14l11-7z"/>
+                                                        <button class="btn btn-primary btn-dispatch-main"
+                                                            onclick="startDispatch()">
+                                                            <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                fill="currentColor">
+                                                                <path d="M8 5v14l11-7z" />
                                                             </svg>
                                                             Iniciar Disparos
                                                         </button>
                                                     </div>
 
                                                     <div id="dispatchRunningControls" style="display: none;">
-                                                        <button class="btn btn-danger btn-dispatch-main" onclick="pauseDispatch()">
-                                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                                                        <button class="btn btn-danger btn-dispatch-main"
+                                                            onclick="pauseDispatch()">
+                                                            <svg width="20" height="20" viewBox="0 0 24 24"
+                                                                fill="currentColor">
+                                                                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                                                             </svg>
                                                             Pausar Envio
                                                         </button>
@@ -743,14 +863,16 @@
                                                     <div id="dispatchPausedControls" style="display: none;">
                                                         <div class="dispatch-paused-btns">
                                                             <button class="btn btn-primary" onclick="resumeDispatch()">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <path d="M8 5v14l11-7z"/>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24"
+                                                                    fill="currentColor">
+                                                                    <path d="M8 5v14l11-7z" />
                                                                 </svg>
                                                                 Retomar
                                                             </button>
                                                             <button class="btn btn-danger" onclick="stopDispatch()">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <path d="M6 6h12v12H6z"/>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24"
+                                                                    fill="currentColor">
+                                                                    <path d="M6 6h12v12H6z" />
                                                                 </svg>
                                                                 Parar
                                                             </button>
@@ -759,7 +881,8 @@
                                                 </div>
 
                                                 <!-- Progresso -->
-                                                <div id="dispatchProgress" class="dispatch-progress-card" style="display: none;">
+                                                <div id="dispatchProgress" class="dispatch-progress-card"
+                                                    style="display: none;">
                                                     <h4>Progresso do Disparo</h4>
                                                     <div class="dispatch-progress-bar">
                                                         <div id="progressBar" class="dispatch-progress-fill"></div>
@@ -777,137 +900,144 @@
                     <!-- Tab Agendamento (legacy - mantido para compatibilidade) -->
                     <div id="tab-schedule" class="tab-content">
                         <h3>Agendamento Automático</h3>
-                    
-                    <div class="schedule-info">
-                        <div class="alert alert-info">
-                            <strong> Agendamento Automático</strong><br>
-                            Configure horários para iniciar, pausar e parar campanhas automaticamente. Perfeito para envios em horário comercial.
-                        </div>
-                    </div>
 
-                    <div class="form-group">
-                        <label>Selecione a Campanha</label>
-                        <select id="scheduleCampaign" class="input" onchange="loadSchedule()">
-                            <option value="">-- Selecione --</option>
-                        </select>
-                    </div>
-
-                    <div id="scheduleForm" style="display: none;">
-                        <div class="schedule-container">
-                            <div class="schedule-toggle">
-                                <label class="switch">
-                                    <input type="checkbox" id="scheduleEnabled">
-                                    <span class="slider"></span>
-                                </label>
-                                <span>Agendamento Ativo</span>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label> Horário de Início</label>
-                                    <input type="time" id="startTime" class="input">
-                                    <small>Campanha inicia automaticamente neste horário</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <label> Horário de Pausa</label>
-                                    <input type="time" id="pauseTime" class="input">
-                                    <small>Pausa temporária (ex: horário de almoço)</small>
-                                </div>
-                            </div>
-
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label> Horário de Parada (Opcional)</label>
-                                    <input type="time" id="stopTime" class="input">
-                                    <small>Para completamente (fim do expediente)</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <label class="checkbox-label">
-                                        <input type="checkbox" id="autoResume" checked>
-                                        <span>Retomar automaticamente após pausa</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label> Dias da Semana</label>
-                                <div class="days-selector">
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="0" class="day-input">
-                                        <span>Dom</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="1" class="day-input" checked>
-                                        <span>Seg</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="2" class="day-input" checked>
-                                        <span>Ter</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="3" class="day-input" checked>
-                                        <span>Qua</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="4" class="day-input" checked>
-                                        <span>Qui</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="5" class="day-input" checked>
-                                        <span>Sex</span>
-                                    </label>
-                                    <label class="day-checkbox">
-                                        <input type="checkbox" value="6" class="day-input">
-                                        <span>Sáb</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="schedule-preview" id="schedulePreview">
-                                <!-- Preview será gerado dinamicamente -->
-                            </div>
-
-                            <div class="form-actions">
-                                <button class="btn btn-primary" onclick="saveSchedule()">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
-                                    </svg>
-                                    Salvar Agendamento
-                                </button>
-                                <button class="btn btn-danger" onclick="removeSchedule()">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                                    </svg>
-                                    Remover Agendamento
-                                </button>
+                        <div class="schedule-info">
+                            <div class="alert alert-info">
+                                <strong> Agendamento Automático</strong><br>
+                                Configure horários para iniciar, pausar e parar campanhas automaticamente. Perfeito para
+                                envios em horário comercial.
                             </div>
                         </div>
-                    </div>
 
-                    <div class="schedules-list">
-                        <h3>Agendamentos Ativos</h3>
-                        <div id="schedulesList"></div>
-                    </div>
+                        <div class="form-group">
+                            <label>Selecione a Campanha</label>
+                            <select id="scheduleCampaign" class="input" onchange="loadSchedule()">
+                                <option value="">-- Selecione --</option>
+                            </select>
+                        </div>
 
-                    <!-- Campanhas Agendadas (integrado) -->
-                    <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3> Campanhas Agendadas</h3>
-                            <div>
-                                <select id="schedulerStatus" class="form-control" style="width: 130px; display: inline-block;" onchange="loadScheduledCampaigns()">
-                                    <option value="">Todos</option>
-                                    <option value="pending">Pendentes</option>
-                                    <option value="completed">Executados</option>
-                                </select>
-                                <button class="btn btn-primary" onclick="showSchedulerModal()" style="margin-left: 5px;">+ Nova Campanha</button>
+                        <div id="scheduleForm" style="display: none;">
+                            <div class="schedule-container">
+                                <div class="schedule-toggle">
+                                    <label class="switch">
+                                        <input type="checkbox" id="scheduleEnabled">
+                                        <span class="slider"></span>
+                                    </label>
+                                    <span>Agendamento Ativo</span>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label> Horário de Início</label>
+                                        <input type="time" id="startTime" class="input">
+                                        <small>Campanha inicia automaticamente neste horário</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label> Horário de Pausa</label>
+                                        <input type="time" id="pauseTime" class="input">
+                                        <small>Pausa temporária (ex: horário de almoço)</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label> Horário de Parada (Opcional)</label>
+                                        <input type="time" id="stopTime" class="input">
+                                        <small>Para completamente (fim do expediente)</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="autoResume" checked>
+                                            <span>Retomar automaticamente após pausa</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label> Dias da Semana</label>
+                                    <div class="days-selector">
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="0" class="day-input">
+                                            <span>Dom</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="1" class="day-input" checked>
+                                            <span>Seg</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="2" class="day-input" checked>
+                                            <span>Ter</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="3" class="day-input" checked>
+                                            <span>Qua</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="4" class="day-input" checked>
+                                            <span>Qui</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="5" class="day-input" checked>
+                                            <span>Sex</span>
+                                        </label>
+                                        <label class="day-checkbox">
+                                            <input type="checkbox" value="6" class="day-input">
+                                            <span>Sáb</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="schedule-preview" id="schedulePreview">
+                                    <!-- Preview será gerado dinamicamente -->
+                                </div>
+
+                                <div class="form-actions">
+                                    <button class="btn btn-primary" onclick="saveSchedule()">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path
+                                                d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+                                        </svg>
+                                        Salvar Agendamento
+                                    </button>
+                                    <button class="btn btn-danger" onclick="removeSchedule()">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <path
+                                                d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                                        </svg>
+                                        Remover Agendamento
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div id="scheduledList" style="display: flex; flex-direction: column; gap: 10px;">
-                            <!-- Campanhas agendadas serão carregadas aqui -->
+
+                        <div class="schedules-list">
+                            <h3>Agendamentos Ativos</h3>
+                            <div id="schedulesList"></div>
                         </div>
-                    </div>
+
+                        <!-- Campanhas Agendadas (integrado) -->
+                        <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3> Campanhas Agendadas</h3>
+                                <div>
+                                    <select id="schedulerStatus" class="form-control"
+                                        style="width: 130px; display: inline-block;"
+                                        onchange="loadScheduledCampaigns()">
+                                        <option value="">Todos</option>
+                                        <option value="pending">Pendentes</option>
+                                        <option value="completed">Executados</option>
+                                    </select>
+                                    <button class="btn btn-primary" onclick="showSchedulerModal()"
+                                        style="margin-left: 5px;">+ Nova Campanha</button>
+                                </div>
+                            </div>
+                            <div id="scheduledList" style="display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Campanhas agendadas serão carregadas aqui -->
+                            </div>
+                        </div>
                     </div> <!-- Fim Tab Schedule -->
 
                 </section>
@@ -979,12 +1109,14 @@
                 <button class="modal-close" onclick="closeLinkedInstancesModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="modal-description">Selecione quais instâncias de WhatsApp serão usadas para disparar mensagens desta campanha. Se nenhuma estiver selecionada, todas as instâncias conectadas serão utilizadas.</p>
+                <p class="modal-description">Selecione quais instâncias de WhatsApp serão usadas para disparar mensagens
+                    desta campanha. Se nenhuma estiver selecionada, todas as instâncias conectadas serão utilizadas.</p>
                 <div id="instancesCheckboxList" class="instances-checkbox-list">
                     <!-- Checkboxes serão renderizados dinamicamente -->
                 </div>
                 <div id="noInstancesWarning" class="alert alert-warning" style="display: none;">
-                    <strong>Atenção:</strong> Você ainda não possui instâncias conectadas. Vá para a seção "Conexões" para configurar suas instâncias de WhatsApp.
+                    <strong>Atenção:</strong> Você ainda não possui instâncias conectadas. Vá para a seção "Conexões"
+                    para configurar suas instâncias de WhatsApp.
                 </div>
             </div>
             <div class="modal-footer">
@@ -1031,24 +1163,24 @@
 
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
-    
+
     <!-- Firebase Authentication Check -->
     <script type="module">
         import { checkAuthState, logout, getCurrentToken } from './firebase-auth.js';
-        
+
         // Verifica autenticação antes de carregar app
         try {
             const user = await checkAuthState();
             console.log(' Usuário autenticado:', user.email);
-            
+
             // Define função global de logout
-            window.handleLogout = async function() {
+            window.handleLogout = async function () {
                 const confirmed = await window.showConfirmModal('Sair', 'Deseja realmente sair do sistema?', 'Sair', 'btn-danger');
                 if (confirmed) {
                     await logout();
                 }
             };
-            
+
             // Atualiza informações do usuário na barra lateral
             const displayName = user.displayName || user.email;
             const nameElement = document.getElementById('userName');
@@ -1059,7 +1191,7 @@
             if (avatarElement && displayName) {
                 avatarElement.textContent = (displayName[0] || 'U').toUpperCase();
             }
-            
+
             // Verifica se é admin para mostrar link de administração e dados do plano
             try {
                 const token = await getCurrentToken();
@@ -1072,7 +1204,7 @@
                 }
                 // Salva maxInstances para uso no app
                 window.userMaxInstances = data.user?.maxInstances || 3;
-                
+
                 const planElement = document.getElementById('userPlan');
                 if (planElement) {
                     const maxInst = data.user?.maxInstances || 3;
@@ -1081,20 +1213,21 @@
             } catch (e) {
                 console.log('Não foi possível verificar role do usuário');
             }
-            
+
             // Autenticação OK - mostra conteúdo e esconde loading
             document.getElementById('authLoading').style.display = 'none';
             document.getElementById('mainContainer').style.display = 'block';
-            
+
             // Carrega o app.js dinamicamente após autenticação
             const script = document.createElement('script');
             script.src = '/app.js';
             document.body.appendChild(script);
-            
+
         } catch (error) {
             console.error('❌ Não autenticado:', error.message);
             window.location.href = '/login.html';
         }
     </script>
 </body>
+
 </html>

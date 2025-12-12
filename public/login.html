@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Vext</title>
+    <title>Login - Arauto</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -67,7 +67,7 @@
                             </svg>
                         </div>
                         <div>
-                            <h1 class="text-4xl font-semibold tracking-tight text-white">Vext</h1>
+                            <h1 class="text-4xl font-semibold tracking-tight text-white">Arauto</h1>
                             <p class="text-sm text-slate-200">Sistema de campanhas para WhatsApp em escala</p>
                         </div>
                     </div>
@@ -105,7 +105,7 @@
                                     fill="#ffffff" />
                             </svg>
                         </div>
-                        <h2 class="text-xl font-semibold text-white">Vext</h2>
+                        <h2 class="text-xl font-semibold text-white">Arauto</h2>
                         <p class="text-sm text-slate-300">Gerenciamento de Campanhas</p>
                     </div>
 
@@ -113,12 +113,14 @@
                         <h2 class="text-2xl font-semibold tracking-tight text-white">Acesse seu painel</h2>
                         <p class="mt-2 text-sm text-slate-300">Faça login ou crie uma conta para começar a disparar
                             campanhas.</p>
+                        <!-- Link para planos oculto temporariamente
                         <p class="mt-2 text-xs text-slate-400">
                             Ainda não escolheu um plano?
                             <a href="/plans.html"
                                 class="text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline">Ver
                                 planos</a>
                         </p>
+                        -->
                     </div>
 
                     <!-- Tabs -->
@@ -163,12 +165,14 @@
 
                     <!-- Register Form -->
                     <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-5 hidden">
+                        <!-- Seção de plano selecionado oculta temporariamente
                         <div id="selectedPlanInfo"
                             class="hidden rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
                             <p class="font-semibold text-emerald-200 text-sm">Plano selecionado</p>
                             <p id="selectedPlanName" class="text-sm"></p>
                             <p id="selectedPlanDetails" class="text-[11px] text-emerald-200/80"></p>
                         </div>
+                        -->
                         <div>
                             <label for="registerName" class="mb-1 block text-sm font-medium text-slate-200">Nome
                                 Completo</label>
@@ -215,7 +219,7 @@
                                 class="text-indigo-300 hover:text-indigo-200 underline-offset-2 hover:underline">Política
                                 de Privacidade</a>.
                         </p>
-                        <p class="mt-3 text-xs text-slate-500">© 2025 Vext. Todos os direitos reservados.</p>
+                        <p class="mt-3 text-xs text-slate-500">© 2025 Arauto. Todos os direitos reservados.</p>
                     </div>
                 </div>
             </div>
@@ -391,12 +395,14 @@
             const btn = event.target.querySelector('button');
             const originalText = btn.innerText;
 
-            const selectedPlanRaw = localStorage.getItem('vextSelectedPlan');
-            if (!selectedPlanRaw) {
-                showAlert('Antes de criar sua conta, escolha um plano.', 'error');
-                setTimeout(() => { window.location.href = '/plans.html'; }, 1200);
-                return;
-            }
+            // Verificação de plano desativada temporariamente
+            // const selectedPlanRaw = localStorage.getItem('vextSelectedPlan');
+            // if (!selectedPlanRaw) {
+            //     showAlert('Antes de criar sua conta, escolha um plano.', 'error');
+            //     setTimeout(() => { window.location.href = '/plans.html'; }, 1200);
+            //     return;
+            // }
+            const selectedPlanRaw = null; // Bypassa verificação de plano
 
             if (password !== passwordConfirm) {
                 showAlert('As senhas não coincidem', 'error');
@@ -419,17 +425,22 @@
                 await updateProfile(user, { displayName: name });
                 const token = await user.getIdToken();
 
-                showAlert('Conta criada com sucesso! Redirecionando para pagamento...', 'success');
-
-                const selectedPlan = JSON.parse(selectedPlanRaw);
+                showAlert('Conta criada com sucesso! Redirecionando...', 'success');
 
                 localStorage.setItem('firebaseToken', token);
                 localStorage.setItem('user', JSON.stringify({
                     uid: user.uid,
                     email: user.email,
-                    displayName: name,
-                    plan: selectedPlan
+                    displayName: name
                 }));
+
+                // Redireciona direto para o dashboard (sem checkout Stripe)
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+
+                /* Fluxo de pagamento desativado temporariamente
+                const selectedPlan = JSON.parse(selectedPlanRaw);
 
                 // Cria sessão de checkout do Stripe
                 try {
@@ -459,6 +470,7 @@
                     console.error('Erro ao criar checkout:', checkoutError);
                     window.location.href = '/';
                 }
+                */
             } catch (error) {
                 console.error('Erro no registro:', error);
                 let errorMessage = 'Erro ao criar conta';

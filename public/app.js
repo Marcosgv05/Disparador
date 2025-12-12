@@ -4086,14 +4086,16 @@ window.logoutAndRedirect = logoutAndRedirect;
 // ==== INITIALIZATION ====
 
 async function initializeApp() {
-    // Verifica assinatura antes de carregar o app
-    const subscription = await checkSubscriptionStatus();
+    // Verificação de assinatura desativada temporariamente
+    // const subscription = await checkSubscriptionStatus();
+    // if ((!subscription.hasSubscription || subscription.status !== 'active') && !subscription.subscriptionBypass) {
+    //     // Usuário não tem assinatura ativa
+    //     showSubscriptionRequired();
+    //     return;
+    // }
 
-    if ((!subscription.hasSubscription || subscription.status !== 'active') && !subscription.subscriptionBypass) {
-        // Usuário não tem assinatura ativa
-        showSubscriptionRequired();
-        return;
-    }
+    // Bypass: sempre libera acesso
+    const subscription = { hasSubscription: true, status: 'active', planName: 'Free', subscriptionBypass: true };
 
     // Salva info do plano no state
     state.subscription = subscription;
