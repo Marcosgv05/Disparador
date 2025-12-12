@@ -287,7 +287,32 @@ function updateWhatsAppPreview() {
 
     let message = textarea.value.trim();
 
-    if (!message) {
+    // Verifica se há mídia anexada na campanha atual
+    const hasMedia = state.currentCampaign && state.currentCampaign.media;
+    let mediaHtml = '';
+
+    if (hasMedia) {
+        const media = state.currentCampaign.media;
+        const mediaUrl = `/media/${media.mediaFilename}`;
+
+        if (media.type === 'image') {
+            mediaHtml = `
+                <div class="whatsapp-preview-media">
+                    <img src="${mediaUrl}" alt="Mídia anexada" class="whatsapp-preview-image">
+                </div>
+            `;
+        } else if (media.type === 'video') {
+            mediaHtml = `
+                <div class="whatsapp-preview-media whatsapp-preview-video">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                </div>
+            `;
+        }
+    }
+
+    if (!message && !hasMedia) {
         preview.innerHTML = `
             <p class="whatsapp-message-text" style="opacity: 0.5; font-style: italic;">Pré-visualização da mensagem</p>
         `;
@@ -295,16 +320,19 @@ function updateWhatsAppPreview() {
     }
 
     // Substitui variáveis por exemplos
-    message = message
-        .replace(/\{\{nome\}\}/g, 'João Silva')
-        .replace(/\{\{telefone\}\}/g, '+55 11 99999-9999')
-        .replace(/\{\{custom1\}\}/g, 'valor personalizado');
+    if (message) {
+        message = message
+            .replace(/\{\{nome\}\}/g, 'João Silva')
+            .replace(/\{\{telefone\}\}/g, '+55 11 99999-9999')
+            .replace(/\{\{custom1\}\}/g, 'valor personalizado');
+    }
 
     const now = new Date();
     const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
     preview.innerHTML = `
-        <p class="whatsapp-message-text">${escapeHtml(message)}</p>
+        ${mediaHtml}
+        ${message ? `<p class="whatsapp-message-text">${escapeHtml(message)}</p>` : ''}
         <p class="whatsapp-message-time">${time} <span class="whatsapp-check">✓✓</span></p>
     `;
 }
@@ -1678,6 +1706,9 @@ function showGlobalMediaPreview(media) {
     }
 
     previewContainer.style.display = 'block';
+
+    // Atualiza também o preview do WhatsApp para mostrar a mídia
+    updateWhatsAppPreview();
 }
 
 async function removeGlobalMedia() {
@@ -1712,6 +1743,9 @@ async function removeGlobalMedia() {
 
         showToast('Mídia removida', 'success');
         addConsoleLog('Mídia removida da campanha', 'muted');
+
+        // Atualiza o preview do WhatsApp para remover a mídia
+        updateWhatsAppPreview();
 
     } catch (error) {
         console.error('Erro ao remover mídia:', error);

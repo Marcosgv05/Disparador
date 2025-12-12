@@ -3138,6 +3138,32 @@ input:checked+.slider:before {
     color: #53bdeb;
 }
 
+/* Mídia no Preview WhatsApp */
+.whatsapp-preview-media {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.whatsapp-preview-image {
+    width: 100%;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+}
+
+.whatsapp-preview-video {
+    width: 100%;
+    height: 100px;
+    background: linear-gradient(135deg, #1e293b, #334155);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
 .whatsapp-footer {
     background: #1f2c34;
     padding: 0.5rem;
