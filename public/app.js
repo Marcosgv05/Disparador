@@ -217,6 +217,15 @@ window.showConfirmModal = showConfirmModal;
 window.closeCustomInputModal = closeCustomInputModal;
 window.closeCustomConfirmModal = closeCustomConfirmModal;
 
+// Função para fechar o modal genérico
+function closeModal() {
+    const modal = document.getElementById('confirmModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+window.closeModal = closeModal;
+
 // Atualiza o status de conexão no cabeçalho (canto superior direito)
 function updateHeaderConnectionStatus() {
     const statusEl = document.getElementById('sessionStatus');
@@ -344,6 +353,10 @@ function escapeHtml(text) {
     return div.innerHTML.replace(/\n/g, '<br>');
 }
 
+// Expõe funções globalmente para uso no HTML
+window.updateWhatsAppPreview = updateWhatsAppPreview;
+window.insertVariable = insertVariable;
+
 // ================================
 // FUNÇÕES DA ABA DISPARO (Console)
 // ================================
@@ -386,6 +399,43 @@ function updateDispatchControls(status) {
     if (pausedControls) pausedControls.style.display = status === 'paused' ? 'block' : 'none';
     if (cursor) cursor.style.display = status === 'running' ? 'block' : 'none';
 }
+
+// Atualiza exibição do último disparo realizado
+function updateLastDispatchDisplay() {
+    const displayElement = document.getElementById('lastDispatchTime');
+    if (!displayElement) return;
+
+    const savedData = localStorage.getItem('lastDispatch');
+    if (!savedData) {
+        displayElement.textContent = 'Nenhum disparo registrado';
+        return;
+    }
+
+    try {
+        const { campaignName, timestamp } = JSON.parse(savedData);
+        const date = new Date(timestamp);
+
+        // Formata a data: "12/12/2025 às 10:30"
+        const formattedDate = date.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        const formattedTime = date.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        displayElement.textContent = `${formattedDate} às ${formattedTime} - Campanha: ${campaignName}`;
+    } catch (e) {
+        displayElement.textContent = 'Nenhum disparo registrado';
+    }
+}
+
+// Carrega o último disparo ao iniciar a página
+document.addEventListener('DOMContentLoaded', () => {
+    updateLastDispatchDisplay();
+});
 
 // Alterna abas internas da página de campanha (Visão Geral / Audiência / Conteúdo / Disparo)
 function setCampaignInnerTab(tabKey) {
@@ -1916,6 +1966,10 @@ async function saveEditedMessage(campaignName, index) {
     }
 }
 
+// Expõe funções globalmente para uso no HTML
+window.editMessage = editMessage;
+window.saveEditedMessage = saveEditedMessage;
+
 function renderMessages(campaign) {
     const container = document.getElementById('messagesList');
 
@@ -2169,6 +2223,14 @@ async function startDispatch() {
             method: 'POST',
             body: JSON.stringify(payload)
         });
+
+        // Salva registro do último disparo
+        const lastDispatchInfo = {
+            campaignName: campaignName,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('lastDispatch', JSON.stringify(lastDispatchInfo));
+        updateLastDispatchDisplay();
 
         showToast('Disparo iniciado!', 'success');
         updateDispatchControls('running');

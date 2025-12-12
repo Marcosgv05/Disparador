@@ -4335,3 +4335,47 @@ input:checked+.slider:before {
         align-items: stretch;
     }
 }
+
+/* Card de Registro do Último Disparo */
+.dispatch-last-record-card {
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(39, 39, 42, 0.8);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+}
+
+.dispatch-last-record-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(39, 39, 42, 0.6);
+}
+
+.dispatch-last-record-header svg {
+    color: var(--primary);
+}
+
+.dispatch-last-record-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.dispatch-last-record-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.dispatch-last-record-value {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #e2e8f0;
+    margin: 0;
+}
